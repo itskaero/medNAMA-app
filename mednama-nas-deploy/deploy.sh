@@ -97,6 +97,22 @@ else
   echo "Skipped (--no-backup)."
 fi
 
+step "Vector index (built while the current app keeps running)"
+# HNSW index for chunk vector search (migration e5a7c9d1f3b5). Building it here,
+# CONCURRENTLY and single-process (Docker's 64 MB /dev/shm is too small for
+# parallel builds), avoids a long unhealthy start when the migration would
+# otherwise build it. No-op once it exists.
+if docker ps --format '{{.Names}}' | grep -qx "$DB_CONTAINER"; then
+  HAS_INDEX="$(docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -At -c     "select count(*) from pg_index where indexrelid = to_regclass('idx_chunks_child_embedding_hnsw') and indisvalid" 2>/dev/null || echo 0)"
+  if [ "$HAS_INDEX" = "1" ]; then
+    echo "Already present."
+  else
+    echo "Building (roughly 5-20 min on a NAS; the site stays up)..."
+    docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1       -c "DROP INDEX CONCURRENTLY IF EXISTS idx_chunks_child_embedding_hnsw"       -c "SET maintenance_work_mem = '${MEDNAMA_INDEX_MEM:-512MB}'"       -c "SET max_parallel_maintenance_workers = 0"       -c "CREATE INDEX CONCURRENTLY idx_chunks_child_embedding_hnsw ON chunks USING hnsw (embedding vector_cosine_ops) WHERE parent_id IS NOT NULL"
+    echo "Vector index built."
+  fi
+fi
+
 step "[4/8] Keeping current images as :previous (for rollback.sh)"
 for img in app-backend app-frontend; do
   if docker image inspect "$img:latest" >/dev/null 2>&1; then

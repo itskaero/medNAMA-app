@@ -332,3 +332,13 @@ The books were added for **trust, MCQ content and level setting** (undergraduate
 - The HPS fluid question still cites Bailey p.280 and now attaches "Figure 17.9 Pyloromyotomy".
 
 **Known issue (pre-existing, not fixed):** the first migration `f4faedc5e8bb_initial_schema` alters tables it doesn't create, so `alembic upgrade head` fails on a brand-new empty database. Existing databases (PC, NAS) are unaffected. Fresh installs must restore a dump first.
+
+**NAS performance (found during the first NAS deploy):**
+- On the NAS (4 cores, 3.8 GB RAM) answers took 31–48 s. DeepSeek accounted for only 4–7 s; the rest was retrieval.
+- A 4-thread profile showed the main cost was vector search: **~19 s cold for two queries.** The query ordered by `1 - distance DESC`, which no index can serve, and there was no vector index anyway, so every question scanned ~400 MB of embeddings. The NAS has too little RAM to cache that.
+- Fixes:
+  - HNSW index `idx_chunks_child_embedding_hnsw` (migration `e5a7c9d1f3b5`, 812 MB). `deploy.sh` builds it CONCURRENTLY before switching images, so the site stays up and the migration is a no-op. Single-process, because Docker's 64 MB `/dev/shm` breaks parallel builds.
+  - `vector_search` now orders by distance, with `hnsw.ef_search` scaled to the limit and iterative scans when filtering by book or chapter.
+  - Result: vector search **19 s → 0.07–0.16 s**.
+- The rerank pool shrank from 24 to 16 by fused rank, plus the top 3 of every individual result list. The top-3 guarantee was needed because Bailey's angiofibroma paragraph ranks #2 in one list but #19 after fusion. Neighbour paragraphs are scored in one batch with the rewritten query only.
+- The 21-question suite is unchanged (21/21 with context; multi-book questions 2–4 books).

@@ -23,12 +23,10 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import func, text
+from sqlalchemy import func, text, tuple_
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
-from sqlalchemy import tuple_
-
 from app.models import Book, Chunk, Figure
 
 logger = logging.getLogger(__name__)
@@ -121,6 +119,12 @@ MAX_PER_BOOK = 2
 # relevant (first-stage score) or are a short caption/heading right next to it.
 NEIGHBOR_MIN_SCORE = -6.0
 SHORT_NEIGHBOR_CHARS = 200
+NEIGHBOR_CHARS = 800       # text scored per neighbour paragraph
+# Passages sent to the cross-encoder: the best RERANK_POOL by fused rank plus the
+# top PER_LIST_TOP of every individual vector/keyword list (so a passage one method
+# ranks highly is never lost in fusion). ~16-22 candidates instead of 24.
+RERANK_POOL = 16
+PER_LIST_TOP = 3
 # Figures: shown only when their printed caption matches the question.
 FIGURE_MIN_SIM = 0.60
 FIGURE_MENTIONED_MIN_SIM = 0.50
@@ -339,18 +343,31 @@ class RetrievalService:
         return embedding.tolist()
 
     def vector_search(self, session: Session, query_embedding: list[float], limit: int = 50, book_id: int | None = None, chapter: str | None = None) -> list[tuple[Chunk, float]]:
-        """Run vector similarity search on child chunks. Optional book/chapter filtering."""
-        query_stmt = session.query(
-            Chunk, (1.0 - Chunk.embedding.cosine_distance(query_embedding)).label("score")
-        ).filter(Chunk.parent_id.isnot(None))
+        """Run vector similarity search on child chunks. Optional book/chapter filtering.
 
+        Ordered by cosine *distance* ascending so Postgres can use the HNSW index
+        idx_chunks_child_embedding_hnsw (ordering by "1 - distance DESC" cannot
+        use it and forced a full scan of ~400 MB of vectors per query: ~10 s
+        cold on the NAS). With a book/chapter filter, iterative index scans keep
+        returning rows until `limit` matches are found (pgvector >= 0.8).
+        """
+        distance = Chunk.embedding.cosine_distance(query_embedding)
+        # SET LOCAL: scoped to this transaction, so it never leaks to other queries.
+        session.execute(text(f"SET LOCAL hnsw.ef_search = {max(limit * 3, 100)}"))
+        if book_id is not None or chapter:
+            session.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
+
+        query_stmt = session.query(Chunk, (1.0 - distance).label("score")).filter(Chunk.parent_id.isnot(None))
         if book_id is not None:
             query_stmt = query_stmt.filter(Chunk.book_id == book_id)
         if chapter:
             query_stmt = query_stmt.filter(Chunk.chapter.ilike(f"%{chapter.strip()}%"))
 
-        stmt = query_stmt.order_by(text("score DESC")).limit(limit)
-        return [(row[0], float(row[1])) for row in stmt.all()]
+        rows = query_stmt.order_by(distance).limit(limit).all()
+        results = [(row[0], float(row[1])) for row in rows]
+        # relaxed_order can return slightly out-of-order rows; restore strict order.
+        results.sort(key=lambda r: r[1], reverse=True)
+        return results
 
     def _run_keyword_sql(self, session: Session, tsquery_sql: str, query_param: str, limit: int,
                          book_id: int | None, chapter: str | None) -> list[tuple[int, float]]:
@@ -463,12 +480,12 @@ class RetrievalService:
                 others = [nid for nid in by_id if nid != parent.id]
                 relevant_ids = set()
                 if others:
-                    scores = {nid: float("-inf") for nid in others}
+                    # One query (the rewrite when present: it carries the textbook terms)
+                    # and a shorter window keep this cheap on a slow CPU.
+                    q = queries[-1]
                     model = get_reranker_model()
-                    for q in queries:
-                        for nid, sc in zip(others, model.predict([(q, by_id[nid][:FOCUS_CHARS]) for nid in others])):
-                            scores[nid] = max(scores[nid], float(sc))
-                    relevant_ids = {nid for nid, sc in scores.items() if sc >= NEIGHBOR_MIN_SCORE}
+                    scores = model.predict([(q, by_id[nid][:NEIGHBOR_CHARS]) for nid in others])
+                    relevant_ids = {nid for nid, sc in zip(others, scores) if float(sc) >= NEIGHBOR_MIN_SCORE}
                 relevant_ids |= {nid for nid in (parent.id - 1, parent.id + 1)
                                  if nid in by_id and len(by_id[nid]) < SHORT_NEIGHBOR_CHARS}
                 by_id = {nid: body for nid, body in by_id.items() if nid == parent.id or nid in relevant_ids}
@@ -520,21 +537,31 @@ class RetrievalService:
         rrf: dict[int, float] = {}
         best_child: dict[int, str] = {}
         query_embeddings: list[list[float]] = []
+        list_heads: list[int] = []  # top of every individual result list
         for q in queries:
             emb = self._embed_query(q)
             query_embeddings.append(emb)
             for results in (self.vector_search(session, emb, limit=30, book_id=book_id, chapter=chapter),
                             self.keyword_search(session, q, limit=30, book_id=book_id, chapter=chapter)):
+                head: list[int] = []
                 for rank, (child, _) in enumerate(results, 1):
                     pid = child.parent_id or child.id
                     rrf[pid] = rrf.get(pid, 0.0) + 1.0 / (60 + rank)
                     if pid not in best_child:
                         best_child[pid] = (child.extra_metadata or {}).get("original_text") or child.content
+                    if len(head) < PER_LIST_TOP and pid not in head:
+                        head.append(pid)
+                list_heads.extend(head)
 
         if not rrf:
             return SearchResult([], [], None, queries)
 
-        top_ids = sorted(rrf, key=rrf.get, reverse=True)[:24]
+        # Pool = best RRF passages + the top few of each individual list. A passage
+        # one method ranks very highly but the others miss (Bailey's angiofibroma
+        # paragraph: #2 for the rewritten query's vector search, RRF #19) would
+        # otherwise never reach the reranker.
+        top_ids = sorted(rrf, key=rrf.get, reverse=True)[:RERANK_POOL]
+        top_ids += [pid for pid in dict.fromkeys(list_heads) if pid not in top_ids]
         parents = session.query(Chunk).filter(Chunk.id.in_(top_ids)).options(joinedload(Chunk.book)).all()
         pmap = {p.id: p for p in parents if not looks_like_index_page(p.content)}
         candidates = [pmap[pid] for pid in top_ids if pid in pmap]
