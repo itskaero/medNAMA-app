@@ -593,7 +593,7 @@ def _resolve_quiz_params(req: GenerateAiQuizRequest) -> dict:
 
     from app.llm import llm_configured
 
-    if not llm_configured():
+    if not llm_configured("fast"):
         raise HTTPException(status_code=400, detail="DEEPSEEK_API_KEY is not configured on the server.")
 
     return {

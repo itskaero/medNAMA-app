@@ -264,6 +264,7 @@ def _build_prompts(prompt_text: str, profile: dict, difficulty: int | None, cont
         f'      "correct_option": "{keys[0]}",\n'
         '      "explanation": "Why the answer is right and each distractor wrong.",\n'
         '      "tested_concept": "Topic - specific fact tested (max 8 words)",\n'
+        '      "buzzword": "One-line exam association, e.g. Olive-shaped mass + projectile non-bilious vomiting -> IHPS",\n'
         '      "source_chunk": 1\n'
         "    }\n"
         "  ]\n"
@@ -289,7 +290,7 @@ def _run_batch(system_prompt: str, user_prompt: str, label: str) -> list[dict]:
         try:
             raw = chat_completion(
                 [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                json_mode=True, temperature=0.4, max_tokens=6000, label=f"{label} try{attempt}",
+                json_mode=True, temperature=0.4, max_tokens=6000, label=f"{label} try{attempt}", role="fast",
             )
             questions = json.loads(raw).get("questions") or []
             if questions:
@@ -481,6 +482,9 @@ def _generate(db: Session, quiz_set_id: str, prompt_text: str, book_id: int | No
             chunk = None
 
         explanation = str(q.get("explanation") or "No detailed explanation provided.").strip()
+        buzzword = " ".join(str(q.get("buzzword") or "").split())
+        if buzzword:
+            explanation += f"\n\n**Buzzword:** {buzzword[:300]}"
         if chunk is not None:
             title = chunk.book.title if chunk.book else "Textbook"
             explanation += f"\n\n**Source**: {title}, Page {chunk.page_number or 'N/A'}"

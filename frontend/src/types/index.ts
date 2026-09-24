@@ -20,6 +20,7 @@ export interface Figure {
   reason_to_include?: string;
   caption?: string | null;
   page_number?: number;
+  book_title?: string | null;
 }
 
 /** A reranked candidate shown in the collapsible "All matched sources" panel. */
@@ -48,6 +49,10 @@ export interface AnswerResponse {
   supplementary_markdown?: string;
   grounding?: Grounding;
   status?: "ok" | "llm_error" | "not_configured";
+  /** Books with a strong matching passage that the answer did not cite. */
+  also_in?: { book_title: string; page_number: number | null; chunk_id?: number }[];
+  /** Exam buzzwords / mnemonics (AI-made ones are labelled "(AI mnemonic)"). */
+  buzzwords_markdown?: string;
 }
 
 export interface Message {

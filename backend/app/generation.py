@@ -169,26 +169,52 @@ def _format_context(chunks: list) -> str:
     return "\n---\n".join(blocks) if blocks else "NO TEXTBOOK PASSAGES WERE RETRIEVED FOR THIS QUERY."
 
 
-def _collect_figures(session: Session, chunks: list) -> list[dict]:
-    figures_map = retrieval_service.retrieve_figures_for_chunks(session, chunks)
-    all_figures, seen = [], set()
-    for chunk_figs in figures_map.values():
-        for fig in chunk_figs:
-            if fig["id"] not in seen:
-                all_figures.append(fig)
-                seen.add(fig["id"])
-    return all_figures
-
-
 def _format_figures(figures: list[dict]) -> str:
+    """Figures offered to the LLM: only captioned figures chosen by retrieval.select_figures."""
     lines = [
         f"Figure ID: {fig['id']}\n"
         f"  Label: {fig['figure_label']}\n"
-        f"  Page: {fig['page_number']}\n"
-        f"  Description: {fig['caption'] or 'Image extracted (no description available)'}\n"
+        f"  Book: {fig.get('book_title') or 'N/A'}, Page: {fig['page_number']}\n"
+        f"  Printed caption: {fig['caption']}\n"
         for fig in figures
     ]
-    return "\n---\n".join(lines) if lines else "No figures available."
+    return "\n---\n".join(lines) if lines else "No relevant figures."
+
+
+def _attach_figure_details(llm_figures: list[dict], selected: list[dict]) -> list[dict]:
+    """Replace the LLM's figure entries with the real caption/book/page from the database."""
+    by_id = {f["id"]: f for f in selected}
+    out = []
+    for fig in llm_figures:
+        real = by_id.get(fig.get("id"))
+        if real:
+            out.append({**real, "reason_to_include": fig.get("reason_to_include")})
+    return out
+
+
+def _strip_unknown_refs(text: str, chunks: list) -> str:
+    """Remove [Book, Page N] references that don't match a retrieved passage."""
+    valid = {((c.book.title if c.book else "").strip().lower(), c.page_number) for c in chunks}
+
+    def keep(m: re.Match) -> str:
+        title, page = m.group(1).strip().lower(), int(m.group(2))
+        return m.group(0) if (title, page) in valid else ""
+
+    return re.sub(r"\s?\[([^\[\],]{2,80}),\s*(?:Page|p\.)\s*(\d+)\]", keep, text or "", flags=re.IGNORECASE).strip()
+
+
+def _also_in(sources: list[dict], citations: list[dict], min_relevance: float = 0.0) -> list[dict]:
+    """Books with a strong matching passage that the answer did not cite (one entry per book)."""
+    cited_books = {str(c.get("book_title", "")).strip().lower() for c in citations}
+    seen, out = set(), []
+    for src in sources:
+        title = (src.get("book_title") or "").strip()
+        key = title.lower()
+        if not title or key in cited_books or key in seen or src.get("relevance_score", -99) < min_relevance:
+            continue
+        seen.add(key)
+        out.append({"book_title": title, "page_number": src.get("page_number"), "chunk_id": src.get("chunk_id")})
+    return out[:4]
 
 
 def compose_answer_markdown(textbook_md: str, supplement_md: str) -> str:
@@ -238,10 +264,10 @@ def generate_answer(
     stage("searching")
     # Use the previous user question to disambiguate follow-ups ("and in adults?") in the rewrite.
     prev_user = next((t["content"] for t in reversed(history or []) if t.get("role") == "user"), "")
-    result = retrieval_service.search(session, query, limit=5, book_id=book_id, chapter=chapter,
+    result = retrieval_service.search(session, query, limit=6, book_id=book_id, chapter=chapter,
                                       context_hint=prev_user[:300])
     chunks = result.context
-    all_figures = _collect_figures(session, chunks)
+    all_figures = result.figures
 
     books_str = ", ".join(b.title for b in session.query(Book).all()) or "No books currently loaded."
     level_line = LEVEL_GUIDANCE.get((level or "").lower(), DEFAULT_LEVEL_GUIDANCE)
@@ -256,7 +282,9 @@ def generate_answer(
         "including reasonable clinical inference from what the passages state (for example, if a passage "
         "gives the resuscitation regimen, that IS the fluid of choice; if it explains a mechanism, that answers "
         "the 'why'). Cite every textbook fact inline with the exact book title and page, e.g. "
-        "[Bailey Surgery, Page 280]. Leave this empty only if the passages are unrelated to the question.\n"
+        "[Bailey Surgery, Page 280]. When passages from MORE THAN ONE BOOK are relevant, integrate them and "
+        "cite each book that contributes (e.g. the ENT text for pathology AND the surgery text for management); "
+        "say where books differ. Leave this empty only if the passages are unrelated to the question.\n"
         "2. supplementary_markdown: add what an exam candidate needs that the passages do NOT state: current "
         "terms, updated guidelines, exam pearls, classic MCQ traps, or the whole answer if the passages are "
         "unrelated. Use your own reliable medical knowledge. NEVER put book titles or page numbers here. "
@@ -265,13 +293,19 @@ def generate_answer(
         "say so instead of guessing.\n"
         "4. For CONVERSATIONAL or SYSTEM questions (greetings, 'which books do you have'), answer naturally in "
         "textbook_answer_markdown with no citations and set grounding to 'none'. Do not list the books unless asked.\n"
-        "5. If a figure from RETRIEVED DIAGRAMS is directly relevant, refer to it by label (e.g. [Figure 2]) "
-        "and add it to 'figures'.\n\n"
+        "5. RETRIEVED DIAGRAMS lists figures with their printed captions. Add a figure to 'figures' only if its "
+        "caption shows something your answer discusses; refer to it by its label (e.g. [Figure 49.1]). Never "
+        "include a figure whose caption is about something else.\n"
+        "6. buzzwords_markdown: for medical questions, 2-5 one-line exam buzzwords / key associations "
+        "(e.g. 'Adolescent male + recurrent profuse epistaxis + nasopharyngeal mass -> juvenile angiofibroma'). "
+        "If a textbook passage gives a mnemonic, use it and cite it; if you make one up, label it '(AI mnemonic)'. "
+        "Empty string for conversational questions.\n\n"
         "Respond in valid JSON only, matching this structure:\n"
         "{\n"
         '  "textbook_answer_markdown": "Cited answer from the passages...",\n'
         '  "supplementary_markdown": "Uncited AI knowledge beyond the passages, or empty string",\n'
         '  "grounding": "textbook | partial | ai_only | none",\n'
+        '  "buzzwords_markdown": "- buzzword 1\\n- buzzword 2 (AI mnemonic)",\n'
         '  "citations": [\n'
         '    {"book_title": "exact book title from the context", "page_number": 123, '
         '"excerpt": "exact sentence or key phrase from the context"}\n'
@@ -328,6 +362,8 @@ def generate_answer(
     )
     textbook_md = validated["answer_markdown"]
     grounding = _grounding(textbook_md, supplement_md, validated["citations"], response_json.get("grounding"))
+    # Buzzword citations must be real too; drop any reference not in the context.
+    buzzwords_md = _strip_unknown_refs(str(response_json.get("buzzwords_markdown") or "").strip(), chunks)
 
     logger.info(
         "answer %r: grounding=%s citations=%d top_rerank=%s",
@@ -341,8 +377,10 @@ def generate_answer(
         "grounding": grounding,
         "status": "ok",
         "citations": validated["citations"],
-        "figures": validated["figures"],
+        "figures": _attach_figure_details(validated["figures"], all_figures),
         "sources": result.sources,
+        "also_in": _also_in(result.sources, validated["citations"]) if grounding != "none" else [],
+        "buzzwords_markdown": buzzwords_md,
     }
 
 
@@ -351,8 +389,9 @@ def generate_mcq_explanation(session: Session, mcq) -> dict:
     options = mcq.options or {}
     correct_text = options.get(mcq.correct_option, "")
     query = f"{mcq.question_text} {correct_text}".strip()
-    chunks = retrieval_service.search(session, query, limit=5).context
-    all_figures = _collect_figures(session, chunks)
+    result = retrieval_service.search(session, query, limit=6)
+    chunks = result.context
+    all_figures = result.figures
     options_str = "\n".join(f"- Option {k}: {v}" for k, v in options.items())
 
     system_prompt = (

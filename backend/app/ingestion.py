@@ -258,12 +258,25 @@ def _process_slice_worker(args: dict) -> dict:
                 pil_image = element.get_image(doc)
                 if pil_image is None:
                     continue
+                # Skip decorative images (icons, bullets, QR codes); they were
+                # ~25% of extracted figures and never useful in answers.
+                if min(pil_image.width, pil_image.height) < 120 or (
+                    max(pil_image.width, pil_image.height) / max(1, min(pil_image.width, pil_image.height)) > 6
+                ):
+                    continue
                 fig_idx += 1
+                try:
+                    caption_text = " ".join((element.caption_text(doc) or "").split())
+                except Exception:
+                    caption_text = ""
+                label_match = re.match(r"(?:Figure|Fig\.?)\s*(\d+[.\-]\d+[A-Za-z]?)", caption_text, re.IGNORECASE)
 
                 # Convert image to RGB (JPEGs don't support RGBA)
                 if pil_image.mode in ("RGBA", "P"):
                     pil_image = pil_image.convert("RGB")
                 
+                width, height = pil_image.width, pil_image.height
+
                 # Resize if the image is too large (max 1000px on either side)
                 max_size = 1000
                 if max(pil_image.width, pil_image.height) > max_size:
@@ -280,8 +293,15 @@ def _process_slice_worker(args: dict) -> dict:
 
                 figures_data.append({
                     "book_id": book_id,
-                    "figure_label": f"Figure {page_num or 'N/A'}-{fig_idx}",
-                    "caption": None,
+                    # Real printed label/caption when Docling found one (retrieval only
+                    # shows captioned figures); synthetic label otherwise.
+                    "figure_label": (f"Figure {label_match.group(1).replace('-', '.')}" if label_match
+                                     else f"Figure {page_num or 'N/A'}-{fig_idx}"),
+                    "caption": caption_text[:2000] or None,
+                    "caption_source": "printed" if caption_text else None,
+                    "is_decorative": False,
+                    "width": width,
+                    "height": height,
                     "page_number": page_num,
                     "image_data": image_bytes,
                     "mime_type": "image/jpeg",
@@ -556,6 +576,30 @@ def _run_slice_tasks(tasks: list[dict], workers: int, slice_timeout: int) -> dic
     return results
 
 
+def embed_figure_captions(session, book_id: int | None = None, batch: int = 128) -> int:
+    """Embed captions of figures that have one but no caption_embedding yet. Returns the count."""
+    from sqlalchemy import text as sql_text
+
+    params = {"b": book_id} if book_id is not None else {}
+    where = "AND book_id = :b" if book_id is not None else ""
+    rows = session.execute(sql_text(
+        f"SELECT id, caption FROM figures WHERE caption IS NOT NULL AND caption <> '' "
+        f"AND caption_embedding IS NULL {where} ORDER BY id"
+    ), params).fetchall()
+    if not rows:
+        return 0
+    model = get_embedding_model()
+    for start in range(0, len(rows), batch):
+        part = rows[start:start + batch]
+        vecs = model.encode([c for _, c in part], normalize_embeddings=True, batch_size=32)
+        for (fid, _), vec in zip(part, vecs):
+            session.execute(sql_text("UPDATE figures SET caption_embedding = CAST(:e AS vector) WHERE id = :i"),
+                            {"e": str(vec.tolist()), "i": fid})
+        session.commit()
+    logger.info(f"Embedded {len(rows)} figure captions" + (f" for book {book_id}" if book_id is not None else ""))
+    return len(rows)
+
+
 def ingest_book(pdf_path: str | Path,
                 title: str | None = None,
                 workers: int | None = None,
@@ -720,6 +764,12 @@ def ingest_book(pdf_path: str | Path,
                 total_child_chunks += res.get("child_count", 0)
                 total_figures += res.get("fig_count", 0)
                 logger.info(f"✓ Slice {start}-{end} complete.")
+
+            # Embed printed figure captions so retrieval can match figures to questions.
+            try:
+                embed_figure_captions(session, book_id)
+            except Exception as e:  # never fail a finished book over captions
+                logger.warning(f"Figure caption embedding failed for book {book_id}: {e}")
 
             # Mark book ready
             book = session.get(Book, book_id)

@@ -49,6 +49,12 @@ QUERY_SUITE = [
     ("most common / pathology", "most common site of carcinoid tumour"),
     ("US spelling / pathology", "causes of hypochloremic metabolic alkalosis"),
     ("UK spelling / pathology", "causes of hypochloraemic metabolic alkalosis"),
+    # Topics covered by several books: "books" should be >= 2.
+    ("multi-book / ENT+surgery", "pathology of angiofibroma"),
+    ("multi-book / surgery+anatomy", "hypertrophic pyloric stenosis"),
+    ("multi-book / medicine+pharm", "insulin regimen in diabetic ketoacidosis"),
+    ("multi-book / path+physio", "causes of jaundice"),
+    ("multi-book / path+medicine", "tuberous sclerosis"),
 ]
 HPS_QUERIES = [q for c, q in QUERY_SUITE if "surgery" in c]
 CONTAINER_PATH = "/tmp/diagnose_query.py"
@@ -145,13 +151,13 @@ def build_summary(outputs: list[tuple[str, str]], threshold: float) -> str:
     for q, text in outputs:
         line = next((l for l in reversed(text.splitlines()) if l.startswith("SUMMARY|")), None)
         if line:
-            _, vec, kw, conf, gate, top = line.split("|", 5)
+            _, vec, kw, conf, gate, books, figs, top = line.split("|", 7)
         else:
-            vec = kw = conf = "-"
+            vec = kw = conf = books = figs = "-"
             gate, top = "ERROR", "see output above"
-        rows.append((categories.get(q, "custom"), q[:55], vec, kw, conf, gate, top))
+        rows.append((categories.get(q, "custom"), q[:55], vec, kw, conf, gate, books, figs, top))
 
-    header = ("type", "query", "vector", "kw hits", "rerank", "context", "top context source")
+    header = ("type", "query", "vector", "kw hits", "rerank", "context", "books", "figs", "top context source")
     widths = [max(len(str(r[i])) for r in [header, *rows]) for i in range(len(header))]
     fmt = "  ".join(f"{{:<{w}}}" for w in widths)
     lines = ["== Summary ==", fmt.format(*header), fmt.format(*("-" * w for w in widths))]

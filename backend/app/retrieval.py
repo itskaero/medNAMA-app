@@ -23,10 +23,12 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
+from sqlalchemy import tuple_
+
 from app.models import Book, Chunk, Figure
 
 logger = logging.getLogger(__name__)
@@ -109,6 +111,20 @@ _INDEX_ENTRY = re.compile(r"[A-Za-z)][^,\n]{0,40},\s*\d{1,4}(?:\s*[a-z])?\s*[,.=
 MIN_RERANK_SCORE = -7.0
 MAX_CONTEXT_CHARS = 3000   # per expanded context block sent to the LLM
 FOCUS_CHARS = 1500         # text window around the matched child used for reranking
+# Book diversity: every book whose best passage scores within BOOK_MARGIN of the
+# top passage gets a context slot, and no book takes more than MAX_PER_BOOK
+# slots while other relevant books are waiting. Stops one specialist book
+# (e.g. Dhingra for ENT) from crowding out Bailey/Robbins on the same topic.
+BOOK_MARGIN = 4.0
+MAX_PER_BOOK = 2
+# Neighbour paragraphs join a context block only if they are themselves
+# relevant (first-stage score) or are a short caption/heading right next to it.
+NEIGHBOR_MIN_SCORE = -6.0
+SHORT_NEIGHBOR_CHARS = 200
+# Figures: shown only when their printed caption matches the question.
+FIGURE_MIN_SIM = 0.60
+FIGURE_MENTIONED_MIN_SIM = 0.50
+MAX_FIGURES = 4
 
 _reranker_model = None
 _second_stage_model = None
@@ -194,7 +210,7 @@ def rewrite_query(query: str, context_hint: str = "") -> str | None:
         return None
     from app.llm import chat_completion, llm_configured
 
-    if not llm_configured():
+    if not llm_configured("fast"):
         return None
     hint = f"\nEarlier question in this conversation (for context): {context_hint}" if context_hint else ""
     try:
@@ -219,6 +235,7 @@ def rewrite_query(query: str, context_hint: str = "") -> str | None:
             max_tokens=80,
             thinking=False,
             label="rewrite",
+            role="fast",
         )
     except Exception as e:  # rewriting is an optimisation, never a failure
         logger.warning("Query rewrite failed for %r: %s", query, e)
@@ -259,6 +276,42 @@ class SearchResult:
     sources: list[dict[str, Any]]
     top_score: float | None
     queries: list[str]
+    figures: list[dict[str, Any]] = field(default_factory=list)
+
+
+def select_diverse(ranked: list[tuple[Any, float]], limit: int) -> list[tuple[Any, float]]:
+    """Pick context passages so every relevant book is represented.
+
+    1. The best passage of each book scoring within BOOK_MARGIN of the top one.
+    2. Remaining slots by rank, at most MAX_PER_BOOK per book.
+    3. If slots are still free (few books relevant), fill by rank without the cap.
+    The result keeps the incoming rank order.
+    """
+    eligible = [r for r in ranked if r[1] >= MIN_RERANK_SCORE]
+    if not eligible:
+        return []
+    top = max(sc for _, sc in eligible)
+    chosen: list[tuple[Any, float]] = []
+    per_book: dict[int, int] = {}
+
+    def take(item):
+        chosen.append(item)
+        per_book[item[0].book_id] = per_book.get(item[0].book_id, 0) + 1
+
+    for item in eligible:
+        if len(chosen) >= limit:
+            break
+        if item[0].book_id not in per_book and item[1] >= top - BOOK_MARGIN:
+            take(item)
+    for capped in (True, False):
+        for item in eligible:
+            if len(chosen) >= limit:
+                break
+            if item in chosen or (capped and per_book.get(item[0].book_id, 0) >= MAX_PER_BOOK):
+                continue
+            take(item)
+    order = {id(item): i for i, item in enumerate(eligible)}
+    return sorted(chosen, key=lambda item: order[id(item)])
 
 
 def _focus_text(parent_content: str, child_text: str | None, width: int = FOCUS_CHARS) -> str:
@@ -367,8 +420,16 @@ class RetrievalService:
         return vector_results[0][1] if vector_results else 0.0
 
     def expand_context(self, session: Session, ranked: list[tuple[Chunk, float]], window: int = 3,
-                       max_chars: int = MAX_CONTEXT_CHARS, focus: dict[int, str] | None = None) -> list[ContextChunk]:
-        """Grow each ranked parent into a block of neighbouring paragraphs from the same page.
+                       max_chars: int = MAX_CONTEXT_CHARS, focus: dict[int, str] | None = None,
+                       queries: list[str] | None = None) -> list[ContextChunk]:
+        """Grow each ranked parent into a block of relevant neighbouring paragraphs from the same page.
+
+        With `queries`, a neighbour joins only if the first-stage cross-encoder
+        scores it >= NEIGHBOR_MIN_SCORE for any query, or it is a short
+        caption/heading directly adjacent to the hit. This keeps the answer
+        paragraph two lines below a matching heading (HPS fluids) while dropping
+        unrelated paragraphs that merely share the page (septal perforation
+        next to juvenile angiofibroma).
 
         Blocks that overlap an earlier (higher-ranked) block of the same book are
         merged into it, so the LLM never sees the same paragraph twice.
@@ -398,6 +459,19 @@ class RetrievalService:
             )
             by_id = {nid: body for nid, body in neighbours}
             by_id.setdefault(parent.id, parent.content)
+            if queries:
+                others = [nid for nid in by_id if nid != parent.id]
+                relevant_ids = set()
+                if others:
+                    scores = {nid: float("-inf") for nid in others}
+                    model = get_reranker_model()
+                    for q in queries:
+                        for nid, sc in zip(others, model.predict([(q, by_id[nid][:FOCUS_CHARS]) for nid in others])):
+                            scores[nid] = max(scores[nid], float(sc))
+                    relevant_ids = {nid for nid, sc in scores.items() if sc >= NEIGHBOR_MIN_SCORE}
+                relevant_ids |= {nid for nid in (parent.id - 1, parent.id + 1)
+                                 if nid in by_id and len(by_id[nid]) < SHORT_NEIGHBOR_CHARS}
+                by_id = {nid: body for nid, body in by_id.items() if nid == parent.id or nid in relevant_ids}
 
             # Grow outward from the hit, nearest paragraphs first, within budget.
             chosen = [parent.id]
@@ -445,8 +519,10 @@ class RetrievalService:
 
         rrf: dict[int, float] = {}
         best_child: dict[int, str] = {}
+        query_embeddings: list[list[float]] = []
         for q in queries:
             emb = self._embed_query(q)
+            query_embeddings.append(emb)
             for results in (self.vector_search(session, emb, limit=30, book_id=book_id, chapter=chapter),
                             self.keyword_search(session, q, limit=30, book_id=book_id, chapter=chapter)):
                 for rank, (child, _) in enumerate(results, 1):
@@ -493,8 +569,12 @@ class RetrievalService:
             ranked = fresh + used if len(fresh) >= limit else ranked
 
         top_score = max(s for _, s in ranked)
+        relevant = select_diverse(ranked, limit)
+        # Sources panel: the chosen (book-diverse) passages first, then the rest by rank.
+        chosen_ids = {p.id for p, _ in relevant}
+        source_order = relevant + [r for r in ranked if r[0].id not in chosen_ids]
         sources = []
-        for rank, (chunk, score) in enumerate(ranked[:num_candidates], 1):
+        for rank, (chunk, score) in enumerate(source_order[:num_candidates], 1):
             snippet = " ".join(focus[chunk.id].split())
             if len(snippet) > 300:
                 snippet = snippet[:300].rsplit(" ", 1)[0] + "…"
@@ -509,14 +589,65 @@ class RetrievalService:
                 "relevance_score": round(score, 4),
             })
 
-        relevant = [r for r in ranked if r[1] >= MIN_RERANK_SCORE][:limit]
-        context = self.expand_context(session, relevant, focus=best_child)
+        context = self.expand_context(session, relevant, focus=best_child, queries=queries)
+        figures = self.select_figures(session, query_embeddings, context)
         logger.info(
             "search %r (+rewrite=%s): %d candidates, top rerank %.2f, context=%s",
             query, len(queries) > 1, len(candidates), top_score,
             [(c.book.title if c.book else "?", c.page_number, round(c.score, 2)) for c in context],
         )
-        return SearchResult(context, sources, top_score, queries)
+        return SearchResult(context, sources, top_score, queries, figures)
+
+    def select_figures(self, session: Session, query_embeddings: list[list[float]],
+                       context: list) -> list[dict[str, Any]]:
+        """Figures worth showing for this answer: captioned, non-decorative, on a
+        context page, and whose printed caption matches the question.
+
+        A figure qualifies when its caption embedding is >= FIGURE_MIN_SIM to any
+        query embedding, or >= FIGURE_MENTIONED_MIN_SIM when the context text
+        itself refers to it ("see Figure 49.1"). Uncaptioned figures are never
+        returned: without a caption nobody can tell what the image shows.
+        """
+        pages = {(c.book_id, c.page_number) for c in context if c.page_number is not None}
+        if not pages or not query_embeddings:
+            return []
+        sims = [(1.0 - Figure.caption_embedding.cosine_distance(e)) for e in query_embeddings]
+        best_sim = sims[0] if len(sims) == 1 else func.greatest(*sims)
+        rows = (
+            session.query(Figure.id, Figure.book_id, Figure.page_number, Figure.figure_label,
+                          Figure.caption, best_sim.label("sim"))
+            .filter(Figure.caption_source == "printed", Figure.is_decorative.is_(False),
+                    tuple_(Figure.book_id, Figure.page_number).in_(list(pages)))
+            .all()
+        )
+        titles = {c.book_id: (c.book.title if c.book else None) for c in context}
+        # References in the passages' own text, excluding the caption paragraphs themselves.
+        body_text = " ".join(
+            part for c in context for part in getattr(c, "parts", {c.id: c.content}).values()
+            if not re.match(r"\s*(?:Figure|Fig\.?)\s*\d", part, re.IGNORECASE)
+        )
+        picked = []
+        for fid, book_id, page, label, caption, sim in rows:
+            number = (label or "").replace("Figure", "").strip()
+            # "49.1" also matches "49-1". Built outside the f-string: Python 3.11
+            # (the container) rejects backslashes inside f-string expressions.
+            number_pattern = re.escape(number).replace(r"\.", r"[.\-]")
+            mentioned = bool(number) and re.search(
+                r"\bFig(?:ure|\.)?\s*" + number_pattern + r"\b", body_text, re.IGNORECASE
+            ) is not None
+            sim = float(sim or 0.0)
+            if sim >= FIGURE_MIN_SIM or (mentioned and sim >= FIGURE_MENTIONED_MIN_SIM):
+                picked.append({
+                    "id": fid,
+                    "figure_label": label,
+                    "caption": caption,
+                    "page_number": page,
+                    "book_title": titles.get(book_id),
+                    "relevance": round(sim, 3),
+                    "mentioned": mentioned,
+                })
+        picked.sort(key=lambda f: (f["mentioned"], f["relevance"]), reverse=True)
+        return picked[:MAX_FIGURES]
 
     def hybrid_search(self, session: Session, query: str, limit: int = 5, rrf_k: int = 60, book_id: int | None = None, chapter: str | None = None) -> list[ContextChunk]:
         """Context blocks for a query (compatibility wrapper around search())."""

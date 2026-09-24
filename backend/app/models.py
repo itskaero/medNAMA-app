@@ -60,9 +60,15 @@ class Figure(Base):
     figure_label: Mapped[str | None] = mapped_column(Text, default=None)
     caption: Mapped[str | None] = mapped_column(Text, default=None)
     page_number: Mapped[int | None] = mapped_column(default=None)
-    image_data: Mapped[bytes] = mapped_column(LargeBinary)
+    image_data: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
     mime_type: Mapped[str] = mapped_column(Text, server_default="image/png")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # Caption backfill (migration d4f6b8c0e2a3)
+    width: Mapped[int | None] = mapped_column(default=None)
+    height: Mapped[int | None] = mapped_column(default=None)
+    is_decorative: Mapped[bool | None] = mapped_column(default=None)
+    caption_source: Mapped[str | None] = mapped_column(Text, default=None)  # 'printed'
+    caption_embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), default=None, deferred=True)
 
     book: Mapped["Book"] = relationship(back_populates="figures")
 

@@ -1,0 +1,10 @@
+.env
+medrag.dump
+*.dump
+scripts
+README.md
+.git
+toDo
+pdfs
+pdfs.zip
+logs

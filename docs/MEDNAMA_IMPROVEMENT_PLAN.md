@@ -287,3 +287,48 @@ The books were added for **trust, MCQ content and level setting** (undergraduate
 - **MCQ jobs:** the start request returns in 0.09 s. 10 FCPS questions were ready in ~25 s (9 with a cited book and page, 1 labelled AI knowledge). A repeated `request_id` returns the same job.
 - **Retrieval suite:** 16/16 questions get textbook context.
 - **Reports:** create, list, dismiss and reopen verified end to end.
+
+---
+
+## 8. Round 3 (2026-09-24): multi-book answers, real figures, buzzwords, model switch, one-command NAS deploy
+
+**Findings**
+- **"Pathology of angiofibroma" cited only Dhingra.** Bailey p.788 *was* retrieved, but:
+  - Dhingra filled 3 of 4 context slots.
+  - Neighbour expansion put unrelated paragraphs (septal perforation, HHT) in front of the angiofibroma sentence.
+  - Nothing guaranteed each relevant book a slot, so a slightly different query rewrite dropped Bailey entirely.
+- **Robbins/Ramadas are not missing sources.** Basic Robbins mentions angiofibroma only as the facial lesion of tuberous sclerosis; Ramadas has no angiofibroma passage.
+- **Images failed to load.** `FiguresDrawer.tsx` had its own `API = "http://localhost:8000"`. The Docker build only rewrites `lib/constants.ts`, so thumbnails requested the unexposed backend port.
+- **Figures were unusable even when they loaded.** All 11,043 had synthetic labels and no captions, ~2,700 were decorative (icons, QR codes), and they were attached by page alone, so the LLM guessed.
+
+**Changes**
+- Book-diverse context:
+  - every book within 4.0 rerank points of the top passage gets a slot
+  - at most 2 blocks per book
+  - 6 blocks in total
+- Relevance-gated neighbour paragraphs: the first-stage score must be ≥ −6, or the neighbour is a short adjacent caption/heading.
+- The prompt tells the LLM to integrate and cite every contributing book.
+- "Also covered in" lists relevant books the answer didn't cite.
+- Figures:
+  - The frontend URL bug is fixed, with an "unavailable" fallback.
+  - `scripts/backfill_figure_captions.py` paired 5,264 figures with their printed captions (spot-checked visually) and flagged 2,731 as decorative.
+  - Captions are embedded, and a figure is shown only if its caption matches the question (cosine ≥ 0.60; relevant 0.67–0.68 vs unrelated ≤ 0.52 in calibration).
+  - Uncaptioned figures are never shown (user's choice).
+  - Thumbnails and the lightbox show the caption plus book and page.
+  - New ingestions capture Docling captions and skip decorative images.
+- Buzzwords and mnemonics:
+  - A collapsible section on chat answers, with "Save as flashcards".
+  - A one-line **Buzzword** on generated MCQs.
+  - AI-made mnemonics are labelled.
+- `LLM_CHAT_*` / `LLM_FAST_*` settings let another OpenAI-compatible model (e.g. MedGemma) run answers or bulk work. `scripts/eval_answers.py` scores 30 FCPS-style questions (key-fact recall, books cited, latency) for a head-to-head.
+- One-command deploy:
+  - `scripts/make_nas_bundle.sh` (checks, build, save, checksums, manifest, optional MedCPT model).
+  - `mednama-nas-deploy/deploy.sh` (checksum verify, DB backup, `:previous` rollback point, load, start, health wait, smoke test, `--data-fixes`, `--keep-env`) and `rollback.sh`.
+  - A root `.dockerignore` stops sending ~2 GB of dumps as build context. `.gitattributes` keeps `*.sh` LF.
+
+**Measured**
+- The retrieval suite (now 21 questions) gets context for 21/21. The 5 multi-book questions use 2–4 books each.
+- "Pathology of angiofibroma", 3 fresh runs: Bailey p.788 **and** Dhingra cited every time. Figures: Dhingra "Figure 49.1 Angiofibroma… H&E" and "Figure 49.2 specimen/CT".
+- The HPS fluid question still cites Bailey p.280 and now attaches "Figure 17.9 Pyloromyotomy".
+
+**Known issue (pre-existing, not fixed):** the first migration `f4faedc5e8bb_initial_schema` alters tables it doesn't create, so `alembic upgrade head` fails on a brand-new empty database. Existing databases (PC, NAS) are unaffected. Fresh installs must restore a dump first.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Stethoscope, AlertCircle, Check, Copy, Bookmark } from "lucide-react";
+import { Stethoscope, AlertCircle, Check, Copy, Bookmark, Lightbulb, ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { Message, Figure, Grounding } from "../types";
 import { CitationsDrawer } from "./CitationsDrawer";
 import { FiguresDrawer } from "./FiguresDrawer";
@@ -7,6 +7,8 @@ import { SourcesPanel } from "./SourcesPanel";
 import { ReportButton } from "./ReportButton";
 import { parseMarkdown } from "../utils/markdown";
 import { CHAT_STAGE_TEXT } from "../hooks/useChat";
+import { API } from "@/lib/constants";
+import { toast } from "sonner";
 
 const GROUNDING_LABELS: Record<Exclude<Grounding, "none">, { text: string; title: string; color: string }> = {
   textbook: {
@@ -47,6 +49,76 @@ function GroundingBadge({ grounding }: { grounding?: Grounding }) {
     >
       {g.text}
     </span>
+  );
+}
+
+/** Collapsible exam buzzwords / mnemonics, with one-click save to flashcards. */
+function BuzzwordsSection({ markdown, token, topic }: { markdown: string; token: string | null; topic?: string }) {
+  const [open, setOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const lines = markdown
+    .split("\n")
+    .map((l) => l.replace(/^\s*[-*•]\s*/, "").trim())
+    .filter(Boolean);
+
+  const saveAsFlashcards = async () => {
+    const t = (typeof window !== "undefined" && localStorage.getItem("token")) || token;
+    const headers: HeadersInit = { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+    let ok = 0;
+    for (const line of lines) {
+      // "cue -> meaning" becomes front/back; otherwise the whole line is the back of a topic card.
+      const [front, ...rest] = line.split(/\s*(?:->|→|=>)\s*/);
+      const body = rest.length
+        ? { front: front, back: rest.join(" → "), topic: topic || "Buzzwords" }
+        : { front: `Buzzword: ${topic || "exam topic"}`, back: line, topic: topic || "Buzzwords" };
+      try {
+        const res = await fetch(`${API}/api/flashcards`, { method: "POST", headers, credentials: "include", body: JSON.stringify(body) });
+        if (res.ok) ok++;
+      } catch {
+        /* counted below */
+      }
+    }
+    if (ok) {
+      setSaved(true);
+      toast.success(`Saved ${ok} buzzword flashcard${ok === 1 ? "" : "s"} (Study Corner).`);
+    } else {
+      toast.error("Could not save flashcards.");
+    }
+  };
+
+  if (!lines.length) return null;
+  return (
+    <div style={{ marginTop: "var(--sp-3)", border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: "6px", padding: "8px 10px",
+          background: "var(--surface-3)", border: "none", cursor: "pointer", color: "var(--text-primary)",
+          fontSize: "0.78rem", fontWeight: 600, textAlign: "left",
+        }}
+      >
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <Lightbulb size={12} style={{ color: "var(--sky)" }} />
+        Exam buzzwords & mnemonics ({lines.length})
+      </button>
+      {open ? (
+        <div style={{ padding: "8px 12px" }}>
+          <div className="prose" dangerouslySetInnerHTML={{ __html: parseMarkdown(lines.map((l) => `- ${l}`).join("\n")) }} />
+          <button
+            type="button"
+            className="btn-workspace"
+            disabled={saved}
+            onClick={saveAsFlashcards}
+            style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", fontSize: "0.72rem" }}
+          >
+            <Layers size={10} />
+            {saved ? "Saved to flashcards" : "Save as flashcards"}
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -126,6 +198,25 @@ export function AIMessage({
               token={token}
               onFigureClick={onFigureClick}
             />
+
+            {msg.answer.buzzwords_markdown ? (
+              <BuzzwordsSection markdown={msg.answer.buzzwords_markdown} token={token} topic={msg.query} />
+            ) : null}
+
+            {msg.answer.also_in && msg.answer.also_in.length ? (
+              <div
+                style={{ marginTop: "var(--sp-3)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", fontSize: "0.72rem", color: "var(--text-muted)" }}
+                title="These books also have a strongly matching passage; see the sources list below"
+              >
+                <span>Also covered in:</span>
+                {msg.answer.also_in.map((b) => (
+                  <span key={`${b.book_title}-${b.page_number}`} className="model-chip-pill" style={{ fontSize: "0.7rem" }}>
+                    {b.book_title}
+                    {b.page_number ? `, p.${b.page_number}` : ""}
+                  </span>
+                ))}
+              </div>
+            ) : null}
 
             {/* F1 — hybrid sources panel (reranked candidates before merge) */}
             <SourcesPanel sources={msg.answer.sources || []} token={token} />

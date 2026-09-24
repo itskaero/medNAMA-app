@@ -1,5 +1,52 @@
 # Deploying medNAMA on the NAS
 
+## Recommended: one-command image bundle (no build on the NAS)
+
+Build on the PC, copy one folder, run one script on the NAS.
+
+**On the PC** (Docker Desktop running, repo root, `.env` present):
+
+```bash
+bash scripts/make_nas_bundle.sh --with-models
+```
+
+This runs the checks (Python compile + TypeScript) and builds both images. It then fills `mednama-nas-deploy/` with:
+- `mednama-backend.tar` and `mednama-frontend.tar`
+- `SHA256SUMS` and `MANIFEST.txt` (commit, build date, schema version)
+- `hf-medcpt.tar`: the MedCPT reranker, so the NAS needs no internet for it
+- `deploy.sh`, `rollback.sh`, `restore_nas.sh`
+
+**Copy** the whole `mednama-nas-deploy/` folder to the NAS (SMB share, `scp -r` or `rsync -avP`).
+
+**On the NAS** (as root, inside the copied folder):
+
+```bash
+bash deploy.sh --data-fixes      # first deploy after the 2026-09 update
+bash deploy.sh                   # every later update
+```
+
+`deploy.sh` runs these steps:
+1. Verifies the checksums.
+2. Backs up the database to `/DATA/mednama/backups/` and aborts if the backup is invalid. The new backend applies migrations when it starts.
+3. Keeps the running images as `:previous`.
+4. Loads and tags the new images.
+5. Starts the stack under the existing compose project.
+6. Waits until the backend is healthy.
+7. Smoke-tests the page, the API and the figure route through the proxy on :3000.
+
+Options:
+- `--data-fixes`: repairs Bailey & Love's lost fi/fl/ff letters (re-embeds those passages, which can take hours on a NAS CPU) and attaches printed captions to figures. Both are safe to repeat.
+- `--keep-env`: keeps the NAS's own `.env` even if the bundle contains `app/.env`.
+- `--no-backup`: skips the backup (not recommended).
+
+Rollback: `bash rollback.sh` restarts the previous images and prints how to restore the pre-upgrade backup if you also need the old data.
+
+Optional `.env` settings are listed in `MANIFEST.txt`. The main one is `RERANKER_SECOND_STAGE=` (empty), which turns off the MedCPT second-stage reranker if answers are slow on the NAS CPU.
+
+---
+
+## Alternative: build on the NAS from a git checkout
+
 Run these on the NAS machine itself (SSH into the NAS, then run in the app
 directory). The NAS already runs Docker with the compose v5 plugin, which reads
 environment variables from `--env-file ./.env`.

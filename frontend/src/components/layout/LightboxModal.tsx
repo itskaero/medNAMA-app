@@ -26,11 +26,13 @@ export default function LightboxModal({ lightboxFig, setLightboxFig, token }: Li
         <div className="modal-header">
           <span className="modal-title">
             {lightboxFig.figure_label}
-            {lightboxFig.page_number && (
+            {lightboxFig.book_title || lightboxFig.page_number ? (
               <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
-                · p. {lightboxFig.page_number}
+                · {[lightboxFig.book_title, lightboxFig.page_number ? `p. ${lightboxFig.page_number}` : null]
+                  .filter(Boolean)
+                  .join(", ")}
               </span>
-            )}
+            ) : null}
           </span>
           <button
             className="modal-close-btn"

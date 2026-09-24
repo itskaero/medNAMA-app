@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     # multiplies latency and can eat the whole max_tokens budget, so it is off
     # unless explicitly enabled for chat answers.
     llm_thinking: bool = False
+    # Optional per-job model overrides (any OpenAI-compatible endpoint, e.g. a
+    # MedGemma server on vLLM or Vertex). Empty = use the DEEPSEEK_* settings.
+    #   chat: answers and MCQ explanations    fast: query rewrite, MCQ generation
+    llm_chat_model: str = ""
+    llm_chat_base_url: str = ""
+    llm_chat_api_key: str = ""
+    llm_fast_model: str = ""
+    llm_fast_base_url: str = ""
+    llm_fast_api_key: str = ""
     # Rewrite exam-style questions into textbook search terms before retrieval.
     query_rewrite: bool = True
     # Two-stage reranking: the fast ms-marco model orders all candidates, then a

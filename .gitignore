@@ -10,6 +10,7 @@ venv/
 
 # Ignored files (pdfs tracked separately)
 *.dump
+*.dump.sha256
 
 # Large / local-only artifacts (never push these)
 ingest_all.cmd
@@ -31,4 +32,15 @@ out/
 
 # OS
 Thumbs.db
-.DS_Storediagnosis_*.txt
+.DS_Store
+
+# Diagnosis reports (scripts/run_diagnosis.py)
+diagnosis_*.txt
+
+# NAS deploy bundle: scripts are tracked, images/secrets/models are not
+mednama-nas-deploy/*.tar
+mednama-nas-deploy/SHA256SUMS
+mednama-nas-deploy/MANIFEST.txt
+mednama-nas-deploy/restore_nas.sh
+mednama-nas-deploy/app/.env
+

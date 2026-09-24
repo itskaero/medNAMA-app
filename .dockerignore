@@ -1,0 +1,14 @@
+# Keep the Docker build context small: the images only COPY backend/,
+# frontend/, docker/ and requirements.txt. Without this, every build uploaded
+# the ~1 GB database dumps and the NAS bundle tars as context.
+*.dump
+mednama-nas-deploy/
+pdfs/
+pdfs.zip
+toDo/
+logs/
+**/node_modules
+**/.next
+**/__pycache__
+.git
+diagnosis_*.txt

@@ -80,7 +80,13 @@ def diagnose(query: str, threshold: float, book_id: int | None) -> None:
         top_vec = f"{vector_results[0][1]:.3f}" if vector_results else "-"
         top_rerank = f"{result.top_score:.2f}" if result.top_score is not None else "-"
         sent = "YES" if result.context else "NO"
-        print(f"\nSUMMARY|{top_vec}|{len(keyword_results)}|{top_rerank}|{sent}|{top}")
+        books = len({block.book_id for block in result.context})
+        if result.figures:
+            print("\n== Figures that would be offered ==")
+            for fig in result.figures:
+                print(f"  sim={fig['relevance']:.3f} mentioned={fig['mentioned']!s:5} {fig['book_title']} p.{fig['page_number']} "
+                      f"{fig['figure_label']}: {(fig['caption'] or '')[:90]}")
+        print(f"\nSUMMARY|{top_vec}|{len(keyword_results)}|{top_rerank}|{sent}|{books}|{len(result.figures)}|{top}")
     finally:
         session.close()
 

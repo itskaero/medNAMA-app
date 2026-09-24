@@ -1226,9 +1226,16 @@ body {
   cursor: pointer;
   transition: filter var(--dur-fast), transform var(--dur-fast);
   width: calc(33.333% - 4px);
-  max-width: 140px;
-  min-width: 80px;
-  aspect-ratio: 1; /* Square thumbnail like Instagram/iMessage */
+  max-width: 160px;
+  min-width: 90px;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 6px;
+  text-align: left;
+}
+
+.figure-thumb > span {
+  padding: 0 6px;
 }
 
 .figure-thumb:hover {
@@ -1238,7 +1245,7 @@ body {
 
 .figure-img-wrapper {
   width: 100%;
-  height: 100%;
+  aspect-ratio: 1; /* square image area; label sits underneath */
   background: #0d0f13;
   display: flex;
   align-items: center;
@@ -1249,7 +1256,7 @@ body {
 .figure-img-wrapper img {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* crop to fill the square */
+  object-fit: contain; /* diagrams and histology must not be cropped */
 }
 
 /* We removed the label bar for a cleaner photo gallery look, but leaving css just in case */
