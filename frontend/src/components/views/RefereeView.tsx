@@ -95,7 +95,8 @@ function VerdictCard({ r }: { r: RefereeResult }) {
 }
 
 export default function RefereeView({ token }: { token: string | null }) {
-  const [tab, setTab] = useState<"check" | "bank">("check");
+  const [tab, setTab] = useState<"check" | "bank" | "map">("check");
+  const [freq, setFreq] = useState<{ chapter: string; recalls: number; headlines: number; disputed: number; share: number }[] | null>(null);
   const headers = useCallback((): HeadersInit => {
     const t = (typeof window !== "undefined" && localStorage.getItem("token")) || token;
     return t ? { Authorization: `Bearer ${t}` } : {};
@@ -172,6 +173,20 @@ export default function RefereeView({ token }: { token: string | null }) {
 
   const reload = () => setBankKey((k) => k + 1);
 
+  useEffect(() => {
+    if (tab !== "map") return;
+    let cancelled = false;
+    fetch(`${API}/api/recalls/frequency`, { headers: headers(), credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (!cancelled && body) setFreq(body);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, headers]);
+
   const runReferee = async (id: number) => {
     setBusyId(id);
     try {
@@ -214,15 +229,37 @@ export default function RefereeView({ token }: { token: string | null }) {
       </div>
 
       <div style={{ display: "flex", gap: "6px", marginBottom: "var(--sp-4)" }}>
-        {(["check", "bank"] as const).map((t) => (
+        {(["check", "bank", "map"] as const).map((t) => (
           <button key={t} className="btn-workspace" onClick={() => setTab(t)}
             style={{ borderColor: tab === t ? "var(--sky)" : undefined, color: tab === t ? "var(--sky)" : undefined }}>
-            {t === "check" ? "Check an answer" : "Recall bank"}
+            {t === "check" ? "Check an answer" : t === "bank" ? "Recall bank" : "High-yield map"}
           </button>
         ))}
       </div>
 
-      {tab === "check" ? (
+      {tab === "map" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+            How often each system appears in the recall bank (numbered headline recalls plus their &ldquo;also asked as&rdquo; variants).
+            More recalls = asked more often in past papers.
+          </p>
+          {!freq ? (
+            <div style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}><Loader2 size={13} className="animate-spin" /> Loading…</div>
+          ) : (
+            freq.map((f) => (
+              <div key={f.chapter} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.8rem" }}>
+                <span style={{ width: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.chapter}>{f.chapter}</span>
+                <div style={{ flex: 1, height: "10px", borderRadius: "999px", background: "var(--surface-3)" }}>
+                  <div style={{ width: `${Math.max(2, f.share * 100 / Math.max(...freq.map((x) => x.share)) )}%`, height: "100%", borderRadius: "999px", background: "var(--sky)" }} />
+                </div>
+                <span style={{ width: "210px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.7rem" }}>
+                  {f.recalls} recalls · {f.headlines} headlines{f.disputed ? ` · ${f.disputed} disputed` : ""}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      ) : tab === "check" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <textarea rows={3} placeholder="Question / stem, e.g. 'Pericardial cavity lies between'" value={question} onChange={(e) => setQuestion(e.target.value)} style={inputStyle} />
           <input placeholder="Published answer (recall style), e.g. 'Visceral and parietal layer of fibrous pericardium'" value={answer} onChange={(e) => setAnswer(e.target.value)} style={inputStyle} />

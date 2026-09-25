@@ -2441,3 +2441,44 @@ def submit_duel(
                 logger.exception("Retention logging failed for duel MCQ %s", mid)
                 db.rollback()
     return _duel_results(db, duel, current_user.id)
+
+
+@app.get("/api/recalls/frequency")
+def recall_frequency(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """High-yield map: how often each chapter/system appears in the recall bank (headlines + variants)."""
+    from sqlalchemy import case as _case
+    from app.models import RecallItem
+
+    rows = (
+        db.query(
+            RecallItem.chapter,
+            func.count(RecallItem.id),
+            func.sum(_case((RecallItem.kind == "headline", 1), else_=0)),
+            func.sum(_case((RecallItem.verdict.in_(("contradicted", "books_conflict")), 1), else_=0)),
+        )
+        .group_by(RecallItem.chapter)
+        .order_by(func.count(RecallItem.id).desc())
+        .all()
+    )
+    # Page-level extraction labels the same system several ways; fold the obvious aliases together.
+    aliases = {
+        "gastrointestinal": "Gastroenterology", "hepatobiliary": "Gastroenterology", "hepatitis": "Gastroenterology",
+        "respiratory": "Pulmonology", "calculation chapter": "Calculations", "cell physiology": "Cell Biology",
+    }
+    merged: dict[str, list[int]] = {}
+    for chapter, n, h, d in rows:
+        name = (chapter or "Unlabelled").strip()
+        name = aliases.get(name.lower(), name)
+        acc = merged.setdefault(name, [0, 0, 0])
+        acc[0] += int(n)
+        acc[1] += int(h or 0)
+        acc[2] += int(d or 0)
+    total = sum(v[0] for v in merged.values()) or 1
+    return sorted(
+        ({"chapter": name, "recalls": n, "headlines": h, "disputed": d, "share": round(n / total, 4)}
+         for name, (n, h, d) in merged.items()),
+        key=lambda x: -x["recalls"],
+    )
