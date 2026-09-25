@@ -7,6 +7,7 @@ import { Figure } from "@/types";
 import { parseMarkdown } from "@/utils/markdown";
 import { ConceptCard, ConceptCardData } from "@/components/ConceptCard";
 import { ExplainOnDemand } from "@/components/ExplainOnDemand";
+import { QuestionMedia } from "@/components/QuestionMedia";
 
 export type Confidence = "sure" | "unsure" | "guess";
 export type MistakeType = "confusion" | "misconception" | "gap";
@@ -19,6 +20,7 @@ export interface StudyMCQ {
   explanation_markdown: string | null;
   sub_category: string | null;
   figure_id: number | null;
+  media?: number[];
 }
 
 export interface AnswerResult {
@@ -158,7 +160,8 @@ export function StudyQuestion({
           />
         </button>
       ) : null}
-      <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "var(--text-primary)", fontWeight: 500, margin: 0 }}>{mcq.question_text}</p>
+      <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "var(--text-primary)", fontWeight: 500, margin: 0, whiteSpace: "pre-line" }}>{mcq.question_text}</p>
+      <QuestionMedia ids={mcq.media} token={token} />
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {Object.keys(mcq.options).sort().map((key) => {
           const isCorrect = result && key === result.correct_option;

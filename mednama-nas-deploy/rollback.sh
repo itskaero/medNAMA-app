@@ -18,10 +18,22 @@ done
 
 docker tag app-backend:previous app-backend:latest
 docker tag app-frontend:previous app-frontend:latest
+if [ -f "$APP/.previous_db" ]; then
+  # deploy.sh --restore-db switched to a new database; go back to the one it replaced.
+  PREV_DB="$(cat "$APP/.previous_db")"
+  sed -i "s/^POSTGRES_DB=.*/POSTGRES_DB=$PREV_DB/" "$APP/.env"
+  rm -f "$APP/.previous_db"
+  echo "Database switched back to $PREV_DB (the restored one is kept; drop it later if unwanted)."
+  RECREATE_DB=1
+fi
 PROJECT="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "${MEDNAMA_DB_CONTAINER:-mednama-db}" 2>/dev/null || true)"
 PROJECT="${PROJECT:-$(basename "$APP")}"
 cd "$APP"
-docker compose -p "$PROJECT" --env-file ./.env -f docker-compose.yml up -d --force-recreate backend frontend
+if [ "${RECREATE_DB:-0}" = 1 ]; then
+  docker compose -p "$PROJECT" --env-file ./.env -f docker-compose.yml up -d --force-recreate
+else
+  docker compose -p "$PROJECT" --env-file ./.env -f docker-compose.yml up -d --force-recreate backend frontend
+fi
 echo "Rolled back to the previous images. Backend warm-up takes a few minutes:"
 echo "  docker compose -f $APP/docker-compose.yml ps"
 

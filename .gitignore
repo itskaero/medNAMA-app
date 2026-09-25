@@ -49,3 +49,4 @@ mednama-nas-deploy/app/.env
 rafiullah-*.pdf
 /*.pdf
 data/private/
+mednama-nas-deploy/db/

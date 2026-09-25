@@ -41,6 +41,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import BasicDropdown from "@/components/ui/basic-dropdown";
+import { PaperYears, QuestionMedia } from "@/components/QuestionMedia";
 
 // Quiz generation runs as a background job: the start request returns at once
 // and the page polls its status, so no proxy/browser timeout can cut it off.
@@ -1548,8 +1549,11 @@ export default function QuizView({
           <div className="quiz-question-col">
             <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--r-xl)", padding: "var(--sp-6)", display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-light)", paddingBottom: "12px" }}>
-                <span style={{ fontSize: "0.72rem", color: "var(--sky)", background: "var(--sky-dim)", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
-                  {currentMCQ.sub_category || currentMCQ.main_category || "Board MCQ"}
+                <span style={{ display: "inline-flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.72rem", color: "var(--sky)", background: "var(--sky-dim)", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
+                    {currentMCQ.sub_category || currentMCQ.main_category || "Board MCQ"}
+                  </span>
+                  <PaperYears years={currentMCQ.paper_years} />
                 </span>
                 <button type="button" className="chat-delete-btn"
                   style={{ position: "static", opacity: 1, color: bookmarkedMcqs.some(b => b.id === currentMCQ.id) ? "var(--teal)" : "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
@@ -1558,9 +1562,10 @@ export default function QuizView({
                 </button>
               </div>
 
-              <p style={{ fontSize: "1.05rem", fontWeight: 500, lineHeight: 1.6, color: "var(--text-primary)" }}>
+              <p style={{ fontSize: "1.05rem", fontWeight: 500, lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-line" }}>
                 {currentMCQ.question_text}
               </p>
+              <QuestionMedia ids={currentMCQ.media} token={token} />
 
               <div className="quiz-options-list" role="radiogroup">
                 {optionKeys.map((key, index) => {

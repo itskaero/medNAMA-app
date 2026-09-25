@@ -461,7 +461,10 @@ def get_dashboard_stats(
         MCQ.main_category,
         MCQ.sub_category,
         func.count(MCQ.id)
-    ).filter(MCQ.status != "private").group_by(MCQ.main_category, MCQ.sub_category).all()
+    ).filter(MCQ.status != "private")
+    from app.retention import access_scope as _access_scope
+
+    categories_query = _access_scope(categories_query, current_user).group_by(MCQ.main_category, MCQ.sub_category).all()
     
     categories_map = {}
     for main, sub, count in categories_query:
@@ -731,6 +734,9 @@ class StartQuizRequest(BaseModel):
     timer_mode: str = "none"                      # "none" | "session" | "per_question"
     timer_value: int | None = None                # minutes or seconds
     feedback_mode: str = "tutor"                  # "tutor" | "board"
+    past_paper_exam: str | None = None            # e.g. "FCPS Part 1": questions from its past papers
+    years: list[int] | None = None                # past-paper years
+    tags: dict[str, list[str]] | None = None      # {"subject": [...], "topic": [...], "specialty": [...]}
 
 
 class SelectedAnswer(BaseModel):
@@ -753,8 +759,15 @@ def start_quiz_endpoint(
     from sqlalchemy import func
     from app.models import AttemptAnswer, QuizAttempt
 
-    # Private (recall-derived) questions are served only through the Daily Dose.
-    query = db.query(MCQ).filter(MCQ.status != "private")
+    from app.retention import access_scope
+
+    # Private (recall-derived) questions are served only through the Daily Dose; restricted
+    # (imported past-paper) questions only to users allowed by PAST_PAPERS_ACCESS.
+    query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user)
+    if req.past_paper_exam or req.years or req.tags:
+        from app.past_papers import past_paper_filter
+
+        query = past_paper_filter(db, query, req.past_paper_exam, req.years, req.tags)
     
     # Drill mode: only previously-missed questions (user-scoped by construct)
     if req.drill_wrong:
@@ -819,6 +832,10 @@ def start_quiz_endpoint(
     db.refresh(attempt)
     
     # Format questions (excluding deep explanation details initially)
+    from app.past_papers import paper_years, question_media
+
+    media = question_media(db, [m.id for m in mcqs])
+    years = paper_years(db, [m.id for m in mcqs])
     mcqs_data = []
     for m in mcqs:
         mcqs_data.append({
@@ -827,7 +844,9 @@ def start_quiz_endpoint(
             "options": m.options,
             "correct_option": m.correct_option,
             "main_category": m.main_category,
-            "sub_category": m.sub_category
+            "sub_category": m.sub_category,
+            "media": media.get(m.id, []),
+            "paper_years": years.get(m.id, []),
         })
         
     return {
@@ -1271,7 +1290,9 @@ def get_all_mcqs(
     current_user: User = Depends(require_student_or_admin)
 ):
     """Retrieves list of all MCQs inside the database with category filters, searches, and bookmark indicators."""
-    query = db.query(MCQ).filter(MCQ.status != "private")
+    from app.retention import access_scope
+
+    query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user)
     if category and category != "all":
         query = query.filter(MCQ.main_category == category)
     if search:
@@ -2013,7 +2034,14 @@ class ExamDateRequest(BaseModel):
 
 
 def _mcq_payload(m: MCQ) -> dict:
+    from sqlalchemy.orm import object_session
+
+    from app.past_papers import question_media
+
+    sess = object_session(m)
+    media = question_media(sess, [m.id]).get(m.id, []) if sess is not None else []
     return {
+        "media": media,
         "id": m.id,
         "question_text": m.question_text,
         "options": m.options,
@@ -2398,10 +2426,10 @@ def create_duel(
     """Create a shareable 10-question challenge (public-bank questions only)."""
     import secrets
     from app.models import Duel
-    from app.retention import fcps_only, subject_filter
+    from app.retention import fcps_only, open_only, subject_filter
 
     count = max(5, min(20, req.count or 10))
-    q = fcps_only(db.query(MCQ.id).filter(MCQ.status == "ready", MCQ.figure_id.is_(None)))
+    q = open_only(fcps_only(db.query(MCQ.id).filter(MCQ.status == "ready", MCQ.figure_id.is_(None))))
     cond = subject_filter(db, req.subject) if req.subject and req.subject != "Mixed" else None
     if cond is not None:
         q = q.filter(cond)
@@ -2620,3 +2648,119 @@ def weekly_mock_result(part: str = "p1", track: str = "", db: Session = Depends(
         return mock_result(db, db.get(User, current_user.id), part=part, track=track)
     except ValueError:
         raise HTTPException(status_code=404, detail="No submitted sitting this week.")
+
+
+
+# ─── past papers (imported exam-year archives; restricted by PAST_PAPERS_ACCESS) ──
+
+class PastPaperScopeRequest(BaseModel):
+    exam: str
+    years: list[int] | None = None
+    tags: dict[str, list[str]] | None = None
+    count: int | None = None      # timed paper: number of questions
+    minutes: int | None = None    # timed paper: time limit
+
+
+def _require_past_papers(user: User) -> None:
+    from app.retention import restricted_allowed
+
+    if not restricted_allowed(user):
+        raise HTTPException(status_code=403, detail="Past papers are not available on this account.")
+
+
+@app.get("/api/past-papers")
+def past_papers_overview(db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """Exams and their years, with question counts and your progress."""
+    from app.past_papers import overview
+    from app.retention import restricted_allowed
+
+    if not restricted_allowed(current_user):
+        return {"locked": True, "exams": []}
+    return {"locked": False, **overview(db, current_user)}
+
+
+@app.post("/api/past-papers/scope")
+def past_papers_scope(req: PastPaperScopeRequest, db: Session = Depends(get_db),
+                      current_user: User = Depends(require_student_or_admin)):
+    """Matching-question count, your progress on them, and subject/topic/specialty counts."""
+    from app.past_papers import scope
+
+    _require_past_papers(current_user)
+    return scope(db, current_user, req.exam, req.years, req.tags)
+
+
+@app.post("/api/past-papers/timed", status_code=201)
+def past_papers_timed(req: PastPaperScopeRequest, db: Session = Depends(get_db),
+                      current_user: User = Depends(require_student_or_admin)):
+    """A personal timed paper (default 100 questions / 120 min) from the filtered past-paper questions."""
+    from app.past_papers import create_timed_paper
+
+    _require_past_papers(current_user)
+    mock = create_timed_paper(db, current_user, req.exam, req.years, req.tags,
+                              req.count or 100, req.minutes or 120)
+    if not mock.mcq_ids:
+        raise HTTPException(status_code=400, detail="No questions match these filters.")
+    return {"mock_id": mock.id, "title": mock.title, "total": len(mock.mcq_ids), "duration_min": mock.duration_min}
+
+
+def _owned_mock_or_404(db: Session, user: User, mock_id: int):
+    from app.study_modes import owned_mock
+
+    mock = owned_mock(db, user, mock_id)
+    if mock is None:
+        raise HTTPException(status_code=404, detail="Paper not found.")
+    return mock
+
+
+@app.post("/api/mocks/{mock_id}/start")
+def mock_start_by_id(mock_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    from app.study_modes import start_mock
+
+    mock = _owned_mock_or_404(db, current_user, mock_id)
+    try:
+        return start_mock(db, db.get(User, current_user.id), mock=mock)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="You have already submitted this paper.")
+
+
+@app.put("/api/mocks/{mock_id}/progress")
+def mock_progress_by_id(mock_id: int, req: MockAnswersRequest, db: Session = Depends(get_db),
+                        current_user: User = Depends(require_student_or_admin)):
+    from app.study_modes import save_mock_progress
+
+    save_mock_progress(db, db.get(User, current_user.id), req.answers, mock=_owned_mock_or_404(db, current_user, mock_id))
+    return {"saved": True}
+
+
+@app.post("/api/mocks/{mock_id}/submit")
+def mock_submit_by_id(mock_id: int, req: MockAnswersRequest, db: Session = Depends(get_db),
+                      current_user: User = Depends(require_student_or_admin)):
+    from app.study_modes import submit_mock
+
+    try:
+        return submit_mock(db, db.get(User, current_user.id), req.answers, mock=_owned_mock_or_404(db, current_user, mock_id))
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Start this paper first.")
+
+
+@app.get("/api/mocks/{mock_id}/result")
+def mock_result_by_id(mock_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    from app.study_modes import mock_result
+
+    try:
+        return mock_result(db, db.get(User, current_user.id), mock=_owned_mock_or_404(db, current_user, mock_id))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not submitted yet.")
+
+
+@app.get("/api/mcq-media/{media_id}")
+def mcq_media(media_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """An image attached to a question or its explanation (same access rules as the question)."""
+    from app.models import MCQMedia
+    from app.retention import can_see_mcq
+
+    media = db.get(MCQMedia, media_id)
+    mcq = db.get(MCQ, media.mcq_id) if media else None
+    if media is None or mcq is None or not can_see_mcq(current_user, mcq):
+        raise HTTPException(status_code=404, detail="Image not found.")
+    return Response(content=media.data, media_type=media.mime, headers={"Cache-Control": "private, max-age=86400"})

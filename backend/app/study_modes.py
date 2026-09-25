@@ -45,7 +45,8 @@ from app.models import (
     WeeklyMockEntry,
 )
 from app.retention import (
-    PASS_LINE, _embed, _jobs, _norm_ws, _now, _variant_mcq, fcps_only, high_yield_enabled, subject_for,
+    PASS_LINE, _embed, _jobs, _norm_ws, _now, _variant_mcq, fcps_only, high_yield_enabled, open_only,
+    restricted_allowed, subject_for,
 )
 
 logger = logging.getLogger(__name__)
@@ -338,7 +339,7 @@ def get_or_build_sprint(db: Session, user: User) -> StudySession:
         if card is None:
             continue
         items.append({"type": "flash", "concept_id": card.id, "done": False})
-        mcq = _variant_mcq(db, card, used)
+        mcq = _variant_mcq(db, card, used, restricted_allowed(user))
         if mcq is not None:
             items.append({"type": "sprint", "mcq_id": mcq.id, "concept_id": card.id, "done": False})
             used.add(mcq.id)
@@ -401,8 +402,8 @@ def get_or_create_weekly_mock(db: Session, part: str = "p1", track: str = "", ws
     if mock is not None:
         return mock
     titles = {b.id: b.title for b in db.query(Book.id, Book.title)}
-    base = db.query(MCQ.id, MCQ.book_id, MCQ.main_category, MCQ.sub_category, MCQ.topic).filter(
-        MCQ.status == "ready", MCQ.figure_id.is_(None))
+    base = open_only(db.query(MCQ.id, MCQ.book_id, MCQ.main_category, MCQ.sub_category, MCQ.topic).filter(
+        MCQ.status == "ready", MCQ.figure_id.is_(None)))
     if part == "p2":
         pool = base.filter(MCQ.main_category == "FCPS Part 2")
         if track:
@@ -461,7 +462,8 @@ def mock_overview(db: Session, user: User, part: str = "p1", track: str = "") ->
         status = "submitted" if entry.submitted_at else ("expired" if _now() > _deadline(mock, entry) + MOCK_GRACE else "in_progress")
     history = []
     for past_entry, past_mock in (db.query(WeeklyMockEntry, WeeklyMock).join(WeeklyMock, WeeklyMock.id == WeeklyMockEntry.mock_id)
-                                  .filter(WeeklyMockEntry.user_id == user.id, WeeklyMockEntry.submitted_at.isnot(None))
+                                  .filter(WeeklyMockEntry.user_id == user.id, WeeklyMockEntry.submitted_at.isnot(None),
+                                          WeeklyMock.part.in_(tuple(PARTS)))
                                   .order_by(WeeklyMock.week_start.desc()).limit(8)):
         history.append({"week_start": past_mock.week_start.isoformat(), "title": past_mock.title,
                         "part": past_mock.part, "track": past_mock.track, "score": past_entry.score,
@@ -484,8 +486,8 @@ def mock_overview(db: Session, user: User, part: str = "p1", track: str = "") ->
     }
 
 
-def start_mock(db: Session, user: User, part: str = "p1", track: str = "") -> dict[str, Any]:
-    mock = get_or_create_weekly_mock(db, *paper_key(db, part, track))
+def start_mock(db: Session, user: User, part: str = "p1", track: str = "", mock: WeeklyMock | None = None) -> dict[str, Any]:
+    mock = mock or get_or_create_weekly_mock(db, *paper_key(db, part, track))
     entry = db.query(WeeklyMockEntry).filter_by(mock_id=mock.id, user_id=user.id).first()
     if entry is not None and entry.submitted_at:
         raise ValueError("already_submitted")
@@ -498,16 +500,21 @@ def start_mock(db: Session, user: User, part: str = "p1", track: str = "") -> di
             db.rollback()
             entry = db.query(WeeklyMockEntry).filter_by(mock_id=mock.id, user_id=user.id).one()
     by_id = {m.id: m for m in db.query(MCQ).filter(MCQ.id.in_(mock.mcq_ids or []))}
-    questions = [{"id": i, "question_text": by_id[i].question_text, "options": by_id[i].options}
+    from app.past_papers import question_media
+
+    media = question_media(db, list(by_id))
+    questions = [{"id": i, "question_text": by_id[i].question_text, "options": by_id[i].options,
+                  "media": media.get(i, [])}
                  for i in mock.mcq_ids or [] if i in by_id]
-    return {"mock_id": mock.id, "title": mock.title, "questions": questions,
+    return {"mock_id": mock.id, "part": mock.part, "title": mock.title, "questions": questions,
             "answers": entry.answers or {}, "started_at": entry.started_at.isoformat(),
             "deadline": _deadline(mock, entry).isoformat(), "server_now": _now().isoformat(),
             "duration_min": mock.duration_min}
 
 
-def save_mock_progress(db: Session, user: User, answers: dict[str, Any], part: str = "p1", track: str = "") -> None:
-    mock = get_or_create_weekly_mock(db, *paper_key(db, part, track))
+def save_mock_progress(db: Session, user: User, answers: dict[str, Any], part: str = "p1", track: str = "",
+                       mock: WeeklyMock | None = None) -> None:
+    mock = mock or get_or_create_weekly_mock(db, *paper_key(db, part, track))
     entry = db.query(WeeklyMockEntry).filter_by(mock_id=mock.id, user_id=user.id).first()
     if entry is None or entry.submitted_at:
         return
@@ -515,11 +522,12 @@ def save_mock_progress(db: Session, user: User, answers: dict[str, Any], part: s
     db.commit()
 
 
-def submit_mock(db: Session, user: User, answers: dict[str, Any], part: str = "p1", track: str = "") -> dict[str, Any]:
+def submit_mock(db: Session, user: User, answers: dict[str, Any], part: str = "p1", track: str = "",
+                mock: WeeklyMock | None = None) -> dict[str, Any]:
     """Score the sitting once; answers are {mcq_id: {"option": "A", "flagged": bool}} or {mcq_id: "A"}."""
     from app.retention import record_answer
 
-    mock = get_or_create_weekly_mock(db, *paper_key(db, part, track))
+    mock = mock or get_or_create_weekly_mock(db, *paper_key(db, part, track))
     entry = db.query(WeeklyMockEntry).filter_by(mock_id=mock.id, user_id=user.id).first()
     if entry is None:
         raise ValueError("not_started")
@@ -578,7 +586,8 @@ def mock_result(db: Session, user: User, mock: WeeklyMock | None = None, part: s
                        "is_correct": correct, "explanation_markdown": m.explanation_markdown, "subject": subject})
     total = entry.total or len(review) or 1
     return {
-        "title": mock.title, "part": mock.part, "track": mock.track, "week_start": mock.week_start.isoformat(),
+        "mock_id": mock.id, "title": mock.title, "part": mock.part, "track": mock.track,
+        "week_start": mock.week_start.isoformat(),
         "score": entry.score, "total": entry.total, "fraction": round((entry.score or 0) / total, 3),
         "pass_line": PASS_LINE, "passed": (entry.score or 0) / total >= PASS_LINE, "overtime": entry.overtime,
         "time_taken_min": round((entry.submitted_at - entry.started_at).total_seconds() / 60, 1),
@@ -586,3 +595,13 @@ def mock_result(db: Session, user: User, mock: WeeklyMock | None = None, part: s
         "subjects": [{"subject": k, **v} for k, v in sorted(subjects.items(), key=lambda kv: kv[1]["correct"] / max(1, kv[1]["total"]))],
         "review": review,
     }
+
+
+def owned_mock(db: Session, user: User, mock_id: int) -> WeeklyMock | None:
+    """A paper this user may sit: a shared weekly paper, or their own personal timed paper."""
+    mock = db.get(WeeklyMock, mock_id)
+    if mock is None:
+        return None
+    if mock.part in PARTS:
+        return mock
+    return mock if (mock.track or "").startswith(f"u{user.id}:") else None

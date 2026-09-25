@@ -80,6 +80,8 @@ def html_to_md(s: str) -> str:
     s = re.sub(r"</(li|p|div|ul|ol)>", "\n", s, flags=re.I)
     s = re.sub(r"<[^>]+>", "", s)
     s = html.unescape(s)
+    # The page renders explanations as HTML: anything tag-like left after un-escaping must stay text.
+    s = s.replace("<", "&lt;").replace(">", "&gt;")
     s = re.sub(r"\*\*\s*\*\*", "", s)
     return re.sub(r"\n{3,}", "\n\n", s).strip()
 
@@ -234,16 +236,17 @@ def seed(args) -> None:
     print(f"done in {time.time() - t0:.0f}s")
 
 
-def embed(batch: int = 128) -> None:
+def embed(batch: int = 128, like: str = "seed:%") -> None:
     from app.retention import _embed
 
     db = SessionLocal()
-    total = db.execute(text("SELECT count(*) FROM mcqs WHERE source LIKE 'seed:%' AND stem_embedding IS NULL")).scalar()
+    total = db.execute(text("SELECT count(*) FROM mcqs WHERE source LIKE :like AND stem_embedding IS NULL"),
+                       {"like": like}).scalar()
     print(f"{total} seeded questions without an embedding", flush=True)
     done, t0 = 0, time.time()
     while True:
-        rows = db.execute(text("SELECT id, question_text FROM mcqs WHERE source LIKE 'seed:%' AND stem_embedding IS NULL "
-                               "ORDER BY id LIMIT :n"), {"n": batch}).all()
+        rows = db.execute(text("SELECT id, question_text FROM mcqs WHERE source LIKE :like AND stem_embedding IS NULL "
+                               "ORDER BY id LIMIT :n"), {"n": batch, "like": like}).all()
         if not rows:
             break
         vecs = _embed([q[:2000] for _, q in rows])

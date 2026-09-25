@@ -5,6 +5,8 @@
 #   bash scripts/make_nas_bundle.sh --with-models   # also bundle the MedCPT reranker
 #                                                   # (NAS then needs no internet for it)
 #   bash scripts/make_nas_bundle.sh --skip-checks   # skip tsc / py_compile
+#   bash scripts/make_nas_bundle.sh --with-db       # also dump this PC's database into db/
+#                                                   # (deploy on the NAS with: bash deploy.sh --restore-db)
 #
 # Output: mednama-nas-deploy/ with mednama-backend.tar, mednama-frontend.tar,
 # SHA256SUMS, MANIFEST.txt, deploy.sh, rollback.sh, restore_nas.sh, app/.
@@ -16,11 +18,13 @@ cd "$ROOT"
 OUT="$ROOT/mednama-nas-deploy"
 WITH_MODELS=0
 SKIP_CHECKS=0
+WITH_DB=0
 for arg in "$@"; do
   case "$arg" in
     --with-models) WITH_MODELS=1 ;;
     --skip-checks) SKIP_CHECKS=1 ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    --with-db) WITH_DB=1 ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg"; exit 2 ;;
   esac
 done
@@ -86,8 +90,38 @@ if [ "$WITH_MODELS" = 1 ]; then
   fi
 fi
 
+rm -rf "$OUT/db"
+if [ "$WITH_DB" = 1 ]; then
+  # The dev database (DATABASE_URL in .env, container mednama-db-1 by default). It holds private
+  # material (recall bank, imported past papers): the bundle is for your own NAS only, never git.
+  DB_CID="${MEDNAMA_DEV_DB_CONTAINER:-mednama-db-1}"
+  DB_USER="${MEDNAMA_DEV_DB_USER:-medrag}"
+  DB_NAME="${MEDNAMA_DEV_DB_NAME:-medrag}"
+  step "Dumping database '$DB_NAME' from container $DB_CID into the bundle"
+  mkdir -p "$OUT/db"
+  DUMP_NAME="medrag-$(date +%Y%m%d-%H%M).dump"
+  MSYS_NO_PATHCONV=1 docker exec "$DB_CID" pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc -Z6 -f /tmp/bundle.dump
+  MSYS_NO_PATHCONV=1 docker cp "$DB_CID:/tmp/bundle.dump" "$OUT/db/$DUMP_NAME"
+  MSYS_NO_PATHCONV=1 docker exec "$DB_CID" rm -f /tmp/bundle.dump
+  [ "$(head -c 5 "$OUT/db/$DUMP_NAME")" = "PGDMP" ] || { echo "ERROR: $OUT/db/$DUMP_NAME is not a pg_dump file"; exit 1; }
+  "$PY" - "$DB_CID" "$DB_USER" "$DB_NAME" > "$OUT/db/CONTENTS.txt" <<'PYEOF' || true
+import subprocess, sys
+cid, user, db = sys.argv[1:4]
+q = ("select 'books', count(*) from books union all select 'chunks', count(*) from chunks union all "
+     "select 'mcqs', count(*) from mcqs union all select 'past_papers', count(*) from past_papers union all "
+     "select 'users', count(*) from users union all select 'alembic', 0 from alembic_version")
+out = subprocess.run(["docker", "exec", cid, "psql", "-U", user, "-d", db, "-At", "-F", " ", "-c", q],
+                     capture_output=True, text=True).stdout
+head = subprocess.run(["docker", "exec", cid, "psql", "-U", user, "-d", db, "-At", "-c",
+                       "select version_num from alembic_version"], capture_output=True, text=True).stdout.strip()
+print(out.replace("alembic 0", f"alembic head {head}").strip())
+PYEOF
+  echo "Dump: $OUT/db/$DUMP_NAME ($(du -h "$OUT/db/$DUMP_NAME" | cut -f1))"
+  cat "$OUT/db/CONTENTS.txt" 2>/dev/null | sed 's/^/  /'
+fi
+
 step "Writing SHA256SUMS and MANIFEST.txt"
-(cd "$OUT" && sha256sum ./*.tar > SHA256SUMS)
+(cd "$OUT" && sha256sum ./*.tar $(ls db/*.dump 2>/dev/null) > SHA256SUMS)
 ALEMBIC_HEAD="$("$PY" - <<'PYEOF'
 import glob, re
 revs, downs = {}, set()
@@ -111,6 +145,7 @@ PYEOF
   echo "frontend image: $(docker image inspect nas-frontend:latest --format '{{.Id}}' | cut -c8-19)"
   echo "alembic head:   ${ALEMBIC_HEAD:-?} (applied automatically when the backend starts)"
   echo "MedCPT bundled: $( [ -f "$OUT/hf-medcpt.tar" ] && echo yes || echo 'no (downloaded on first start)')"
+  echo "database dump:  $(ls "$OUT"/db/*.dump 2>/dev/null | xargs -r -n1 basename || echo 'none')$( [ -d "$OUT/db" ] && echo '  -> deploy with: bash deploy.sh --restore-db')"
   echo
   echo "Optional .env settings (defaults shown):"
   echo "  RERANKER_SECOND_STAGE=ncbi/MedCPT-Cross-Encoder   (empty = single-stage, faster on a weak CPU)"
@@ -122,5 +157,9 @@ cat "$OUT/MANIFEST.txt"
 
 echo
 echo "DONE. Copy the folder to the NAS, then on the NAS (as root, inside the folder):"
-echo "    bash deploy.sh                 # first time after this update: bash deploy.sh --data-fixes"
+if [ "$WITH_DB" = 1 ]; then
+  echo "    bash deploy.sh --restore-db --keep-env   # replace the NAS database with this PC's, keeping NAS users/chats/attempts"
+else
+  echo "    bash deploy.sh                 # first time after this update: bash deploy.sh --data-fixes"
+fi
 du -sh "$OUT" 2>/dev/null | awk '{print "Bundle size: " $1}'

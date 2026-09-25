@@ -39,14 +39,16 @@ import RefereeView from "@/components/views/RefereeView";
 import DuelView from "@/components/views/DuelView";
 import WeeklyMockView from "@/components/views/WeeklyMockView";
 import LookalikesView from "@/components/views/LookalikesView";
+import PastPapersView from "@/components/views/PastPapersView";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel" | "mock" | "lookalikes" | "sprint"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
+  const [timedMockId, setTimedMockId] = useState<number | null>(null);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [quickReplyVal, setQuickReplyVal] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -455,6 +457,23 @@ export default function Home() {
 
     if (activeView === "mock") {
       return <WeeklyMockView token={token} />;
+    }
+
+    if (activeView === "pastpapers" || (activeView === "paper" && !timedMockId)) {
+      return (
+        <PastPapersView
+          token={token}
+          onPractice={(filters, label) => quiz.startQuizWith(filters, label)}
+          onTimedPaper={(id) => {
+            setTimedMockId(id);
+            setActiveView("paper");
+          }}
+        />
+      );
+    }
+
+    if (activeView === "paper" && timedMockId) {
+      return <WeeklyMockView key={`paper-${timedMockId}`} token={token} mockId={timedMockId} onExit={() => setActiveView("pastpapers")} />;
     }
 
     if (activeView === "lookalikes") {

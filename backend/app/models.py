@@ -120,6 +120,8 @@ class MCQ(Base):
     concept_id: Mapped[int | None] = mapped_column(ForeignKey("concept_cards.id", ondelete="SET NULL"), default=None)
     figure_id: Mapped[int | None] = mapped_column(ForeignKey("figures.id", ondelete="SET NULL"), default=None)
     source: Mapped[str | None] = mapped_column(Text, default=None)   # e.g. 'seed:p1/patho.js' (scripts/seed_mcqs.py)
+    source_ref: Mapped[str | None] = mapped_column(Text, default=None)   # importer's external id
+    access: Mapped[str] = mapped_column(Text, server_default="open")      # open | restricted (PAST_PAPERS_ACCESS)
 
     book: Mapped["Book | None"] = relationship()
 
@@ -463,3 +465,50 @@ class WeeklyMockEntry(Base):
     score: Mapped[int | None] = mapped_column(default=None)
     total: Mapped[int | None] = mapped_column(default=None)
     overtime: Mapped[bool] = mapped_column(server_default="false")
+
+
+class PastPaper(Base):
+    """One exam year of an imported past-paper archive (migration b5d7f9a1c3e5)."""
+
+    __tablename__ = "past_papers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(Text, unique=True)
+    exam: Mapped[str] = mapped_column(Text)        # e.g. 'FCPS Part 1'
+    title: Mapped[str] = mapped_column(Text)       # e.g. 'FCPS Part 1 - 2024'
+    year: Mapped[int | None] = mapped_column(default=None)
+    source: Mapped[str] = mapped_column(Text)
+    access: Mapped[str] = mapped_column(Text, server_default="restricted")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class PastPaperQuestion(Base):
+    __tablename__ = "past_paper_questions"
+
+    paper_id: Mapped[int] = mapped_column(ForeignKey("past_papers.id", ondelete="CASCADE"), primary_key=True)
+    mcq_id: Mapped[int] = mapped_column(ForeignKey("mcqs.id", ondelete="CASCADE"), primary_key=True)
+    position: Mapped[int] = mapped_column(server_default="0")
+
+
+class MCQTag(Base):
+    """Every subject / topic / specialty label of a question."""
+
+    __tablename__ = "mcq_tags"
+
+    mcq_id: Mapped[int] = mapped_column(ForeignKey("mcqs.id", ondelete="CASCADE"), primary_key=True)
+    axis: Mapped[str] = mapped_column(Text, primary_key=True)
+    label: Mapped[str] = mapped_column(Text, primary_key=True)
+
+
+class MCQMedia(Base):
+    """An image belonging to a question (or its explanation), stored in the DB."""
+
+    __tablename__ = "mcq_media"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    mcq_id: Mapped[int] = mapped_column(ForeignKey("mcqs.id", ondelete="CASCADE"))
+    role: Mapped[str] = mapped_column(Text, server_default="question")   # question | explanation
+    mime: Mapped[str] = mapped_column(Text)
+    data: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
+    origin: Mapped[str | None] = mapped_column(Text, default=None)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())

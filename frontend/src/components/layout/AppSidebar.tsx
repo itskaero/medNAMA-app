@@ -25,6 +25,7 @@ import {
   Trophy,
   GitCompareArrows,
   Zap,
+  History,
 } from "lucide-react";
 import { Book } from "@/types";
 import { BookItem } from "@/components";
@@ -191,6 +192,16 @@ export default function AppSidebar({
         >
           <Swords size={14} />
           Challenge a friend
+        </button>
+        <button
+          className={`btn-workspace-nav ${activeView === "pastpapers" || activeView === "paper" ? "active" : ""}`}
+          onClick={() => {
+            setActiveView("pastpapers");
+            setMobileMenuOpen(false);
+          }}
+        >
+          <History size={14} />
+          Past papers
         </button>
         <button
           className={`btn-workspace-nav ${activeView === "mock" ? "active" : ""}`}

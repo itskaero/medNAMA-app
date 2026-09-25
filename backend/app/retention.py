@@ -80,7 +80,7 @@ def subject_for_title(title: str | None) -> str | None:
 
 
 def subject_for(book_title: str | None, main_category: str | None, sub_category: str | None) -> str | None:
-    if main_category in SEEDED_SUBJECT_CATEGORIES and sub_category:
+    if sub_category and (main_category in SEEDED_SUBJECT_CATEGORIES or (main_category or "").startswith("Past papers")):
         return sub_category
     return subject_for_title(book_title) or subject_for_title(sub_category)
 
@@ -90,6 +90,23 @@ def subject_for_mcq(db: Session, mcq: MCQ) -> str | None:
     if mcq.book_id:
         title = db.query(Book.title).filter(Book.id == mcq.book_id).scalar()
     return subject_for(title, mcq.main_category, mcq.sub_category)
+
+
+def restricted_allowed(user: User | None) -> bool:
+    """May this user see restricted (imported past-paper) questions? See settings.past_papers_access."""
+    from app.config import settings
+
+    mode = (settings.past_papers_access or "admin").lower()
+    return user is not None and (mode == "all" or (mode == "admin" and user.role == "admin"))
+
+
+def open_only(query):
+    """Shared features (duels, weekly mock) and users without access: open questions only."""
+    return query.filter(MCQ.access == "open")
+
+
+def access_scope(query, user: User | None):
+    return query if restricted_allowed(user) else open_only(query)
 
 
 def fcps_only(query):
@@ -250,9 +267,11 @@ def build_concept_card(db: Session, mcq: MCQ) -> ConceptCard:
     return card
 
 
-def _variant_mcq(db: Session, card: ConceptCard, exclude_ids: set[int]) -> MCQ | None:
+def _variant_mcq(db: Session, card: ConceptCard, exclude_ids: set[int], allow_restricted: bool = False) -> MCQ | None:
     """An existing MCQ on this concept that isn't in exclude_ids."""
     q = db.query(MCQ).filter(MCQ.concept_id == card.id, MCQ.status != "private")
+    if not allow_restricted:
+        q = open_only(q)
     if exclude_ids:
         q = q.filter(MCQ.id.notin_(exclude_ids))
     found = q.order_by(func.random()).first()
@@ -260,6 +279,7 @@ def _variant_mcq(db: Session, card: ConceptCard, exclude_ids: set[int]) -> MCQ |
         return found
     row = db.execute(text(
         "SELECT id FROM mcqs WHERE stem_embedding IS NOT NULL AND figure_id IS NULL AND status <> 'private' "
+        + ("" if allow_restricted else "AND access = 'open' ") +
         "AND 1 - (stem_embedding <=> (SELECT embedding FROM concept_cards WHERE id = :c)) >= :m "
         + ("AND id <> ALL(:ex) " if exclude_ids else "") +
         "ORDER BY stem_embedding <=> (SELECT embedding FROM concept_cards WHERE id = :c) LIMIT 1"
@@ -476,7 +496,8 @@ def _books_for_subject(db: Session, subject: str | None) -> list[int]:
 
 def _new_questions(db: Session, user_id: int, seen: set[int], n: int) -> list[MCQ]:
     weakest = _weakest_subject(db, user_id)
-    base = fcps_only(db.query(MCQ).filter(MCQ.status == "ready", MCQ.figure_id.is_(None)))
+    base = access_scope(fcps_only(db.query(MCQ).filter(MCQ.status == "ready", MCQ.figure_id.is_(None))),
+                        db.get(User, user_id))
     if seen:
         base = base.filter(MCQ.id.notin_(seen))
     picked: list[MCQ] = []
@@ -503,6 +524,8 @@ def high_yield_enabled(user: User) -> bool:
 
 
 def can_see_mcq(user: User, mcq: MCQ) -> bool:
+    if mcq.access == "restricted" and not restricted_allowed(user):
+        return False
     return mcq.status != "private" or high_yield_enabled(user)
 
 
@@ -729,7 +752,7 @@ def get_or_build_daily_session(db: Session, user: User, today: date | None = Non
            .order_by(ConceptReview.next_due).limit(DOSE_REVIEWS).all())
     for review in due:
         card = db.get(ConceptCard, review.concept_id)
-        mcq = _variant_mcq(db, card, seen) if card else None
+        mcq = _variant_mcq(db, card, seen, restricted_allowed(user)) if card else None
         if mcq is None and card is not None:
             _jobs.submit(_prepare_variant, card.id)   # ready for the next Dose
             continue

@@ -466,7 +466,41 @@ export function useQuiz({
     }
   };
 
+  // Launch a practice quiz from explicit filters (e.g. past papers: exam, years, subject/topic tags)
+  const startQuizWith = async (filters: Record<string, unknown>, label = "Practice") => {
+    setQuizIsLoading(true);
+    try {
+      const res = await fetch(`${API}/api/quizzes/start`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ timer_mode: "none", timer_value: 0, exclude_mastered: false, feedback_mode: "tutor", ...filters }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail || "No questions match these filters.");
+      }
+      const data = await res.json();
+      setQuizMCQs(data.mcqs);
+      setQuizAttemptId(data.quiz_attempt_id);
+      setQuizCurrentIdx(0);
+      setQuizSelectedAnswers({});
+      setQuizConfidence({});
+      setQuizStep("taker");
+      setQuizSecondsElapsed(0);
+      setQuizTimerCountdown(0);
+      setQuizTimerActive(true);
+      setActiveView("quiz");
+      toast.success(label, { description: `${data.mcqs.length} questions loaded.` });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to start the quiz.");
+    } finally {
+      setQuizIsLoading(false);
+    }
+  };
+
   return {
+    startQuizWith,
     // core
     quizStep,
     setQuizStep,

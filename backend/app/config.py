@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Daily Dose weights new questions toward topics past papers ask most, using
     # the private recall bank: "off", "admin" (private testing) or "all".
     high_yield_dose: str = "admin"
+    # Imported past papers are personal study material: who may see them ("admin" or "all").
+    # Shared features (duels, the weekly mock) never include them either way.
+    past_papers_access: str = "admin"
     # Two-stage reranking: the fast ms-marco model orders all candidates, then a
     # biomedical cross-encoder re-orders its top N (scripts/eval_rerankers.py).
     # Set RERANKER_SECOND_STAGE="" to disable.

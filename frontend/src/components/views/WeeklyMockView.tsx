@@ -7,6 +7,7 @@ import { API } from "@/lib/constants";
 import { parseMarkdown } from "@/utils/markdown";
 import { shareCard } from "@/lib/shareCard";
 import { ExplainOnDemand } from "@/components/ExplainOnDemand";
+import { QuestionMedia } from "@/components/QuestionMedia";
 
 type Part = "p1" | "p2";
 
@@ -21,7 +22,7 @@ interface Overview {
 interface Paper {
   mock_id: number;
   title: string;
-  questions: { id: number; question_text: string; options: Record<string, string> }[];
+  questions: { id: number; question_text: string; options: Record<string, string>; media?: number[] }[];
   answers: Record<string, Answer>;
   deadline: string;
   server_now: string;
@@ -61,7 +62,16 @@ function fmt(ms: number) {
 }
 
 /** One fixed CPSP-format paper per week: 2 hours, then rank and percentile among this week's candidates. */
-export default function WeeklyMockView({ token }: { token: string | null }) {
+export default function WeeklyMockView({
+  token,
+  mockId = null,
+  onExit,
+}: {
+  token: string | null;
+  /** A specific paper (e.g. a personal timed past paper) instead of this week's shared papers. */
+  mockId?: number | null;
+  onExit?: () => void;
+}) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [paper, setPaper] = useState<Paper | null>(null);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
@@ -109,7 +119,44 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
     return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
   }, [token]);
 
+  // Endpoints: a specific paper by id, or this week's shared paper chosen by part/track.
+  const endpoint = useCallback(
+    (action: "start" | "submit" | "progress" | "result") =>
+      mockId ? `${API}/api/mocks/${mockId}/${action}` : `${API}/api/mocks/weekly/${action}${qs}`,
+    [mockId, qs]
+  );
+
   useEffect(() => {
+    if (!mockId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${API}/api/mocks/${mockId}/start`, { method: "POST", headers: headers(), credentials: "include" });
+        if (r.status === 409) {
+          const res = await fetch(`${API}/api/mocks/${mockId}/result`, { headers: headers(), credentials: "include" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!cancelled) setResult(await res.json());
+          return;
+        }
+        const body = await r.json();
+        if (!r.ok) throw new Error(body?.detail || `HTTP ${r.status}`);
+        if (cancelled) return;
+        setClockOffset(new Date(body.server_now).getTime() - Date.now());
+        submittedRef.current = false;
+        setPaper(body);
+        setAnswers(body.answers || {});
+        setCurrent(0);
+      } catch (e) {
+        if (!cancelled) setError(`Could not open the paper (${e instanceof Error ? e.message : String(e)}).`);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mockId, headers]);
+
+  useEffect(() => {
+    if (mockId) return;
     let cancelled = false;
     fetch(`${API}/api/mocks/weekly${qs}`, { headers: headers(), credentials: "include" })
       .then((r) => {
@@ -130,12 +177,12 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, [headers, refreshKey, qs]);
+  }, [headers, refreshKey, qs, mockId]);
 
   const start = async () => {
     setBusy(true);
     try {
-      const r = await fetch(`${API}/api/mocks/weekly/start${qs}`, { method: "POST", headers: headers(), credentials: "include" });
+      const r = await fetch(endpoint("start"), { method: "POST", headers: headers(), credentials: "include" });
       const body = await r.json();
       if (!r.ok) throw new Error(body?.detail || `HTTP ${r.status}`);
       setClockOffset(new Date(body.server_now).getTime() - Date.now());
@@ -155,7 +202,7 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
     submittedRef.current = true;
     setBusy(true);
     try {
-      const r = await fetch(`${API}/api/mocks/weekly/submit${qs}`, {
+      const r = await fetch(endpoint("submit"), {
         method: "POST", headers: headers(), credentials: "include", body: JSON.stringify({ answers }),
       });
       const body = await r.json();
@@ -163,14 +210,14 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
       setResult(body);
       setPaper(null);
       if (auto) toast.message("Time is up: your paper was submitted.");
-      setRefreshKey((k) => k + 1);
+      if (!mockId) setRefreshKey((k) => k + 1);
     } catch (e) {
       submittedRef.current = false;
       toast.error(`Could not submit: ${e instanceof Error ? e.message : String(e)}. Your answers are saved; try again.`);
     } finally {
       setBusy(false);
     }
-  }, [answers, headers, qs]);
+  }, [answers, headers, endpoint, mockId]);
 
   // Clock + auto-submit at the deadline.
   useEffect(() => {
@@ -194,14 +241,14 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
     const id = setInterval(() => {
       if (!dirty.current) return;
       dirty.current = false;
-      fetch(`${API}/api/mocks/weekly/progress${qs}`, {
+      fetch(endpoint("progress"), {
         method: "PUT", headers: headers(), credentials: "include", body: JSON.stringify({ answers: answersRef.current }),
       }).catch(() => {
         dirty.current = true;
       });
     }, 20000);
     return () => clearInterval(id);
-  }, [paper, headers, qs]);
+  }, [paper, headers, endpoint]);
 
   const setAnswer = (qid: number, patch: Answer) => {
     dirty.current = true;
@@ -243,10 +290,10 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
       </div>
     );
   }
-  if (!overview) {
+  if (!overview && !paper && !result) {
     return (
       <div className="dashboard-view" style={{ padding: "var(--sp-6)", color: "var(--text-muted)", display: "flex", gap: "8px", alignItems: "center" }}>
-        <Loader2 size={16} className="animate-spin" /> Loading this week&apos;s mock…
+        <Loader2 size={16} className="animate-spin" /> {mockId ? "Opening your paper…" : "Loading this week\u2019s mock…"}
       </div>
     );
   }
@@ -285,7 +332,8 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
         <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
           Question {current + 1} of {paper.questions.length}
         </div>
-        <p style={{ fontSize: "1rem", lineHeight: 1.6, fontWeight: 500, margin: "8px 0 12px" }}>{q.question_text}</p>
+        <p style={{ fontSize: "1rem", lineHeight: 1.6, fontWeight: 500, margin: "8px 0 12px", whiteSpace: "pre-line" }}>{q.question_text}</p>
+        <QuestionMedia ids={q.media} token={token} />
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {Object.keys(q.options).sort().map((key) => (
             <button key={key} type="button" onClick={() => setAnswer(q.id, { option: key })}
@@ -349,22 +397,27 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
     const shown = result.review.filter((r) => reviewFilter === "all" || !r.is_correct);
     return (
       <div className="dashboard-view" role="region" aria-label="Weekly mock result" style={{ maxWidth: "860px", margin: "0 auto" }}>
-        {picker}
+        {mockId ? null : picker}
+        {onExit ? (
+          <button className="btn-workspace" onClick={onExit} style={{ marginBottom: "var(--sp-3)" }}>Back to past papers</button>
+        ) : null}
         <div className="dashboard-header">
           <h1 className="dashboard-title">{result.title}</h1>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px", marginBottom: "var(--sp-4)" }}>
           <Stat label="Score" value={`${result.score} / ${result.total}`} sub={`${Math.round(result.fraction * 100)}%`} color={result.passed ? "var(--sea-green)" : "#d97706"} />
           <Stat label="Pass line" value="75%" sub={result.passed ? "Above it" : `${Math.max(0, Math.ceil(result.pass_line * result.total) - result.score)} more to pass`} />
-          <Stat label="Rank" value={`${result.rank} of ${result.candidates}`}
-            sub={result.percentile != null ? `Percentile ${result.percentile}` : "Percentile shows from 3 candidates"} />
-          <Stat label="Time" value={`${result.time_taken_min} min`} sub={result.overtime ? "Submitted after time" : `Average score ${result.average ?? "-"}`} />
+          {mockId ? null : (
+            <Stat label="Rank" value={`${result.rank} of ${result.candidates}`}
+              sub={result.percentile != null ? `Percentile ${result.percentile}` : "Percentile shows from 3 candidates"} />
+          )}
+          <Stat label="Time" value={`${result.time_taken_min} min`} sub={result.overtime ? "Submitted after time" : mockId ? "Within the time limit" : `Average score ${result.average ?? "-"}`} />
         </div>
         <button className="btn-workspace" onClick={shareResult} style={{ marginBottom: "var(--sp-4)" }}>
           <Share2 size={12} /> Share my result
         </button>
 
-        <h2 style={{ fontSize: "0.95rem", margin: "0 0 8px" }}>By {part === "p2" && track ? "topic" : part === "p2" ? "specialty" : "subject"} (weakest first)</h2>
+        <h2 style={{ fontSize: "0.95rem", margin: "0 0 8px" }}>By {!mockId && part === "p2" && track ? "topic" : !mockId && part === "p2" ? "specialty" : "subject"} (weakest first)</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "var(--sp-5)" }}>
           {result.subjects.map((s) => {
             const pct = s.total ? s.correct / s.total : 0;
@@ -421,6 +474,7 @@ export default function WeeklyMockView({ token }: { token: string | null }) {
   }
 
   // ── overview ──
+  if (!overview) return null;
   const { mock, entry } = overview;
   return (
     <div className="dashboard-view" role="region" aria-label="Weekly mock" style={{ maxWidth: "720px", margin: "0 auto" }}>

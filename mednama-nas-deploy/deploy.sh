@@ -8,6 +8,10 @@
 #                                   #   printed-caption backfill for figures
 #     bash deploy.sh --no-backup    # skip the pre-upgrade DB backup (not recommended)
 #     bash deploy.sh --keep-env     # keep the NAS's current .env even if app/.env is bundled
+#     bash deploy.sh --restore-db   # replace the NAS database with the bundled PC dump (db/*.dump):
+#                                   #   restores into a NEW database (the current one is kept for
+#                                   #   rollback), copies this NAS's users/chats/attempts/bookmarks
+#                                   #   into it, then switches POSTGRES_DB. Combine with --keep-env.
 #
 # Steps: verify checksums -> back up the DB -> keep the current images as
 # ":previous" (see rollback.sh) -> load + tag the new images -> start ->
@@ -25,13 +29,15 @@ cd "$HERE"
 DATA_FIXES=0
 DO_BACKUP=1
 KEEP_ENV=0
+RESTORE_DB=0
 for arg in "$@"; do
   case "$arg" in
     --data-fixes) DATA_FIXES=1 ;;
     --repair-bailey) DATA_FIXES=1 ;;   # older name
     --no-backup) DO_BACKUP=0 ;;
     --keep-env) KEEP_ENV=1 ;;
-    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+    --restore-db) RESTORE_DB=1 ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg"; exit 2 ;;
   esac
 done
@@ -47,6 +53,11 @@ env_value() {  # read KEY from the deployed .env without sourcing it
 for f in mednama-backend.tar mednama-frontend.tar app/docker-compose.yml; do
   [ -f "$f" ] || { echo "ERROR: $f not found next to this script."; exit 1; }
 done
+DUMP_FILE=""
+if [ "$RESTORE_DB" = 1 ]; then
+  DUMP_FILE="$(ls -1 db/*.dump 2>/dev/null | head -1 || true)"
+  [ -n "$DUMP_FILE" ] || { echo "ERROR: --restore-db given but there is no db/*.dump in this bundle."; exit 1; }
+fi
 [ -f MANIFEST.txt ] && { echo "----- bundle -----"; cat MANIFEST.txt; echo "------------------"; }
 
 step "[1/8] Verifying image checksums"
@@ -97,12 +108,48 @@ else
   echo "Skipped (--no-backup)."
 fi
 
+if [ "$RESTORE_DB" = 1 ]; then
+  step "Restoring $DUMP_FILE into a new database (the current '$PG_DB' is left untouched)"
+  OLD_DB="$PG_DB"
+  NEW_DB="medrag_$(date +%Y%m%d%H%M)"
+  docker cp "$DUMP_FILE" "$DB_CONTAINER:/tmp/medrag-restore.dump"
+  docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "DROP DATABASE IF EXISTS \"$NEW_DB\" WITH (FORCE)" >/dev/null
+  docker exec "$DB_CONTAINER" createdb -U "$PG_USER" "$NEW_DB"
+  docker exec "$DB_CONTAINER" rm -f /tmp/restore.log   # an old log would end the wait loop at once
+  # Runs detached inside the DB container, so it survives an SSH drop. Index builds are
+  # single-process: Docker's 64 MB /dev/shm is too small for parallel HNSW builds.
+  docker exec -d -e PGOPTIONS="-c max_parallel_maintenance_workers=0 -c maintenance_work_mem=${MEDNAMA_INDEX_MEM:-256MB}" \
+    "$DB_CONTAINER" sh -c "pg_restore -U $PG_USER -d $NEW_DB --no-owner --no-comments -v /tmp/medrag-restore.dump \
+      > /tmp/restore.log 2>&1; echo RESTORE_EXIT_CODE=\$? >> /tmp/restore.log"
+  echo "Restoring (10-40 min on a NAS; the site stays up on '$OLD_DB' meanwhile)..."
+  while ! docker exec "$DB_CONTAINER" grep -q "RESTORE_EXIT_CODE=" /tmp/restore.log 2>/dev/null; do
+    n="$(docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d "$NEW_DB" -At -c 'select count(*) from mcqs' 2>/dev/null || echo 0)"
+    last="$(docker exec "$DB_CONTAINER" tail -n 1 /tmp/restore.log 2>/dev/null | cut -c1-90)"
+    echo "  $(date +%H:%M:%S)  mcqs restored: ${n:-0}  | $last"
+    sleep 30
+  done
+  ERRS="$(docker exec "$DB_CONTAINER" grep -c 'pg_restore: error' /tmp/restore.log || true)"
+  docker exec "$DB_CONTAINER" rm -f /tmp/medrag-restore.dump
+  HEAD="$(docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d "$NEW_DB" -At -c 'select version_num from alembic_version' 2>/dev/null || true)"
+  if [ -z "$HEAD" ]; then
+    echo "ERROR: restore failed (no schema version in $NEW_DB). Log: docker exec $DB_CONTAINER cat /tmp/restore.log"
+    exit 1
+  fi
+  echo "Restored $NEW_DB at schema $HEAD ($ERRS error line(s) in /tmp/restore.log; errors about existing"
+  echo "extensions or ownership are harmless)."
+  docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d "$NEW_DB" -c \
+    "select (select count(*) from books) books, (select count(*) from chunks) chunks, (select count(*) from mcqs) mcqs, (select count(*) from users) users"
+fi
+
 step "Vector index (built while the current app keeps running)"
 # HNSW index for chunk vector search (migration e5a7c9d1f3b5). Building it here,
 # CONCURRENTLY and single-process (Docker's 64 MB /dev/shm is too small for
 # parallel builds), avoids a long unhealthy start when the migration would
 # otherwise build it. No-op once it exists.
-if docker ps --format '{{.Names}}' | grep -qx "$DB_CONTAINER"; then
+if [ "$RESTORE_DB" = 1 ]; then
+  echo "Skipped: the restored database carries its own index."
+elif docker ps --format '{{.Names}}' | grep -qx "$DB_CONTAINER"; then
   HAS_INDEX="$(docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -At -c     "select count(*) from pg_index where indexrelid = to_regclass('idx_chunks_child_embedding_hnsw') and indisvalid" 2>/dev/null || echo 0)"
   if [ "$HAS_INDEX" = "1" ]; then
     echo "Already present."
@@ -132,6 +179,24 @@ docker tag nas-frontend:latest app-frontend:latest
 if [ -f hf-medcpt.tar ]; then
   mkdir -p "$HF_DIR/hub"
   tar -xf hf-medcpt.tar -C "$HF_DIR/hub" && echo "MedCPT reranker installed into $HF_DIR/hub"
+fi
+
+if [ "$RESTORE_DB" = 1 ]; then
+  step "Copying this NAS's users, chats, quiz attempts and bookmarks from '$OLD_DB' into '$NEW_DB'"
+  NET="$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$DB_CONTAINER" | awk '{print $1}')"
+  PG_PASS="$(env_value POSTGRES_PASSWORD change-this-db-password)"
+  # A one-off container of the new backend image; merge_user_data.py loads no ML models.
+  docker run --rm --network "$NET" --entrypoint python -w /app/backend \
+    -e DATABASE_URL="postgresql://$PG_USER:$PG_PASS@$DB_CONTAINER:5432/$NEW_DB" \
+    app-backend:latest scripts/merge_user_data.py --source-db "$OLD_DB" --apply
+  if grep -q '^POSTGRES_DB=' "$APP/.env"; then
+    sed -i "s/^POSTGRES_DB=.*/POSTGRES_DB=$NEW_DB/" "$APP/.env"
+  else
+    echo "POSTGRES_DB=$NEW_DB" >> "$APP/.env"
+  fi
+  echo "$OLD_DB" > "$APP/.previous_db"
+  PG_DB="$NEW_DB"
+  echo "POSTGRES_DB is now $NEW_DB (previous: $OLD_DB, kept; rollback.sh switches back)."
 fi
 
 step "[7/8] Starting the stack"
