@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Flame, Image as ImageIcon, Loader2, RotateCcw, Sparkles, Snowflake, XCircle } from "lucide-react";
+import { CheckCircle2, Flame, Image as ImageIcon, Loader2, RotateCcw, Sparkles, Snowflake, TrendingUp, XCircle } from "lucide-react";
 import { API } from "@/lib/constants";
 import { Figure } from "@/types";
 import { parseMarkdown } from "@/utils/markdown";
@@ -24,6 +24,8 @@ interface DoseItem {
   type: "review" | "new" | "image" | "pearl";
   done: boolean;
   correct?: boolean;
+  high_yield?: boolean;
+  times_asked?: number;
   mcq?: DoseMCQ | null;
   concept?: ConceptCardData | null;
 }
@@ -234,6 +236,14 @@ export default function DailyDoseView({ token, onFigureClick }: { token: string 
           <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
             {item.type === "image" ? <ImageIcon size={12} /> : item.type === "pearl" ? <Sparkles size={12} /> : null}
             {TYPE_LABEL[item.type]} · {current + 1} of {total}
+            {item.high_yield ? (
+              <span
+                title="A topic past FCPS papers ask often. The question is written from your textbooks."
+                style={{ display: "inline-flex", alignItems: "center", gap: "3px", marginLeft: "6px", padding: "1px 7px", borderRadius: "999px", background: "rgba(245, 158, 11, 0.14)", color: "#d97706", letterSpacing: "0.02em", textTransform: "none" }}
+              >
+                <TrendingUp size={11} /> Frequently asked{item.times_asked && item.times_asked > 1 ? ` · ${item.times_asked}×` : ""}
+              </span>
+            ) : null}
           </div>
 
           {item.type === "pearl" && item.concept ? (

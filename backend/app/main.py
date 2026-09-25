@@ -519,12 +519,14 @@ def explain_mcq_endpoint(
     current_user: User = Depends(require_student_or_admin)
 ):
     """On-demand RAG-grounded explanation generation and caching for a specific MCQ."""
+    from app.retention import can_see_mcq
+
     mcq = db.query(MCQ).filter(MCQ.id == mcq_id).first()
-    if not mcq:
+    if not mcq or not can_see_mcq(current_user, mcq):
         raise HTTPException(status_code=404, detail="MCQ not found.")
 
     # Return cached explanation if present
-    if mcq.explanation_markdown and mcq.explanation_markdown.strip() and mcq.status == "ready":
+    if mcq.explanation_markdown and mcq.explanation_markdown.strip() and mcq.status in ("ready", "private"):
         return {
             "answer_markdown": mcq.explanation_markdown,
             "citations": mcq.explanation_citations or [],
@@ -538,7 +540,8 @@ def explain_mcq_endpoint(
     mcq.explanation_markdown = explanation_data.get("answer_markdown")
     mcq.explanation_citations = explanation_data.get("citations")
     mcq.explanation_figures = explanation_data.get("figures")
-    mcq.status = "ready"
+    if mcq.status != "private":   # explaining a private question must not publish it
+        mcq.status = "ready"
     db.commit()
 
     return explanation_data
@@ -749,8 +752,9 @@ def start_quiz_endpoint(
     """Generates a randomized practice quiz, creates a QuizAttempt record, and returns the questions."""
     from sqlalchemy import func
     from app.models import AttemptAnswer, QuizAttempt
-    
-    query = db.query(MCQ)
+
+    # Private (recall-derived) questions are served only through the Daily Dose.
+    query = db.query(MCQ).filter(MCQ.status != "private")
     
     # Drill mode: only previously-missed questions (user-scoped by construct)
     if req.drill_wrong:
@@ -1267,7 +1271,7 @@ def get_all_mcqs(
     current_user: User = Depends(require_student_or_admin)
 ):
     """Retrieves list of all MCQs inside the database with category filters, searches, and bookmark indicators."""
-    query = db.query(MCQ)
+    query = db.query(MCQ).filter(MCQ.status != "private")
     if category and category != "all":
         query = query.filter(MCQ.main_category == category)
     if search:
@@ -1300,8 +1304,10 @@ def toggle_mcq_bookmark(
     current_user: User = Depends(require_student_or_admin)
 ):
     """Toggles bookmark status of an MCQ for the current student."""
+    from app.retention import can_see_mcq
+
     mcq = db.query(MCQ).filter(MCQ.id == mcq_id).first()
-    if not mcq:
+    if not mcq or not can_see_mcq(current_user, mcq):
         raise HTTPException(status_code=404, detail="MCQ not found.")
         
     existing = db.query(MCQBookmark).filter(
@@ -2063,8 +2069,10 @@ def study_answer(
     from app.retention import mark_item_done, record_answer, serialize_card
     from datetime import date as _date
 
+    from app.retention import can_see_mcq
+
     mcq = db.get(MCQ, req.mcq_id)
-    if mcq is None:
+    if mcq is None or not can_see_mcq(current_user, mcq):
         raise HTTPException(status_code=404, detail="Question not found.")
     source = "dose" if req.dose_index is not None else "practice"
     result = record_answer(db, current_user.id, mcq, req.selected_option, req.confidence, source=source)

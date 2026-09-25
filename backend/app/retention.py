@@ -42,6 +42,8 @@ MASTERED_BOX = 3
 CONCEPT_REUSE_COSINE = 0.88                # same concept worded differently
 VARIANT_SIMILAR_COSINE = 0.80              # an existing MCQ that tests this concept
 DOSE_REVIEWS, DOSE_NEW = 5, 5
+HIGH_YIELD_PER_DOSE = 2          # of DOSE_NEW, from the most-recalled past-paper topics
+HIGH_YIELD_QUEUE_PER_DOSE = 3    # new high-yield questions written in the background per Dose built
 PASS_LINE = 0.75
 CONFIDENCE_WEIGHT = {"sure": 1.0, "unsure": 0.6, "guess": 0.2}
 
@@ -55,6 +57,7 @@ SUBJECT_BY_BOOK = [
 PART1_SUBJECTS = ["Anatomy", "Physiology", "Pathology", "Pharmacology", "Microbiology", "Biochemistry"]
 
 _pending: set[int] = set()          # mcq ids whose concept card is being built
+_pending_recalls: set[int] = set()  # recall ids whose high-yield question is being written
 _pending_lock = threading.Lock()
 # One worker: each card runs a full textbook search (CPU-heavy). Queuing them
 # keeps a 20-question quiz from launching 20 parallel searches on a small server.
@@ -224,14 +227,14 @@ def build_concept_card(db: Session, mcq: MCQ) -> ConceptCard:
 
 def _variant_mcq(db: Session, card: ConceptCard, exclude_ids: set[int]) -> MCQ | None:
     """An existing MCQ on this concept that isn't in exclude_ids."""
-    q = db.query(MCQ).filter(MCQ.concept_id == card.id)
+    q = db.query(MCQ).filter(MCQ.concept_id == card.id, MCQ.status != "private")
     if exclude_ids:
         q = q.filter(MCQ.id.notin_(exclude_ids))
     found = q.order_by(func.random()).first()
     if found:
         return found
     row = db.execute(text(
-        "SELECT id FROM mcqs WHERE stem_embedding IS NOT NULL AND figure_id IS NULL "
+        "SELECT id FROM mcqs WHERE stem_embedding IS NOT NULL AND figure_id IS NULL AND status <> 'private' "
         "AND 1 - (stem_embedding <=> (SELECT embedding FROM concept_cards WHERE id = :c)) >= :m "
         + ("AND id <> ALL(:ex) " if exclude_ids else "") +
         "ORDER BY stem_embedding <=> (SELECT embedding FROM concept_cards WHERE id = :c) LIMIT 1"
@@ -455,6 +458,134 @@ def _new_questions(db: Session, user_id: int, seen: set[int], n: int) -> list[MC
     return picked
 
 
+# ─── high-yield (past-paper frequency) ──────────────────────────────────────
+# The recall bank (a private source) is never shown. It only decides which
+# topics get extra practice; the questions themselves are written from the
+# verified textbook quotes the Referee found, and are stored as status
+# 'private' so no other pool (quizzes, duels, re-tests, browser) serves them.
+
+def high_yield_enabled(user: User) -> bool:
+    from app.config import settings
+
+    mode = (settings.high_yield_dose or "off").lower()
+    return mode == "all" or (mode == "admin" and user.role == "admin")
+
+
+def can_see_mcq(user: User, mcq: MCQ) -> bool:
+    return mcq.status != "private" or high_yield_enabled(user)
+
+
+def _high_yield_questions(db: Session, seen: set[int], n: int) -> list[tuple[MCQ, int]]:
+    """Up to n written high-yield questions, sampled in proportion to how often past papers ask them."""
+    rows = db.execute(text(
+        "SELECT r.mcq_id, COALESCE(r.times_asked, 1) AS asked FROM recall_items r "
+        "JOIN mcqs m ON m.id = r.mcq_id AND m.status = 'private' "
+        "WHERE r.kind = 'headline'" + (" AND r.mcq_id <> ALL(:seen)" if seen else "") +
+        # Efraimidis-Spirakis weighted sampling: smallest -ln(U)/w first.
+        " ORDER BY -ln(1 - random()) / GREATEST(COALESCE(r.times_asked, 1), 1) LIMIT :n"
+    ), {"n": n, **({"seen": list(seen)} if seen else {})}).all()
+    out = []
+    for mcq_id, asked in rows:
+        mcq = db.get(MCQ, mcq_id)
+        if mcq is not None:
+            out.append((mcq, int(asked)))
+    return out
+
+
+def generate_high_yield_mcq(db: Session, recall: Any) -> MCQ | None:
+    """Write one FCPS question on a past-paper topic from the Referee's verified textbook quotes."""
+    evidence = [e for e in (recall.evidence or []) if e.get("quote")]
+    if not evidence or not llm_configured("fast"):
+        return None
+    quotes = "\n".join(f'{i}. ({e.get("book_title")}, p.{e.get("page_number")}) "{e["quote"]}"'
+                       for i, e in enumerate(evidence, 1))
+    try:
+        raw = chat_completion(
+            [
+                {"role": "system", "content": (
+                    "Write ONE CPSP FCPS-style single-best-answer MCQ with five options (A-E) on the fact stated in "
+                    "the TEXTBOOK QUOTES. The topic line says which fact past papers test; write your own new stem "
+                    "and options (do not copy the topic wording). The correct answer must be stated by a quote; "
+                    "distractors must be plausible. Return JSON: "
+                    '{"question_text": "...", "options": {"A": "...", "B": "...", "C": "...", "D": "...", "E": "..."}, '
+                    '"correct_option": "A", "quote": 1, "concept": "concept tested, max 8 words", '
+                    '"explanation": "why right (name the book, never say quote 1/2) and why each other option is wrong"}'
+                )},
+                {"role": "user", "content": (
+                    f"TOPIC: {recall.question} -> {recall.textbook_answer or recall.answer}\n\nTEXTBOOK QUOTES:\n{quotes}"
+                )},
+            ],
+            json_mode=True, temperature=0.4, max_tokens=900, label="high-yield", role="fast",
+        )
+        q = json.loads(raw)
+    except Exception as e:
+        logger.warning("High-yield question failed for recall %s: %s", recall.id, e)
+        return None
+    options = {str(k).upper(): str(v).strip() for k, v in (q.get("options") or {}).items() if str(v).strip()}
+    correct = str(q.get("correct_option") or "").strip().upper()[:1]
+    stem = str(q.get("question_text") or "").strip()
+    if len(options) < 4 or correct not in options or not stem:
+        return None
+    try:
+        ev = evidence[int(q.get("quote") or 1) - 1]
+    except (TypeError, ValueError, IndexError):
+        ev = evidence[0]
+    book_id = None
+    if ev.get("chunk_id"):
+        book_id = db.execute(text("SELECT book_id FROM chunks WHERE id = :c"), {"c": ev["chunk_id"]}).scalar()
+    explanation = str(q.get("explanation") or "").strip()
+    explanation += f'\n\n> "{ev["quote"]}"\n\n**Source**: {ev.get("book_title")}, Page {ev.get("page_number")}'
+    concept = str(q.get("concept") or "").strip() or recall.question[:80]
+    mcq = MCQ(
+        question_text=stem, options=options, correct_option=correct, book_id=book_id,
+        topic=concept, main_category="High-yield", sub_category=ev.get("book_title") or "Textbook",
+        explanation_markdown=explanation, status="private", tested_concept=concept, grounding="book",
+        source_chunk_ids=[e["chunk_id"] for e in evidence if e.get("chunk_id")],
+        stem_embedding=_embed([stem])[0].tolist(),
+    )
+    db.add(mcq)
+    db.flush()
+    recall.mcq_id = mcq.id
+    db.commit()
+    return mcq
+
+
+def _prepare_high_yield(recall_id: int) -> None:
+    from app.database import SessionLocal
+    from app.models import RecallItem
+
+    db = SessionLocal()
+    try:
+        recall = db.get(RecallItem, recall_id)
+        if recall is not None and recall.mcq_id is None:
+            generate_high_yield_mcq(db, recall)
+    except Exception:
+        logger.exception("High-yield preparation failed for recall %s", recall_id)
+        db.rollback()
+    finally:
+        db.close()
+        with _pending_lock:
+            _pending_recalls.discard(recall_id)
+
+
+def queue_high_yield(db: Session, k: int = HIGH_YIELD_QUEUE_PER_DOSE) -> int:
+    """Write k more high-yield questions in the background, favouring the most-asked topics."""
+    ids = db.execute(text(
+        "SELECT id FROM recall_items WHERE kind = 'headline' AND verdict = 'supported' AND mcq_id IS NULL "
+        "AND jsonb_typeof(evidence) = 'array' AND jsonb_array_length(evidence) > 0 "
+        "ORDER BY -ln(1 - random()) / GREATEST(COALESCE(times_asked, 1), 1) LIMIT :k"
+    ), {"k": k}).scalars().all()
+    queued = 0
+    for rid in ids:
+        with _pending_lock:
+            if rid in _pending_recalls:
+                continue
+            _pending_recalls.add(rid)
+        _jobs.submit(_prepare_high_yield, rid)
+        queued += 1
+    return queued
+
+
 def spot_diagnosis_mcq(db: Session, user_id: int, seen: set[int]) -> MCQ | None:
     """An image question from a captioned textbook figure (reuses one if it exists)."""
     existing = db.query(MCQ).filter(MCQ.figure_id.isnot(None))
@@ -575,7 +706,14 @@ def get_or_build_daily_session(db: Session, user: User, today: date | None = Non
             items.append({"type": "review", "mcq_id": mcq.id, "concept_id": card.id, "done": False})
             seen.add(mcq.id)
 
-    for mcq in _new_questions(db, user.id, seen, DOSE_NEW):
+    n_new = DOSE_NEW
+    if high_yield_enabled(user):
+        for mcq, asked in _high_yield_questions(db, seen, HIGH_YIELD_PER_DOSE):
+            items.append({"type": "new", "mcq_id": mcq.id, "high_yield": True, "times_asked": asked, "done": False})
+            seen.add(mcq.id)
+            n_new -= 1
+        queue_high_yield(db)   # grow the pool for the coming days
+    for mcq in _new_questions(db, user.id, seen, n_new):
         items.append({"type": "new", "mcq_id": mcq.id, "done": False})
         seen.add(mcq.id)
 

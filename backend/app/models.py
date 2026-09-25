@@ -366,6 +366,8 @@ class RecallItem(Base):
     review_status: Mapped[str] = mapped_column(Text, server_default="unreviewed")
     reviewer_note: Mapped[str | None] = mapped_column(Text, default=None)
     refereed_at: Mapped[datetime | None] = mapped_column(default=None)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), default=None, deferred=True)
+    times_asked: Mapped[int | None] = mapped_column(default=None)   # headlines: recalls that reword it
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
