@@ -51,7 +51,12 @@ export default function DashboardView({
         </p>
       </div>
 
-      <ReadinessCard token={token} onOpenDailyDose={() => setActiveView("daily")} />
+      <ReadinessCard
+        token={token}
+        onOpenDailyDose={() => setActiveView("daily")}
+        onOpenLookalikes={() => setActiveView("lookalikes")}
+        onOpenSprint={() => setActiveView("sprint")}
+      />
 
       {/* Bento Grid Stats */}
       <div className="dashboard-grid">

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Flame, Target } from "lucide-react";
+import { AlertTriangle, CalendarClock, Flame, GitCompareArrows, Target, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 
@@ -16,12 +16,36 @@ interface Readiness {
   daily_target: number | null;
   streak: { current: number; best: number; done_today: boolean };
   note: string;
+  mistakes?: {
+    window_days: number;
+    total_wrong: number;
+    types: Record<"confusion" | "misconception" | "gap", { count: number; share: number }>;
+    confident_errors: { concept_id: number; title: string; count: number }[];
+    pairs: { open: number; cleared: number };
+  };
+  sprint?: { unlocked: boolean; preview: boolean; days_left: number | null; unlocks_days_before: number };
 }
+
+const MISTAKE_LABEL = {
+  confusion: { label: "Look-alike mix-ups", color: "#d97706" },
+  misconception: { label: "Confident but wrong", color: "var(--error)" },
+  gap: { label: "Not known yet", color: "var(--sky)" },
+} as const;
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 /** Readiness vs the FCPS 75% line, concept mastery, streak and exam countdown. */
-export function ReadinessCard({ token, onOpenDailyDose }: { token: string | null; onOpenDailyDose?: () => void }) {
+export function ReadinessCard({
+  token,
+  onOpenDailyDose,
+  onOpenLookalikes,
+  onOpenSprint,
+}: {
+  token: string | null;
+  onOpenDailyDose?: () => void;
+  onOpenLookalikes?: () => void;
+  onOpenSprint?: () => void;
+}) {
   const [data, setData] = useState<Readiness | null>(null);
   const [dateInput, setDateInput] = useState("");
 
@@ -148,7 +172,43 @@ export function ReadinessCard({ token, onOpenDailyDose }: { token: string | null
             <b>{data.days_left}</b> days to the exam{data.daily_target ? <> · aim for <b>{data.daily_target}</b> questions a day</> : null}
           </div>
         ) : null}
+        {data.sprint && (data.sprint.unlocked || data.sprint.preview) && onOpenSprint ? (
+          <button className="btn-workspace" onClick={onOpenSprint} style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: "0.78rem", borderColor: "#f59e0b" }}>
+            <Zap size={12} style={{ color: "#f59e0b" }} /> {data.sprint.unlocked ? "Final sprint is open" : "Preview the final sprint"}
+          </button>
+        ) : null}
       </div>
+
+      {data.mistakes && data.mistakes.total_wrong > 0 ? (
+        <div>
+          <div style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", display: "flex", gap: "5px", alignItems: "center" }}>
+            <AlertTriangle size={12} /> Your mistakes ({data.mistakes.window_days} days)
+          </div>
+          <div style={{ display: "flex", height: "10px", borderRadius: "999px", overflow: "hidden", margin: "8px 0 6px", background: "var(--surface-3)" }}>
+            {(Object.keys(MISTAKE_LABEL) as (keyof typeof MISTAKE_LABEL)[]).map((t) => (
+              <div key={t} title={`${MISTAKE_LABEL[t].label}: ${data.mistakes!.types[t].count}`}
+                style={{ width: `${data.mistakes!.types[t].share * 100}%`, background: MISTAKE_LABEL[t].color }} />
+            ))}
+          </div>
+          {(Object.keys(MISTAKE_LABEL) as (keyof typeof MISTAKE_LABEL)[]).map((t) => (
+            <div key={t} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.76rem", marginTop: "3px" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: MISTAKE_LABEL[t].color }} />
+              <span style={{ color: "var(--text-secondary)", flex: 1 }}>{MISTAKE_LABEL[t].label}</span>
+              <b>{pct(data.mistakes!.types[t].share)}</b>
+            </div>
+          ))}
+          {data.mistakes.confident_errors.length ? (
+            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "6px" }}>
+              Confidently wrong on: {data.mistakes.confident_errors.slice(0, 3).map((c) => c.title).join("; ")}
+            </div>
+          ) : null}
+          {onOpenLookalikes && data.mistakes.pairs.open + data.mistakes.pairs.cleared > 0 ? (
+            <button className="btn-workspace" onClick={onOpenLookalikes} style={{ marginTop: "8px", padding: "4px 10px", fontSize: "0.74rem" }}>
+              <GitCompareArrows size={12} /> {data.mistakes.pairs.open} look-alike pair{data.mistakes.pairs.open === 1 ? "" : "s"} to clear
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

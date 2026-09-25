@@ -22,6 +22,9 @@ import {
   Flame,
   Scale,
   Swords,
+  Trophy,
+  GitCompareArrows,
+  Zap,
 } from "lucide-react";
 import { Book } from "@/types";
 import { BookItem } from "@/components";
@@ -188,6 +191,37 @@ export default function AppSidebar({
         >
           <Swords size={14} />
           Challenge a friend
+        </button>
+        <button
+          className={`btn-workspace-nav ${activeView === "mock" ? "active" : ""}`}
+          onClick={() => {
+            setActiveView("mock");
+            setMobileMenuOpen(false);
+          }}
+        >
+          <Trophy size={14} />
+          Weekly mock
+        </button>
+        <button
+          className={`btn-workspace-nav ${activeView === "lookalikes" ? "active" : ""}`}
+          onClick={() => {
+            setActiveView("lookalikes");
+            setMobileMenuOpen(false);
+          }}
+        >
+          <GitCompareArrows size={14} />
+          Look-alikes
+        </button>
+        <button
+          className={`btn-workspace-nav ${activeView === "sprint" ? "active" : ""}`}
+          onClick={() => {
+            setActiveView("sprint");
+            setMobileMenuOpen(false);
+          }}
+          title="Opens in the last 7 days before your exam"
+        >
+          <Zap size={14} />
+          Final sprint
         </button>
         {isAdmin ? (
           <button

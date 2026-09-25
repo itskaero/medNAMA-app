@@ -119,6 +119,7 @@ class MCQ(Base):
     grounding: Mapped[str | None] = mapped_column(Text, default=None)  # 'book' | 'ai'
     concept_id: Mapped[int | None] = mapped_column(ForeignKey("concept_cards.id", ondelete="SET NULL"), default=None)
     figure_id: Mapped[int | None] = mapped_column(ForeignKey("figures.id", ondelete="SET NULL"), default=None)
+    source: Mapped[str | None] = mapped_column(Text, default=None)   # e.g. 'seed:p1/patho.js' (scripts/seed_mcqs.py)
 
     book: Mapped["Book | None"] = relationship()
 
@@ -326,6 +327,8 @@ class AnswerEvent(Base):
     confidence: Mapped[str] = mapped_column(Text, server_default="sure")   # sure | unsure | guess
     subject: Mapped[str | None] = mapped_column(Text, default=None)
     source: Mapped[str] = mapped_column(Text, server_default="quiz")       # quiz | dose | retest
+    mistake_type: Mapped[str | None] = mapped_column(Text, default=None)   # confusion | misconception | gap
+    pair_id: Mapped[int | None] = mapped_column(ForeignKey("confusable_pairs.id", ondelete="SET NULL"), default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
@@ -399,3 +402,64 @@ class DuelEntry(Base):
     finished_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     user: Mapped["User"] = relationship()
+
+
+class ConfusablePair(Base):
+    """Two look-alike concepts a student mixed up (migration e7a9c1d3f5b6)."""
+
+    __tablename__ = "confusable_pairs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pair_key: Mapped[str] = mapped_column(Text, unique=True)
+    term_a: Mapped[str] = mapped_column(Text)
+    term_b: Mapped[str] = mapped_column(Text)
+    card: Mapped[dict | None] = mapped_column(JSONB, default=None)   # rows, discriminator, quotes
+    mcq_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    grounding: Mapped[str] = mapped_column(Text, server_default="textbook")
+    status: Mapped[str] = mapped_column(Text, server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class StudySession(Base):
+    """A non-Daily-Dose study session, e.g. the final sprint (migration e7a9c1d3f5b6)."""
+
+    __tablename__ = "study_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(Text)
+    day: Mapped[date]
+    items: Mapped[list] = mapped_column(JSONB, default=list)
+    completed_at: Mapped[datetime | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class WeeklyMock(Base):
+    """One fixed CPSP-format paper per ISO week (migration e7a9c1d3f5b6)."""
+
+    __tablename__ = "weekly_mocks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    week_start: Mapped[date]
+    part: Mapped[str] = mapped_column(Text, server_default="p1")     # p1 | p2
+    track: Mapped[str] = mapped_column(Text, server_default="")      # Part 2 specialty; '' = mixed
+    title: Mapped[str] = mapped_column(Text)
+    mcq_ids: Mapped[list] = mapped_column(JSONB)
+    duration_min: Mapped[int] = mapped_column(server_default="120")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class WeeklyMockEntry(Base):
+    """One student's sitting of a weekly mock."""
+
+    __tablename__ = "weekly_mock_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    mock_id: Mapped[int] = mapped_column(ForeignKey("weekly_mocks.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    started_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    submitted_at: Mapped[datetime | None] = mapped_column(default=None)
+    answers: Mapped[dict] = mapped_column(JSONB, default=dict)
+    score: Mapped[int | None] = mapped_column(default=None)
+    total: Mapped[int | None] = mapped_column(default=None)
+    overtime: Mapped[bool] = mapped_column(server_default="false")

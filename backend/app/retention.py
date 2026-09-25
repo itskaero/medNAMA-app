@@ -29,7 +29,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 import numpy as np
-from sqlalchemy import func, text
+from sqlalchemy import and_, func, or_, text
 from sqlalchemy.orm import Session
 
 from app.llm import chat_completion, llm_configured
@@ -54,7 +54,12 @@ SUBJECT_BY_BOOK = [
     ("microbiology", "Microbiology"), ("levinson", "Microbiology"), ("davidson", "Medicine"),
     ("bailey", "Surgery"), ("dhingra", "ENT"), ("nelson", "Paediatrics"), ("first aid", "Mixed (First Aid)"),
 ]
-PART1_SUBJECTS = ["Anatomy", "Physiology", "Pathology", "Pharmacology", "Microbiology", "Biochemistry"]
+PART1_SUBJECTS = ["Anatomy", "Physiology", "Pathology", "Pharmacology", "Microbiology", "Biochemistry",
+                  "Behavioural Sciences", "Community Medicine"]
+# Seeded banks (scripts/seed_mcqs.py) name their subject/specialty in sub_category.
+SEEDED_SUBJECT_CATEGORIES = ("FCPS Part 1", "FCPS Part 2")
+# Seeded sets that are not FCPS practice: kept out of the Daily Dose, duels and the weekly mock.
+NON_FCPS_CATEGORIES = ("English", "NTS mocks")
 
 _pending: set[int] = set()          # mcq ids whose concept card is being built
 _pending_recalls: set[int] = set()  # recall ids whose high-yield question is being written
@@ -74,11 +79,31 @@ def subject_for_title(title: str | None) -> str | None:
     return None
 
 
+def subject_for(book_title: str | None, main_category: str | None, sub_category: str | None) -> str | None:
+    if main_category in SEEDED_SUBJECT_CATEGORIES and sub_category:
+        return sub_category
+    return subject_for_title(book_title) or subject_for_title(sub_category)
+
+
 def subject_for_mcq(db: Session, mcq: MCQ) -> str | None:
     title = None
     if mcq.book_id:
         title = db.query(Book.title).filter(Book.id == mcq.book_id).scalar()
-    return subject_for_title(title) or subject_for_title(mcq.sub_category)
+    return subject_for(title, mcq.main_category, mcq.sub_category)
+
+
+def fcps_only(query):
+    """Restrict an MCQ query to FCPS practice (drops the seeded English / NTS-mock sets)."""
+    return query.filter(or_(MCQ.main_category.is_(None), MCQ.main_category.notin_(NON_FCPS_CATEGORIES)))
+
+
+def subject_filter(db: Session, subject: str | None):
+    """SQL condition for questions of a subject: from its textbooks, or seeded under that subject."""
+    if not subject:
+        return None
+    book_ids = _books_for_subject(db, subject)
+    seeded = and_(MCQ.main_category.in_(SEEDED_SUBJECT_CATEGORIES), MCQ.sub_category == subject)
+    return or_(MCQ.book_id.in_(book_ids), seeded) if book_ids else seeded
 
 
 def _embed(texts: list[str]) -> np.ndarray:
@@ -370,11 +395,15 @@ def _schedule(review: ConceptReview, is_correct: bool, confidence: str) -> None:
 def record_answer(db: Session, user_id: int, mcq: MCQ, selected: str, confidence: str = "sure",
                   source: str = "quiz") -> dict[str, Any]:
     """Log an answer, update the concept schedule, and start a concept card when needed."""
+    from app.study_modes import classify_mistake, queue_pair_for_event
+
     confidence = confidence if confidence in CONFIDENCE_WEIGHT else "sure"
     is_correct = (selected or "").strip().upper() == (mcq.correct_option or "").strip().upper()
-    db.add(AnswerEvent(user_id=user_id, mcq_id=mcq.id, concept_id=mcq.concept_id,
-                       selected_option=selected, is_correct=is_correct, confidence=confidence,
-                       subject=subject_for_mcq(db, mcq), source=source))
+    mistake = classify_mistake(mcq, selected, is_correct, confidence)
+    event = AnswerEvent(user_id=user_id, mcq_id=mcq.id, concept_id=mcq.concept_id,
+                        selected_option=selected, is_correct=is_correct, confidence=confidence,
+                        subject=subject_for_mcq(db, mcq), source=source, mistake_type=mistake)
+    db.add(event)
     needs_card = (not is_correct) or confidence == "guess"
     concept_status = "none"
     if mcq.concept_id:
@@ -388,8 +417,10 @@ def record_answer(db: Session, user_id: int, mcq: MCQ, selected: str, confidence
     elif needs_card:
         concept_status = ensure_concept_async(mcq.id)
     db.commit()
+    if mistake == "confusion":
+        queue_pair_for_event(event.id)   # name the two concepts, then build their comparison
     return {"is_correct": is_correct, "correct_option": mcq.correct_option,
-            "concept_status": concept_status, "concept_id": mcq.concept_id}
+            "concept_status": concept_status, "concept_id": mcq.concept_id, "mistake_type": mistake}
 
 
 def attach_pending_reviews(db: Session, user_id: int) -> int:
@@ -445,13 +476,13 @@ def _books_for_subject(db: Session, subject: str | None) -> list[int]:
 
 def _new_questions(db: Session, user_id: int, seen: set[int], n: int) -> list[MCQ]:
     weakest = _weakest_subject(db, user_id)
-    book_ids = _books_for_subject(db, weakest)
-    base = db.query(MCQ).filter(MCQ.status == "ready", MCQ.figure_id.is_(None))
+    base = fcps_only(db.query(MCQ).filter(MCQ.status == "ready", MCQ.figure_id.is_(None)))
     if seen:
         base = base.filter(MCQ.id.notin_(seen))
     picked: list[MCQ] = []
-    if book_ids:
-        picked = base.filter(MCQ.book_id.in_(book_ids)).order_by(func.random()).limit(n).all()
+    cond = subject_filter(db, weakest)
+    if cond is not None:
+        picked = base.filter(cond).order_by(func.random()).limit(n).all()
     if len(picked) < n:
         more = base.filter(MCQ.id.notin_([m.id for m in picked] or [-1])).order_by(func.random()).limit(n - len(picked)).all()
         picked += more
@@ -706,6 +737,14 @@ def get_or_build_daily_session(db: Session, user: User, today: date | None = Non
             items.append({"type": "review", "mcq_id": mcq.id, "concept_id": card.id, "done": False})
             seen.add(mcq.id)
 
+    from app.study_modes import user_pairs
+
+    for p in user_pairs(db, user.id):
+        if p["status"] == "ready" and not p["cleared"] and p["next_mcq_id"] and p["next_mcq_id"] not in seen:
+            items.append({"type": "pair", "pair_id": p["id"], "mcq_id": p["next_mcq_id"], "done": False})
+            seen.add(p["next_mcq_id"])
+            break
+
     n_new = DOSE_NEW
     if high_yield_enabled(user):
         for mcq, asked in _high_yield_questions(db, seen, HIGH_YIELD_PER_DOSE):
@@ -782,7 +821,21 @@ def readiness(db: Session, user: User) -> dict[str, Any]:
         "streak": streak(db, user.id),
         "streak_freezes": user.streak_freezes,
         "note": "Estimate from your confidence-weighted accuracy; needs 10+ answers per subject.",
+        "mistakes": _mistakes(db, user.id),
+        "sprint": _sprint(user),
     }
+
+
+def _mistakes(db: Session, user_id: int) -> dict[str, Any]:
+    from app.study_modes import mistake_profile
+
+    return mistake_profile(db, user_id)
+
+
+def _sprint(user: User) -> dict[str, Any]:
+    from app.study_modes import sprint_status
+
+    return sprint_status(user)
 
 
 

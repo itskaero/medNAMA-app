@@ -37,12 +37,14 @@ import StudyView from "@/components/views/StudyView";
 import DailyDoseView from "@/components/views/DailyDoseView";
 import RefereeView from "@/components/views/RefereeView";
 import DuelView from "@/components/views/DuelView";
+import WeeklyMockView from "@/components/views/WeeklyMockView";
+import LookalikesView from "@/components/views/LookalikesView";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel" | "mock" | "lookalikes" | "sprint"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
@@ -444,7 +446,19 @@ export default function Home() {
     }
 
     if (activeView === "daily") {
-      return <DailyDoseView token={token} onFigureClick={setLightboxFig} />;
+      return <DailyDoseView key="dose" token={token} onFigureClick={setLightboxFig} />;
+    }
+
+    if (activeView === "sprint") {
+      return <DailyDoseView key="sprint" mode="sprint" token={token} onFigureClick={setLightboxFig} />;
+    }
+
+    if (activeView === "mock") {
+      return <WeeklyMockView token={token} />;
+    }
+
+    if (activeView === "lookalikes") {
+      return <LookalikesView token={token} onFigureClick={setLightboxFig} />;
     }
 
     if (activeView === "study") {

@@ -461,7 +461,7 @@ def get_dashboard_stats(
         MCQ.main_category,
         MCQ.sub_category,
         func.count(MCQ.id)
-    ).group_by(MCQ.main_category, MCQ.sub_category).all()
+    ).filter(MCQ.status != "private").group_by(MCQ.main_category, MCQ.sub_category).all()
     
     categories_map = {}
     for main, sub, count in categories_query:
@@ -2005,6 +2005,7 @@ class StudyAnswerRequest(BaseModel):
     selected_option: str
     confidence: str = "sure"          # sure | unsure | guess
     dose_index: int | None = None     # position in today's Daily Dose, if answered there
+    session_kind: str = "dose"        # dose | sprint: which session dose_index refers to
 
 
 class ExamDateRequest(BaseModel):
@@ -2032,8 +2033,9 @@ def get_daily_dose(
     current_user: User = Depends(require_student_or_admin),
 ):
     """Today's Daily Dose: due concept re-tests, new questions, a spot-the-diagnosis image, a pearl."""
-    from app.models import ConceptCard
+    from app.models import ConceptCard, ConfusablePair
     from app.retention import get_or_build_daily_session, serialize_card, streak
+    from app.study_modes import serialize_pair
 
     # current_user belongs to auth's own DB session; changes (streak freezes) must be
     # made on this request's session or they are never committed.
@@ -2048,6 +2050,9 @@ def get_daily_dose(
         if item.get("type") == "pearl" and item.get("concept_id"):
             card = db.get(ConceptCard, item["concept_id"])
             entry["concept"] = serialize_card(db, card) if card else None
+        if item.get("type") == "pair" and item.get("pair_id"):
+            pair = db.get(ConfusablePair, item["pair_id"])
+            entry["pair"] = serialize_pair(pair) if pair else None
         items.append(entry)
     return {
         "day": session.day.isoformat(),
@@ -2074,10 +2079,16 @@ def study_answer(
     mcq = db.get(MCQ, req.mcq_id)
     if mcq is None or not can_see_mcq(current_user, mcq):
         raise HTTPException(status_code=404, detail="Question not found.")
-    source = "dose" if req.dose_index is not None else "practice"
+    from app.models import StudySession
+
+    sprint = req.session_kind == "sprint"
+    source = ("sprint" if sprint else "dose") if req.dose_index is not None else "practice"
     result = record_answer(db, current_user.id, mcq, req.selected_option, req.confidence, source=source)
     if req.dose_index is not None:
-        session = db.query(DailySession).filter_by(user_id=current_user.id, day=_date.today()).first()
+        if sprint:
+            session = db.query(StudySession).filter_by(user_id=current_user.id, kind="sprint", day=_date.today()).first()
+        else:
+            session = db.query(DailySession).filter_by(user_id=current_user.id, day=_date.today()).first()
         if session is not None:
             mark_item_done(db, session, req.dose_index, result["is_correct"])
     card = db.get(ConceptCard, mcq.concept_id) if mcq.concept_id else None
@@ -2091,15 +2102,19 @@ def study_answer(
 @app.post("/api/study/dose/{index}/done")
 def mark_dose_item_done(
     index: int,
+    kind: str = "dose",
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student_or_admin),
 ):
-    """Mark a non-question Daily Dose item (e.g. the pearl) as done."""
-    from app.models import DailySession
+    """Mark a non-question session item (the pearl, a sprint flash card) as done."""
+    from app.models import DailySession, StudySession
     from app.retention import mark_item_done, streak
     from datetime import date as _date
 
-    session = db.query(DailySession).filter_by(user_id=current_user.id, day=_date.today()).first()
+    if kind == "sprint":
+        session = db.query(StudySession).filter_by(user_id=current_user.id, kind="sprint", day=_date.today()).first()
+    else:
+        session = db.query(DailySession).filter_by(user_id=current_user.id, day=_date.today()).first()
     if session is None:
         raise HTTPException(status_code=404, detail="No Daily Dose for today yet.")
     mark_item_done(db, session, index)
@@ -2383,13 +2398,13 @@ def create_duel(
     """Create a shareable 10-question challenge (public-bank questions only)."""
     import secrets
     from app.models import Duel
-    from app.retention import _books_for_subject
+    from app.retention import fcps_only, subject_filter
 
     count = max(5, min(20, req.count or 10))
-    q = db.query(MCQ.id).filter(MCQ.status == "ready", MCQ.figure_id.is_(None))
-    book_ids = _books_for_subject(db, req.subject) if req.subject else []
-    if book_ids:
-        q = q.filter(MCQ.book_id.in_(book_ids))
+    q = fcps_only(db.query(MCQ.id).filter(MCQ.status == "ready", MCQ.figure_id.is_(None)))
+    cond = subject_filter(db, req.subject) if req.subject and req.subject != "Mixed" else None
+    if cond is not None:
+        q = q.filter(cond)
     ids = [r[0] for r in q.order_by(func.random()).limit(count).all()]
     if len(ids) < 5:
         raise HTTPException(status_code=400, detail="Not enough questions in the bank for a duel yet.")
@@ -2490,3 +2505,118 @@ def recall_frequency(
          for name, (n, h, d) in merged.items()),
         key=lambda x: -x["recalls"],
     )
+
+
+# ─── study modes: look-alikes, mistake types, final sprint, weekly mock ────
+
+@app.get("/api/study/mistakes")
+def study_mistakes(db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """Wrong answers by type (confusion / misconception / gap) over the last 60 days."""
+    from app.study_modes import mistake_profile
+
+    return mistake_profile(db, current_user.id)
+
+
+@app.get("/api/study/lookalikes")
+def study_lookalikes(db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """The student's confusable pairs with their comparison cards and questions."""
+    from app.study_modes import user_pairs
+
+    pairs = user_pairs(db, current_user.id)
+    ids = {i for p in pairs for i in p["mcq_ids"]}
+    by_id = {m.id: _mcq_payload(m) for m in db.query(MCQ).filter(MCQ.id.in_(ids))} if ids else {}
+    for p in pairs:
+        p["questions"] = [by_id[i] for i in p["mcq_ids"] if i in by_id]
+    return {"pairs": pairs}
+
+
+def _session_items_payload(db: Session, items: list) -> list:
+    from app.models import ConceptCard, ConfusablePair
+    from app.retention import serialize_card
+    from app.study_modes import serialize_pair
+
+    out = []
+    for i, item in enumerate(items or []):
+        entry = {**item, "index": i}
+        if item.get("mcq_id"):
+            m = db.get(MCQ, item["mcq_id"])
+            entry["mcq"] = _mcq_payload(m) if m else None
+        if item.get("concept_id") and item.get("type") in ("flash", "pearl"):
+            card = db.get(ConceptCard, item["concept_id"])
+            entry["concept"] = serialize_card(db, card) if card else None
+        if item.get("pair_id"):
+            pair = db.get(ConfusablePair, item["pair_id"])
+            entry["pair"] = serialize_pair(pair) if pair else None
+        out.append(entry)
+    return out
+
+
+@app.get("/api/study/sprint")
+def study_sprint(db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """Final sprint (last 7 days before the exam): weakest concept cards, rapid re-tests, open look-alikes."""
+    from app.study_modes import get_or_build_sprint, sprint_status
+
+    user = db.get(User, current_user.id)
+    status = sprint_status(user)
+    if not (status["unlocked"] or status["preview"]):
+        return {**status, "items": []}
+    session = get_or_build_sprint(db, user)
+    return {**status, "day": session.day.isoformat(), "completed": session.completed_at is not None,
+            "items": _session_items_payload(db, session.items)}
+
+
+class MockAnswersRequest(BaseModel):
+    answers: dict = {}
+
+
+@app.get("/api/mocks/weekly")
+def weekly_mock(part: str = "p1", track: str = "", db: Session = Depends(get_db),
+                current_user: User = Depends(require_student_or_admin)):
+    """This week's paper: part=p1 (FCPS Part 1, all subjects mixed) or p2 (&track=<specialty>, '' = mixed)."""
+    from app.study_modes import mock_overview
+
+    return mock_overview(db, db.get(User, current_user.id), part, track)
+
+
+@app.post("/api/mocks/weekly/start")
+def weekly_mock_start(part: str = "p1", track: str = "", db: Session = Depends(get_db),
+                      current_user: User = Depends(require_student_or_admin)):
+    """Start (or resume) this week's sitting. Questions come without answers."""
+    from app.study_modes import start_mock
+
+    try:
+        return start_mock(db, db.get(User, current_user.id), part, track)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="You have already sat this week's mock.")
+
+
+@app.put("/api/mocks/weekly/progress")
+def weekly_mock_progress(req: MockAnswersRequest, part: str = "p1", track: str = "", db: Session = Depends(get_db),
+                         current_user: User = Depends(require_student_or_admin)):
+    """Autosave answers so a dropped connection or closed tab loses nothing."""
+    from app.study_modes import save_mock_progress
+
+    save_mock_progress(db, db.get(User, current_user.id), req.answers, part, track)
+    return {"saved": True}
+
+
+@app.post("/api/mocks/weekly/submit")
+def weekly_mock_submit(req: MockAnswersRequest, part: str = "p1", track: str = "", db: Session = Depends(get_db),
+                       current_user: User = Depends(require_student_or_admin)):
+    from app.study_modes import submit_mock
+
+    try:
+        return submit_mock(db, db.get(User, current_user.id), req.answers, part, track)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Start this week's mock first.")
+
+
+@app.get("/api/mocks/weekly/result")
+def weekly_mock_result(part: str = "p1", track: str = "", db: Session = Depends(get_db),
+                       current_user: User = Depends(require_student_or_admin)):
+    from app.study_modes import mock_result
+
+    try:
+        return mock_result(db, db.get(User, current_user.id), part=part, track=track)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="No submitted sitting this week.")

@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, BookOpen, CheckCircle2, HelpCircle, Loader2, Scale, Search, XCircle } from "lucide-react";
+import { AlertTriangle, BookOpen, CheckCircle2, HelpCircle, ImageDown, Loader2, Scale, Search, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
+import { shareCard } from "@/lib/shareCard";
 
 type Verdict = "supported" | "contradicted" | "books_conflict" | "textbooks_silent";
 
@@ -71,10 +72,48 @@ function EvidenceList({ evidence }: { evidence: Evidence[] }) {
   );
 }
 
-function VerdictCard({ r }: { r: RefereeResult }) {
+const CARD_ACCENT: Record<Verdict, string> = {
+  supported: "#5fd08a", contradicted: "#f87171", books_conflict: "#f59e0b", textbooks_silent: "#cbd5e1",
+};
+
+/** A verdict as a shareable image: settles the WhatsApp-group argument with the page reference. */
+async function shareVerdict(r: RefereeResult, question: string, keyGiven: string) {
+  if (!r.verdict) return;
+  const q = question.length > 200 ? `${question.slice(0, 197)}…` : question;
+  const ev = r.evidence?.[0];
+  try {
+    const how = await shareCard(
+      {
+        kicker: "Answer-key check",
+        headline: VERDICT_STYLE[r.verdict].label,
+        accent: CARD_ACCENT[r.verdict],
+        subline: r.textbook_answer ? `Textbooks: ${r.textbook_answer}` : undefined,
+        body: [
+          q,
+          keyGiven ? `Key given: ${keyGiven}` : "",
+          ev ? `“${ev.quote.length > 220 ? `${ev.quote.slice(0, 217)}…` : ev.quote}” (${ev.book_title}${ev.page_number ? `, p.${ev.page_number}` : ""})` : "",
+        ].filter(Boolean),
+        footer: "Checked against the textbooks on medNAMA",
+      },
+      "mednama-answer-check.png"
+    );
+    if (how === "downloaded") toast.success("Verdict card saved: share it anywhere.");
+  } catch (e) {
+    toast.error(`Could not make the card (${e instanceof Error ? e.message : String(e)}).`);
+  }
+}
+
+function VerdictCard({ r, share }: { r: RefereeResult; share?: { question: string; keyGiven: string } }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "8px", border: "1px solid var(--border-light)", borderRadius: "12px", padding: "12px 14px" }}>
-      <VerdictBadge verdict={r.verdict} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+        <VerdictBadge verdict={r.verdict} />
+        {share && r.verdict ? (
+          <button className="btn-workspace" onClick={() => shareVerdict(r, share.question, share.keyGiven)} style={{ padding: "3px 10px", fontSize: "0.72rem" }}>
+            <ImageDown size={12} /> Share card
+          </button>
+        ) : null}
+      </div>
       {r.textbook_answer ? (
         <div style={{ fontSize: "0.86rem" }}>
           <b>The textbooks say:</b> {r.textbook_answer}
@@ -269,7 +308,12 @@ export default function RefereeView({ token }: { token: string | null }) {
           <button className="btn-workspace" onClick={check} disabled={checking} style={{ alignSelf: "flex-start", display: "flex", gap: "6px", alignItems: "center" }}>
             {checking ? <Loader2 size={13} className="animate-spin" /> : <Scale size={13} />} {checking ? "Checking the textbooks…" : "Referee this answer"}
           </button>
-          {checkResult ? <VerdictCard r={checkResult} /> : null}
+          {checkResult ? (
+            <VerdictCard
+              r={checkResult}
+              share={{ question, keyGiven: key ? `${key}${parseOptions(optionsText)?.[key.toUpperCase()] ? ` (${parseOptions(optionsText)![key.toUpperCase()]})` : ""}` : answer }}
+            />
+          ) : null}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

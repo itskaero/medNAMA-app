@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Copy, Loader2, Share2, Swords, Trophy, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, ImageDown, Loader2, Share2, Swords, Trophy, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { parseMarkdown } from "@/utils/markdown";
+import { shareCard } from "@/lib/shareCard";
 
 interface DuelQuestion {
   id: number;
@@ -173,6 +174,28 @@ export default function DuelView({ token, initialCode }: { token: string | null;
   // ── results ────────────────────────────────────────────────────────────
   if (duel.played) {
     const me = duel.players.find((p) => p.is_you);
+    const shareResultCard = async () => {
+      const others = duel.players.filter((p) => !p.is_you);
+      try {
+        const how = await shareCard(
+          {
+            kicker: "FCPS duel",
+            headline: `${me?.score ?? "?"} / ${duel.total}`,
+            accent: "#30c5ff",
+            subline: others.length
+              ? others.map((o) => `${o.username}: ${o.score}/${duel.total}`).join(" · ")
+              : "Same 10 questions. Can you beat me?",
+            body: [duel.title || "Mixed duel", "Answers are revealed only after you play."],
+            footer: duelLink(duel.code),
+          },
+          `mednama-duel-${duel.code}.png`,
+          `Can you beat ${me?.score ?? "?"}/${duel.total}? ${duelLink(duel.code)}`
+        );
+        if (how === "downloaded") toast.success("Result card saved: attach it on WhatsApp with the link.");
+      } catch (e) {
+        toast.error(`Could not make the card (${e instanceof Error ? e.message : String(e)}).`);
+      }
+    };
     return (
       <div className="dashboard-view" style={{ maxWidth: "760px", margin: "0 auto" }}>
         <div className="dashboard-header">
@@ -192,6 +215,7 @@ export default function DuelView({ token, initialCode }: { token: string | null;
           <button className="btn-workspace" onClick={() => shareOnWhatsApp(`I scored ${me?.score ?? "?"}/${duel.total} on this medNAMA FCPS duel (${duel.title}). Can you beat me? ${duelLink(duel.code)}`)}>
             <Share2 size={12} /> Share on WhatsApp
           </button>
+          <button className="btn-workspace" onClick={shareResultCard}><ImageDown size={12} /> Result card</button>
           <button className="btn-workspace" onClick={() => { setCode(null); setDuel(null); }}>New duel</button>
         </div>
         {duel.questions.map((q, i) => {
