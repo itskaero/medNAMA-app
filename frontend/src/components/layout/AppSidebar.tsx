@@ -21,6 +21,7 @@ import {
   NotebookPen,
   Flame,
   Scale,
+  Swords,
 } from "lucide-react";
 import { Book } from "@/types";
 import { BookItem } from "@/components";
@@ -177,6 +178,16 @@ export default function AppSidebar({
         >
           <Flame size={14} style={{ color: "#f59e0b" }} />
           Daily Dose
+        </button>
+        <button
+          className={`btn-workspace-nav ${activeView === "duel" ? "active" : ""}`}
+          onClick={() => {
+            setActiveView("duel");
+            setMobileMenuOpen(false);
+          }}
+        >
+          <Swords size={14} />
+          Challenge a friend
         </button>
         {isAdmin ? (
           <button

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { RefObject, useEffect } from "react";
+import React, { RefObject, useEffect, useState } from "react";
 import {
   Stethoscope,
   Send,
@@ -13,10 +13,14 @@ import {
   ChevronDown,
   X,
   BookOpen,
+  ListChecks,
+  FileText,
 } from "lucide-react";
 import { Message, Figure, Book } from "@/types";
 import { AIMessage } from "@/components";
 import BasicDropdown from "@/components/ui/basic-dropdown";
+import { toast } from "sonner";
+import { API } from "@/lib/constants";
 import { groupConversations } from "@/utils/quizHelpers";
 
 export interface ChatScope {
@@ -72,6 +76,70 @@ interface ChatViewProps {
   // Study level for answer depth
   level?: string | null;
   setLevel?: (level: string | null) => void;
+}
+
+/** Study-a-chapter actions: a cited high-yield summary, or 10 MCQs from this chapter only. */
+function ChapterStudyActions({
+  bookId,
+  chapter,
+  token,
+  sendQuery,
+  onOpenQuiz,
+}: {
+  bookId: number;
+  chapter: string;
+  token: string | null;
+  sendQuery: (q: string) => void;
+  onOpenQuiz?: () => void;
+}) {
+  const [quizBusy, setQuizBusy] = useState(false);
+
+  const quizMe = async () => {
+    setQuizBusy(true);
+    const t = localStorage.getItem("token") || token;
+    const headers: HeadersInit = { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+    try {
+      const start = await fetch(`${API}/api/chat/generate-ai-quiz/jobs`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ prompt: `High-yield FCPS questions on ${chapter}`, book_id: bookId, chapter, count: 10, exam_profile: "fcps" }),
+      });
+      const started = await start.json().catch(() => null);
+      if (!start.ok || !started?.job_id) throw new Error((started && started.detail) || `HTTP ${start.status}`);
+      toast.message("Writing 10 questions from this chapter…");
+      for (let i = 0; i < 120; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const res = await fetch(`${API}/api/chat/generate-ai-quiz/jobs/${started.job_id}`, { headers, credentials: "include" });
+        const job = await res.json().catch(() => null);
+        if (job?.status === "done") {
+          toast.success(`${job.result?.total_questions ?? 10} chapter questions ready — find them in Mock Builder → Saved History.`, {
+            action: onOpenQuiz ? { label: "Open", onClick: onOpenQuiz } : undefined,
+          });
+          return;
+        }
+        if (job?.status === "failed") throw new Error(job.detail || "generation failed");
+      }
+      throw new Error("still generating; check Saved History shortly");
+    } catch (e) {
+      toast.error(`Chapter quiz: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setQuizBusy(false);
+    }
+  };
+
+  const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", fontSize: "0.7rem" };
+  return (
+    <>
+      <button className="btn-workspace" style={btn} title="High-yield summary of this chapter, cited to its pages"
+        onClick={() => sendQuery(`Give me a high-yield FCPS summary of the chapter "${chapter}": key facts, numbers, classic associations and exam traps.`)}>
+        <FileText size={10} /> Summarise chapter
+      </button>
+      <button className="btn-workspace" style={btn} disabled={quizBusy} onClick={quizMe} title="10 FCPS-style questions from this chapter only">
+        {quizBusy ? <Loader2 size={10} className="animate-spin" /> : <ListChecks size={10} />} Quiz me on this chapter
+      </button>
+    </>
+  );
 }
 
 export default function ChatView({
@@ -476,6 +544,15 @@ export default function ChatView({
                   <X size={10} />
                   Clear
                 </button>
+                {scope.chapter ? (
+                  <ChapterStudyActions
+                    bookId={scope.book_id}
+                    chapter={scope.chapter}
+                    token={token}
+                    sendQuery={sendQuery}
+                    onOpenQuiz={setActiveView ? () => setActiveView("quiz") : undefined}
+                  />
+                ) : null}
               </>
             ) : null}
           </div>

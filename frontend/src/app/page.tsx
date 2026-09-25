@@ -36,12 +36,13 @@ import ChatView from "@/components/views/ChatView";
 import StudyView from "@/components/views/StudyView";
 import DailyDoseView from "@/components/views/DailyDoseView";
 import RefereeView from "@/components/views/RefereeView";
+import DuelView from "@/components/views/DuelView";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
@@ -55,6 +56,19 @@ export default function Home() {
     chapter: null,
   });
   const [chatChapters, setChatChapters] = useState<string[]>([]);
+  // Shared duel links open straight into the duel: /?duel=CODE
+  const [duelCode, setDuelCode] = useState<string | null>(null);
+  useEffect(() => {
+    // Read after mount (not during render) so server and client markup match.
+    const timer = setTimeout(() => {
+      const code = new URLSearchParams(window.location.search).get("duel");
+      if (code) {
+        setDuelCode(code);
+        setActiveView("duel");
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
   // Study level (answer depth). Per-browser preference; null = general exam prep.
   const [chatLevel, setChatLevelState] = useState<string | null>(null);
   useEffect(() => {
@@ -419,6 +433,10 @@ export default function Home() {
           setQuizStep={quiz.setQuizStep}
         />
       );
+    }
+
+    if (activeView === "duel") {
+      return <DuelView token={token} initialCode={duelCode} />;
     }
 
     if (activeView === "referee" && isAdmin) {

@@ -645,3 +645,63 @@ def readiness(db: Session, user: User) -> dict[str, Any]:
         "streak_freezes": user.streak_freezes,
         "note": "Estimate from your confidence-weighted accuracy; needs 10+ answers per subject.",
     }
+
+
+
+# ─── Explain it back (Feynman check) ───────────────────────────────────────
+
+def grade_explanation(db: Session, user_id: int, card: ConceptCard, explanation: str) -> dict[str, Any]:
+    """Mark a student's own explanation of a concept against the card and its textbook passage."""
+    explanation = (explanation or "").strip()
+    if len(explanation) < 15:
+        raise ValueError("Write at least a sentence in your own words.")
+    passage = ""
+    if card.chunk_id:
+        from app.models import Chunk
+
+        chunk = db.get(Chunk, card.chunk_id)
+        passage = chunk.content if chunk else ""
+    reference = (
+        f"CONCEPT: {card.title}\nKEY SUMMARY: {card.summary}\n"
+        + (f'TEXTBOOK QUOTE ({card.book_title}, p.{card.page_number}): "{card.quote}"\n' if card.quote else "")
+        + (f"TEXTBOOK PASSAGE:\n{passage[:3000]}" if passage else "")
+    )
+    if not llm_configured("fast"):
+        raise RuntimeError("The AI service is not configured.")
+    raw = chat_completion(
+        [
+            {"role": "system", "content": (
+                "You mark a medical student's explanation of a concept, like a friendly FCPS examiner. Compare it with "
+                "the reference. Identify the 2-4 key points the reference says matter. Return JSON: "
+                '{"score": 0-100, "points_hit": ["..."], "points_missed": ["..."], '
+                '"errors": ["anything the student stated that is wrong"], '
+                '"feedback": "2 sentences, encouraging and specific"}. '
+                "Judge meaning, not wording. Never reward confident but wrong statements."
+            )},
+            {"role": "user", "content": f"REFERENCE:\n{reference}\n\nSTUDENT'S EXPLANATION:\n{explanation[:1500]}"},
+        ],
+        json_mode=True, temperature=0.0, max_tokens=700, label="explain-back", role="fast",
+    )
+    out = json.loads(raw)
+    try:
+        score = max(0, min(100, int(out.get("score") or 0)))
+    except (TypeError, ValueError):
+        score = 0
+    # Feed the schedule: a solid explanation counts as a confident correct review.
+    review = db.query(ConceptReview).filter_by(user_id=user_id, concept_id=card.id).first()
+    if review is None:
+        review = ConceptReview(user_id=user_id, concept_id=card.id, box=0, lapses=0, reviews=0)
+        db.add(review)
+    _schedule(review, is_correct=score >= 50, confidence="sure" if score >= 80 else "unsure")
+    db.add(AnswerEvent(user_id=user_id, concept_id=card.id, is_correct=score >= 70, confidence="sure",
+                       subject=card.subject, source="explain"))
+    db.commit()
+    return {
+        "score": score,
+        "points_hit": [str(x) for x in (out.get("points_hit") or [])][:6],
+        "points_missed": [str(x) for x in (out.get("points_missed") or [])][:6],
+        "errors": [str(x) for x in (out.get("errors") or [])][:4],
+        "feedback": str(out.get("feedback") or "").strip(),
+        "reference": {"quote": card.quote, "book_title": card.book_title, "page_number": card.page_number},
+        "next_review": review.next_due.isoformat() if review.next_due else None,
+    }

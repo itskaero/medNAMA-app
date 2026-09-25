@@ -327,7 +327,7 @@ def _normalise_question(item: dict, keys: list[str]) -> dict | None:
 
 def generate_quiz_set(db: Session, *, prompt_text: str, book_id: int | None, page_num: int | None,
                       mcq_count: int, difficulty: int | None, exam_profile: str | None,
-                      request_id: str | None) -> dict[str, Any]:
+                      request_id: str | None, chapter: str | None = None) -> dict[str, Any]:
     quiz_set_id = quiz_set_id_for(request_id)
 
     # Idempotency: a retry of the same request gets the first attempt's result.
@@ -350,7 +350,7 @@ def generate_quiz_set(db: Session, *, prompt_text: str, book_id: int | None, pag
                 return serialize_quiz_set(existing, quiz_set_id)
             raise QuizGenerationError(409, "The original request for this quiz did not finish. Please try again.")
     try:
-        return _generate(db, quiz_set_id, prompt_text, book_id, page_num, mcq_count, difficulty, exam_profile)
+        return _generate(db, quiz_set_id, prompt_text, book_id, page_num, mcq_count, difficulty, exam_profile, chapter)
     finally:
         if request_id:
             with _inflight_lock:
@@ -360,7 +360,8 @@ def generate_quiz_set(db: Session, *, prompt_text: str, book_id: int | None, pag
 
 
 def _generate(db: Session, quiz_set_id: str, prompt_text: str, book_id: int | None, page_num: int | None,
-              mcq_count: int, difficulty: int | None, exam_profile: str | None) -> dict[str, Any]:
+              mcq_count: int, difficulty: int | None, exam_profile: str | None,
+              chapter: str | None = None) -> dict[str, Any]:
     from app.models import Chunk
     from app.retrieval import ContextChunk
 
@@ -381,7 +382,7 @@ def _generate(db: Session, quiz_set_id: str, prompt_text: str, book_id: int | No
         context = [ContextChunk(c.id, c.book_id, c.book, c.chapter, c.page_number, c.content, parts={c.id: c.content})
                    for c in q.order_by(Chunk.id).all()]
     if not context:
-        context = retrieval_service.search(db, prompt_text, limit=6, book_id=book_id,
+        context = retrieval_service.search(db, prompt_text, limit=6, book_id=book_id, chapter=chapter,
                                            exclude_chunk_ids=used_chunks).context
 
     blocks, total = [], 0

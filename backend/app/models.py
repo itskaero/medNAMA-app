@@ -367,3 +367,33 @@ class RecallItem(Base):
     reviewer_note: Mapped[str | None] = mapped_column(Text, default=None)
     refereed_at: Mapped[datetime | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class Duel(Base):
+    """A shared 10-question challenge (migration b2d4f6a8c0e1)."""
+
+    __tablename__ = "duels"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(Text, unique=True)
+    creator_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str | None] = mapped_column(Text, default=None)
+    mcq_ids: Mapped[list] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    expires_at: Mapped[datetime]
+
+
+class DuelEntry(Base):
+    """One player's run of a duel."""
+
+    __tablename__ = "duel_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    duel_id: Mapped[int] = mapped_column(ForeignKey("duels.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    answers: Mapped[dict] = mapped_column(JSONB)
+    score: Mapped[int]
+    time_ms: Mapped[int | None] = mapped_column(default=None)
+    finished_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    user: Mapped["User"] = relationship()

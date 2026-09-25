@@ -554,6 +554,7 @@ class GenerateAiQuizRequest(BaseModel):
     difficulty: int | None = None  # 1 (easy) - 5 (hard); falls back to AI_MCQ_DIFFICULTY env
     exam_profile: str | None = None  # 'fcps' (A-E, default) | 'usmle' (A-E vignette) | 'quick' (A-D recall)
     request_id: str | None = None  # client idempotency key; a retry returns the same set
+    chapter: str | None = None     # restrict to one chapter of book_id (Study-a-chapter)
 
 
 def _resolve_quiz_params(req: GenerateAiQuizRequest) -> dict:
@@ -604,6 +605,7 @@ def _resolve_quiz_params(req: GenerateAiQuizRequest) -> dict:
         "difficulty": difficulty,
         "exam_profile": req.exam_profile,
         "request_id": req.request_id,
+        "chapter": (req.chapter or None) if req.book_id else None,
     }
 
 
@@ -2287,3 +2289,151 @@ def review_recall(
     item.reviewer_note = (req.reviewer_note or "").strip()[:2000] or None
     db.commit()
     return _serialize_recall(item)
+
+
+# ─── Explain it back ────────────────────────────────────────────────────────
+
+class ExplainBackRequest(BaseModel):
+    explanation: str
+
+
+@app.post("/api/concepts/{concept_id}/explain-back", dependencies=[Depends(rate_limiter(limit=20, window=60))])
+def explain_back(
+    concept_id: int,
+    req: ExplainBackRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Mark the student's own explanation of a concept against the textbook passage."""
+    from app.models import ConceptCard
+    from app.retention import grade_explanation
+
+    card = db.get(ConceptCard, concept_id)
+    if card is None or (card.visibility != "all" and current_user.role != "admin"):
+        raise HTTPException(status_code=404, detail="Concept not found.")
+    try:
+        return grade_explanation(db, current_user.id, card, req.explanation)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Explain-back grading failed")
+        raise HTTPException(status_code=502, detail=f"Could not mark the explanation: {e}")
+
+
+# ─── Challenge a friend (duels) ─────────────────────────────────────────────
+
+class DuelCreateRequest(BaseModel):
+    subject: str | None = None      # optional FCPS subject (e.g. Physiology)
+    count: int = 10
+
+
+class DuelSubmitRequest(BaseModel):
+    answers: dict[str, str]         # mcq_id -> option letter
+    time_ms: int | None = None
+
+
+def _duel_results(db: Session, duel, viewer_id: int) -> dict:
+    from app.models import DuelEntry
+
+    entries = db.query(DuelEntry).options(joinedload(DuelEntry.user)).filter(DuelEntry.duel_id == duel.id) \
+        .order_by(DuelEntry.score.desc(), DuelEntry.time_ms.asc().nullslast()).all()
+    played = any(e.user_id == viewer_id for e in entries)
+    mcqs = {m.id: m for m in db.query(MCQ).filter(MCQ.id.in_(duel.mcq_ids)).all()}
+    questions = []
+    for mid in duel.mcq_ids:
+        m = mcqs.get(mid)
+        if m is None:
+            continue
+        q = {"id": m.id, "question_text": m.question_text, "options": m.options, "figure_id": m.figure_id}
+        if played:   # answers and explanations only after you have played
+            q.update({"correct_option": m.correct_option, "explanation_markdown": m.explanation_markdown,
+                      "picks": {e.user.username if e.user else str(e.user_id): (e.answers or {}).get(str(m.id))
+                                for e in entries}})
+        questions.append(q)
+    return {
+        "code": duel.code,
+        "title": duel.title,
+        "expires_at": duel.expires_at.isoformat(),
+        "played": played,
+        "total": len(questions),
+        "players": [{"username": e.user.username if e.user else str(e.user_id), "score": e.score,
+                     "time_ms": e.time_ms, "is_you": e.user_id == viewer_id} for e in entries],
+        "questions": questions,
+    }
+
+
+@app.post("/api/duels", status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limiter(limit=10, window=60))])
+def create_duel(
+    req: DuelCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Create a shareable 10-question challenge (public-bank questions only)."""
+    import secrets
+    from app.models import Duel
+    from app.retention import _books_for_subject
+
+    count = max(5, min(20, req.count or 10))
+    q = db.query(MCQ.id).filter(MCQ.status == "ready", MCQ.figure_id.is_(None))
+    book_ids = _books_for_subject(db, req.subject) if req.subject else []
+    if book_ids:
+        q = q.filter(MCQ.book_id.in_(book_ids))
+    ids = [r[0] for r in q.order_by(func.random()).limit(count).all()]
+    if len(ids) < 5:
+        raise HTTPException(status_code=400, detail="Not enough questions in the bank for a duel yet.")
+    duel = Duel(code=secrets.token_urlsafe(6).replace("-", "x").replace("_", "y"), creator_id=current_user.id,
+                title=f"{req.subject or 'Mixed'} duel · {len(ids)} questions", mcq_ids=ids,
+                expires_at=datetime.utcnow() + timedelta(days=7))
+    db.add(duel)
+    db.commit()
+    return {"code": duel.code, "title": duel.title, "total": len(ids)}
+
+
+@app.get("/api/duels/{code}")
+def get_duel(
+    code: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    from app.models import Duel
+
+    duel = db.query(Duel).filter(Duel.code == code).first()
+    if duel is None:
+        raise HTTPException(status_code=404, detail="Duel not found.")
+    if duel.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=410, detail="This duel has expired.")
+    return _duel_results(db, duel, current_user.id)
+
+
+@app.post("/api/duels/{code}/submit")
+def submit_duel(
+    code: str,
+    req: DuelSubmitRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Submit your answers once; returns the side-by-side result."""
+    from app.models import Duel, DuelEntry
+    from app.retention import record_answer
+
+    duel = db.query(Duel).filter(Duel.code == code).first()
+    if duel is None:
+        raise HTTPException(status_code=404, detail="Duel not found.")
+    if duel.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=410, detail="This duel has expired.")
+    if db.query(DuelEntry.id).filter_by(duel_id=duel.id, user_id=current_user.id).first():
+        return _duel_results(db, duel, current_user.id)
+    mcqs = {m.id: m for m in db.query(MCQ).filter(MCQ.id.in_(duel.mcq_ids)).all()}
+    answers = {str(k): str(v).strip().upper()[:1] for k, v in (req.answers or {}).items() if int(k) in mcqs}
+    score = sum(1 for mid, m in mcqs.items() if answers.get(str(mid)) == (m.correct_option or "").upper())
+    db.add(DuelEntry(duel_id=duel.id, user_id=current_user.id, answers=answers, score=score,
+                     time_ms=req.time_ms if req.time_ms and req.time_ms > 0 else None))
+    db.commit()
+    for mid, m in mcqs.items():   # duel answers feed the same retention engine
+        if str(mid) in answers:
+            try:
+                record_answer(db, current_user.id, m, answers[str(mid)], "sure", source="duel")
+            except Exception:
+                logger.exception("Retention logging failed for duel MCQ %s", mid)
+                db.rollback()
+    return _duel_results(db, duel, current_user.id)
