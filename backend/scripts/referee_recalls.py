@@ -45,6 +45,8 @@ def main() -> None:
     parser.add_argument("--source", required=True)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--headlines-only", action="store_true")
+    parser.add_argument("--recheck-disputed", action="store_true",
+                        help="re-judge items currently 'contradicted'/'books_conflict' (e.g. after a prompt change)")
     parser.add_argument("--report", help="write disputed-keys CSV to this path (and exit if nothing to referee)")
     args = parser.parse_args()
 
@@ -52,7 +54,11 @@ def main() -> None:
     from app.retrieval import get_reranker_model, get_second_stage_reranker, retrieval_service
 
     db = SessionLocal()
-    q = db.query(RecallItem).filter(RecallItem.source == args.source, RecallItem.verdict.is_(None))
+    if args.recheck_disputed:
+        q = db.query(RecallItem).filter(RecallItem.source == args.source,
+                                        RecallItem.verdict.in_(("contradicted", "books_conflict")))
+    else:
+        q = db.query(RecallItem).filter(RecallItem.source == args.source, RecallItem.verdict.is_(None))
     if args.headlines_only:
         q = q.filter(RecallItem.kind == "headline")
     q = q.order_by(case((RecallItem.kind == "headline", 0), else_=1), RecallItem.page, RecallItem.id)
@@ -69,6 +75,7 @@ def main() -> None:
         if not r.get("verdict"):
             print(f"[{n}] #{item.id} ERROR {r.get('error')}", flush=True)
             continue
+        previous = item.verdict
         item.verdict = r["verdict"]
         item.textbook_answer = r.get("textbook_answer")
         item.evidence = r.get("evidence")
@@ -77,7 +84,8 @@ def main() -> None:
         item.refereed_at = datetime.utcnow()
         db.commit()
         counts[item.verdict] = counts.get(item.verdict, 0) + 1
-        print(f"[{n}/{len(items)}] p.{item.page} {item.verdict:16} {time.time() - t0:4.1f}s  "
+        change = f"{previous} -> " if args.recheck_disputed else ""
+        print(f"[{n}/{len(items)}] p.{item.page} {change}{item.verdict:16} {time.time() - t0:4.1f}s  "
               f"{item.question[:70]} = {item.answer[:40]}", flush=True)
     print(f"Verdicts this run: {counts}", flush=True)
     if args.report:

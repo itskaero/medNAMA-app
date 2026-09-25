@@ -71,7 +71,13 @@ def judge(db: Session, question: str, answer: str | None = None, options: dict[s
                     "You are an exam answer-key referee for FCPS candidates. Decide what the TEXTBOOK PASSAGES say the "
                     "answer is, and whether the published answer/key agrees. Be strict and honest:\n"
                     "- 'supported': a passage states the published answer (or clearly implies it).\n"
-                    "- 'contradicted': a passage states a different answer.\n"
+                    "- 'contradicted': a passage answers THIS question, exactly as worded, with an answer that is "
+                    "incompatible with the published one. Read the question's scope literally (e.g. 'large vessels' "
+                    "means the great arteries/veins, not heart chambers or septa; 'most common' in a stated group, age "
+                    "or setting). If the published answer is a correct part of the mechanism, a synonym, or a "
+                    "defensible answer at a different level of detail (e.g. 'Na+ influx' for the SA-node funny "
+                    "current), it is 'supported', not 'contradicted'. A false 'contradicted' misleads students more "
+                    "than a missed one: when unsure, choose 'textbooks_silent'.\n"
                     "- 'books_conflict': passages from different books disagree.\n"
                     "- 'textbooks_silent': the passages don't settle it. You may then give your own reasoning in "
                     "'ai_reasoning', clearly marked as not from the books.\n"
@@ -112,7 +118,8 @@ def judge(db: Session, question: str, answer: str | None = None, options: dict[s
     if verdict != "textbooks_silent" and not evidence:
         verdict = "textbooks_silent"   # no verified quote -> the books haven't been shown to settle it
     if verdict == "books_conflict" and len({e["book_title"] for e in evidence}) < 2:
-        verdict = "contradicted" if evidence else "textbooks_silent"
+        # The conflict wasn't shown with verified quotes from two books; don't turn it into an accusation.
+        verdict = "textbooks_silent"
 
     supported_option = str(out.get("supported_option") or "").strip().upper()[:1] or None
     if supported_option and options and supported_option not in options:
