@@ -2029,7 +2029,10 @@ def get_daily_dose(
     from app.models import ConceptCard
     from app.retention import get_or_build_daily_session, serialize_card, streak
 
-    session = get_or_build_daily_session(db, current_user)
+    # current_user belongs to auth's own DB session; changes (streak freezes) must be
+    # made on this request's session or they are never committed.
+    user = db.get(User, current_user.id)
+    session = get_or_build_daily_session(db, user)
     items = []
     for i, item in enumerate(session.items or []):
         entry = {**item, "index": i}
@@ -2045,7 +2048,7 @@ def get_daily_dose(
         "items": items,
         "completed": session.completed_at is not None,
         "streak": streak(db, current_user.id),
-        "streak_freezes": current_user.streak_freezes,
+        "streak_freezes": user.streak_freezes,
     }
 
 
@@ -2140,7 +2143,7 @@ def get_readiness(
     """Readiness estimate vs the 75% line, concept mastery, exam countdown, streak."""
     from app.retention import readiness
 
-    return readiness(db, current_user)
+    return readiness(db, db.get(User, current_user.id))
 
 
 @app.put("/api/study/exam-date")
@@ -2151,15 +2154,16 @@ def set_exam_date(
 ):
     from datetime import date as _date
 
+    user = db.get(User, current_user.id)   # this request's session, so the change is committed
     if req.exam_date:
         try:
-            current_user.exam_date = _date.fromisoformat(req.exam_date)
+            user.exam_date = _date.fromisoformat(req.exam_date)
         except ValueError:
             raise HTTPException(status_code=400, detail="exam_date must be YYYY-MM-DD.")
     else:
-        current_user.exam_date = None
+        user.exam_date = None
     db.commit()
-    return {"exam_date": current_user.exam_date.isoformat() if current_user.exam_date else None}
+    return {"exam_date": user.exam_date.isoformat() if user.exam_date else None}
 
 
 # ─── Answer-Key Referee + private recall bank (admin-only until licensed) ─────
