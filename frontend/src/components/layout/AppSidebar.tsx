@@ -19,6 +19,8 @@ import {
   Sunset,
   Sparkles,
   NotebookPen,
+  Flame,
+  Scale,
 } from "lucide-react";
 import { Book } from "@/types";
 import { BookItem } from "@/components";
@@ -166,6 +168,29 @@ export default function AppSidebar({
           <LayoutDashboard size={14} />
           Dashboard
         </button>
+        <button
+          className={`btn-workspace-nav ${activeView === "daily" ? "active" : ""}`}
+          onClick={() => {
+            setActiveView("daily");
+            setMobileMenuOpen(false);
+          }}
+        >
+          <Flame size={14} style={{ color: "#f59e0b" }} />
+          Daily Dose
+        </button>
+        {isAdmin ? (
+          <button
+            className={`btn-workspace-nav ${activeView === "referee" ? "active" : ""}`}
+            onClick={() => {
+              setActiveView("referee");
+              setMobileMenuOpen(false);
+            }}
+            title="Admin: check recall answers and MCQ keys against the textbooks"
+          >
+            <Scale size={14} />
+            Answer-Key Referee
+          </button>
+        ) : null}
         <button
           className={`btn-workspace-nav ${activeView === "chat" ? "active" : ""}`}
           onClick={() => {

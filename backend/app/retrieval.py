@@ -133,6 +133,7 @@ MAX_FIGURES = 4
 _reranker_model = None
 _second_stage_model = None
 _second_stage_failed = False
+_model_lock = __import__("threading").Lock()   # one load per model, even under concurrent requests
 
 
 def get_second_stage_reranker():
@@ -141,7 +142,15 @@ def get_second_stage_reranker():
     name = (settings.reranker_second_stage or "").strip()
     if not name or _second_stage_failed:
         return None
-    if _second_stage_model is None:
+    if _second_stage_model is not None:
+        return _second_stage_model
+    with _model_lock:
+        return _load_second_stage(name)
+
+
+def _load_second_stage(name: str):
+    global _second_stage_model, _second_stage_failed
+    if _second_stage_model is None and not _second_stage_failed:
         try:
             from sentence_transformers import CrossEncoder
 
@@ -157,11 +166,14 @@ def get_second_stage_reranker():
 def get_reranker_model():
     """Lazy load and cache Cross-Encoder reranking model."""
     global _reranker_model
-    if _reranker_model is None:
-        from sentence_transformers import CrossEncoder
+    if _reranker_model is not None:
+        return _reranker_model
+    with _model_lock:
+        if _reranker_model is None:
+            from sentence_transformers import CrossEncoder
 
-        logger.info("Loading Cross-Encoder reranker (ms-marco-MiniLM-L-6-v2)...")
-        _reranker_model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+            logger.info("Loading Cross-Encoder reranker (ms-marco-MiniLM-L-6-v2)...")
+            _reranker_model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
     return _reranker_model
 
 

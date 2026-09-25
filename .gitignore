@@ -44,3 +44,8 @@ mednama-nas-deploy/MANIFEST.txt
 mednama-nas-deploy/restore_nas.sh
 mednama-nas-deploy/app/.env
 
+
+# Private source books (never commit; see plan: private-first)
+rafiullah-*.pdf
+/*.pdf
+data/private/

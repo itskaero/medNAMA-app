@@ -34,12 +34,14 @@ import StatsView from "@/components/views/StatsView";
 import QuizView from "@/components/views/QuizView";
 import ChatView from "@/components/views/ChatView";
 import StudyView from "@/components/views/StudyView";
+import DailyDoseView from "@/components/views/DailyDoseView";
+import RefereeView from "@/components/views/RefereeView";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
@@ -417,6 +419,14 @@ export default function Home() {
           setQuizStep={quiz.setQuizStep}
         />
       );
+    }
+
+    if (activeView === "referee" && isAdmin) {
+      return <RefereeView token={token} />;
+    }
+
+    if (activeView === "daily") {
+      return <DailyDoseView token={token} onFigureClick={setLightboxFig} />;
     }
 
     if (activeView === "study") {

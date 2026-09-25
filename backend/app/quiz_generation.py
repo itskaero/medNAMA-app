@@ -60,9 +60,18 @@ PROFILES = {
             "concepts that FCPS papers test even where the textbook wording is older."
         ),
     },
+    # USMLE Step items are single best answer with 3-11 options, typically five.
     "usmle": {
+        "keys": ["A", "B", "C", "D", "E"],
+        "style": (
+            "Write USMLE-style single-best-answer questions: a longer clinical vignette (age, presentation, "
+            "findings, investigations) and five options (A-E) with exactly one best answer."
+        ),
+    },
+    # Short rapid-recall drill (not an exam format).
+    "quick": {
         "keys": ["A", "B", "C", "D"],
-        "style": "Write USMLE/board-style clinical vignette questions with four options (A-D) and one best answer.",
+        "style": "Write short rapid-recall questions (one or two lines) with four options (A-D) and one best answer.",
     },
 }
 DEFAULT_PROFILE = "fcps"

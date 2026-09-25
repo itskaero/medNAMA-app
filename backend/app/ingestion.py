@@ -128,8 +128,23 @@ def auto_slice_size(free_mb: int) -> int:
     return _SLICE_TIERS_MB[-1][1]
 
 
+_embedding_model_lock = __import__("threading").Lock()
+
+
 def get_embedding_model():
-    """Lazy load, cache and dynamically quantize embedding model (Proposal 2)."""
+    """Lazy load, cache and dynamically quantize embedding model (Proposal 2).
+
+    Thread-safe: background jobs (concept cards, quiz jobs) may ask for the model
+    at the same moment; without the lock each would load its own ~1.3 GB copy.
+    """
+    global _embedding_model
+    if _embedding_model is not None:
+        return _embedding_model
+    with _embedding_model_lock:
+        return _load_embedding_model()
+
+
+def _load_embedding_model():
     global _embedding_model
     if _embedding_model is None:
         import torch

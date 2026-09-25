@@ -46,8 +46,12 @@ import BasicDropdown from "@/components/ui/basic-dropdown";
 // and the page polls its status, so no proxy/browser timeout can cut it off.
 const QUIZ_POLL_INTERVAL_MS = 2_500;
 // FCPS-I style paper: ~1.2 min per single-best-answer question.
-const MOCK_PAPER_QUESTIONS = 50;
-const MOCK_PAPER_MINUTES = 60;
+// Mock presets. CPSP FCPS-I: two papers of 100 single-best-answer MCQs, 2 hours each,
+// 75% pass mark, no negative marking; the full preset reproduces one paper.
+const MOCK_PRESETS = [
+  { key: "short", title: "FCPS mock (short)", questions: 50, minutes: 60 },
+  { key: "full", title: "Full FCPS-I paper", questions: 100, minutes: 120 },
+] as const;
 const QUIZ_MAX_WAIT_MS = 6 * 60_000;
 
 interface QuizViewProps {
@@ -58,6 +62,8 @@ interface QuizViewProps {
   quizCurrentIdx: number;
   setQuizCurrentIdx: (idx: number | ((prev: number) => number)) => void;
   quizSelectedAnswers: { [key: number]: string };
+  quizConfidence?: { [key: number]: "sure" | "unsure" | "guess" };
+  setQuizConfidence?: React.Dispatch<React.SetStateAction<{ [key: number]: "sure" | "unsure" | "guess" }>>;
   quizAttemptId: number | null;
   quizIsLoading: boolean;
   quizIsSubmitting: boolean;
@@ -153,6 +159,8 @@ export default function QuizView({
   quizCurrentIdx,
   setQuizCurrentIdx,
   quizSelectedAnswers,
+  quizConfidence = {},
+  setQuizConfidence,
   quizIsLoading,
   quizIsSubmitting,
   quizConfigCategories,
@@ -208,7 +216,7 @@ export default function QuizView({
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [aiDifficulty, setAiDifficulty] = React.useState(3); // 1-5, sent to the AI quiz generator
   const [aiCount, setAiCount] = React.useState(5); // F3 — multiples of 5 only: 5/10/15/20
-  const [aiProfile, setAiProfile] = React.useState<"fcps" | "usmle">("fcps"); // FCPS = 5 options A-E
+  const [aiProfile, setAiProfile] = React.useState<"fcps" | "usmle" | "quick">("fcps"); // FCPS/USMLE = 5 options A-E
   const [quizHistory, setQuizHistory] = React.useState<AiQuizSetSummary[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
   const [historySearch, setHistorySearch] = React.useState("");
@@ -774,45 +782,53 @@ export default function QuizView({
                   {/* Mode 1: Manual Builder */}
                   {builderMode === "manual" && (
                     <>
-                      {/* Phase 6 — one-click FCPS-style mock paper using the existing timed + board modes */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQuizConfigCategories([]);
-                          setQuizConfigSubCategories([]);
-                          setQuizConfigNumQuestions(Math.max(1, Math.min(MOCK_PAPER_QUESTIONS, totalSystemMCQs || MOCK_PAPER_QUESTIONS)));
-                          setQuizConfigTimerMode("session");
-                          setQuizConfigTimerValue(MOCK_PAPER_MINUTES);
-                          setQuizConfigFeedbackMode("board");
-                          setQuizConfigExcludeMastered(false);
-                          setQuizConfigStep(3);
-                          toast.success("Mock paper set up: review the settings and start.");
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "12px",
-                          width: "100%",
-                          padding: "12px 14px",
-                          marginBottom: "var(--sp-3)",
-                          borderRadius: "12px",
-                          border: "1px dashed var(--sky)",
-                          background: "rgba(48,197,255,0.06)",
-                          color: "var(--text-primary)",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        title="All subjects, unseen questions first, one session timer, answers revealed at the end"
-                      >
-                        <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ fontWeight: 700, fontSize: "0.86rem" }}>FCPS mock paper</span>
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                            {MOCK_PAPER_QUESTIONS} questions · {MOCK_PAPER_MINUTES} min · all subjects · board mode (answers at the end) · unseen first
-                          </span>
-                        </span>
-                        <Clock size={16} style={{ color: "var(--sky)", flexShrink: 0 }} />
-                      </button>
+                      {/* Phase 6 — one-click FCPS-style mock papers using the existing timed + board modes */}
+                      <div style={{ display: "flex", gap: "var(--sp-2)", flexWrap: "wrap", marginBottom: "var(--sp-3)" }}>
+                        {MOCK_PRESETS.map((preset) => (
+                          <button
+                            key={preset.key}
+                            type="button"
+                            onClick={() => {
+                              setQuizConfigCategories([]);
+                              setQuizConfigSubCategories([]);
+                              setQuizConfigNumQuestions(Math.max(1, Math.min(preset.questions, totalSystemMCQs || preset.questions)));
+                              setQuizConfigTimerMode("session");
+                              setQuizConfigTimerValue(preset.minutes);
+                              setQuizConfigFeedbackMode("board");
+                              setQuizConfigExcludeMastered(false);
+                              setQuizConfigStep(3);
+                              if (totalSystemMCQs && totalSystemMCQs < preset.questions) {
+                                toast.warning(`Only ${totalSystemMCQs} questions in the bank yet; the paper will use all of them.`);
+                              } else {
+                                toast.success(`${preset.title} set up: review the settings and start.`);
+                              }
+                            }}
+                            style={{
+                              flex: "1 1 240px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "12px",
+                              padding: "12px 14px",
+                              borderRadius: "12px",
+                              border: "1px dashed var(--sky)",
+                              background: "rgba(48,197,255,0.06)",
+                              color: "var(--text-primary)",
+                              cursor: "pointer",
+                              textAlign: "left",
+                            }}
+                            title="All subjects, unseen questions first, one session timer, answers revealed at the end (75% pass line)"
+                          >
+                            <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                              <span style={{ fontWeight: 700, fontSize: "0.86rem" }}>{preset.title}</span>
+                              <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                                {preset.questions} questions · {preset.minutes} min · all subjects · board mode · unseen first
+                              </span>
+                            </span>
+                            <Clock size={16} style={{ color: "var(--sky)", flexShrink: 0 }} />
+                          </button>
+                        ))}
+                      </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
                         <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -1121,7 +1137,7 @@ export default function QuizView({
                               <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: "2px" }}>
                                 Style
                               </span>
-                              {([["fcps", "FCPS A–E", "CPSP single best answer, 5 options"], ["usmle", "USMLE A–D", "Board-style vignette, 4 options"]] as const).map(([val, label, hint]) => (
+                              {([["fcps", "FCPS (A–E)", "CPSP single best answer, 5 options"], ["usmle", "USMLE (A–E)", "Long clinical vignette, 5 options"], ["quick", "Quick recall (A–D)", "Short rapid-recall drill, 4 options"]] as const).map(([val, label, hint]) => (
                                 <button
                                   key={val}
                                   type="button"
@@ -1578,6 +1594,32 @@ export default function QuizView({
                   );
                 })}
               </div>
+
+              {/* Confidence tap: a correct guess is still re-tested by the retention engine */}
+              {setQuizConfidence ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "var(--sp-3)", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>How sure are you?</span>
+                  {(["sure", "unsure", "guess"] as const).map((c) => {
+                    const active = (quizConfidence[currentMCQ.id] ?? "sure") === c;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setQuizConfidence((prev) => ({ ...prev, [currentMCQ.id]: c }))}
+                        title={c === "guess" ? "Guessed answers come back for review even if correct" : undefined}
+                        style={{
+                          padding: "2px 10px", borderRadius: "999px", fontSize: "0.72rem", cursor: "pointer",
+                          border: `1px solid ${active ? "var(--sky)" : "var(--border-light)"}`,
+                          background: active ? "rgba(48,197,255,0.12)" : "transparent",
+                          color: active ? "var(--sky)" : "var(--text-secondary)",
+                        }}
+                      >
+                        {c === "sure" ? "Sure" : c === "unsure" ? "Unsure" : "Guess"}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
 
               {/* Action Bar */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "var(--sp-4)", borderTop: "1px solid var(--border-light)", paddingTop: "var(--sp-4)" }}>

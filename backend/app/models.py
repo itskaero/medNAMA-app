@@ -1,6 +1,6 @@
 """SQLAlchemy models matching schema.sql."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import CheckConstraint, ForeignKey, LargeBinary, Text, func
@@ -81,6 +81,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(Text)
     role: Mapped[str] = mapped_column(Text, server_default="student")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # Daily loop (migration f2b4d6e8a0c1)
+    exam_date: Mapped[date | None] = mapped_column(default=None)
+    streak_freezes: Mapped[int] = mapped_column(server_default="2")
 
     attempts: Mapped[list["QuizAttempt"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     conversations: Mapped[list["ChatConversation"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -114,6 +117,8 @@ class MCQ(Base):
     source_chunk_ids: Mapped[list | None] = mapped_column(JSONB, default=None)
     tested_concept: Mapped[str | None] = mapped_column(Text, default=None)
     grounding: Mapped[str | None] = mapped_column(Text, default=None)  # 'book' | 'ai'
+    concept_id: Mapped[int | None] = mapped_column(ForeignKey("concept_cards.id", ondelete="SET NULL"), default=None)
+    figure_id: Mapped[int | None] = mapped_column(ForeignKey("figures.id", ondelete="SET NULL"), default=None)
 
     book: Mapped["Book | None"] = relationship()
 
@@ -264,3 +269,101 @@ class AnswerReport(Base):
         CheckConstraint("kind IN ('chat', 'mcq')"),
         CheckConstraint("status IN ('open', 'resolved', 'dismissed')"),
     )
+
+
+class ConceptCard(Base):
+    """A tested concept explained from the textbooks (migration f2b4d6e8a0c1)."""
+
+    __tablename__ = "concept_cards"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    summary: Mapped[str] = mapped_column(Text)
+    quote: Mapped[str | None] = mapped_column(Text, default=None)
+    chunk_id: Mapped[int | None] = mapped_column(ForeignKey("chunks.id", ondelete="SET NULL"), default=None)
+    book_title: Mapped[str | None] = mapped_column(Text, default=None)
+    page_number: Mapped[int | None] = mapped_column(default=None)
+    figure_id: Mapped[int | None] = mapped_column(ForeignKey("figures.id", ondelete="SET NULL"), default=None)
+    mnemonic: Mapped[str | None] = mapped_column(Text, default=None)
+    subject: Mapped[str | None] = mapped_column(Text, default=None)
+    source: Mapped[str] = mapped_column(Text, server_default="textbook")      # textbook | recall_book
+    grounding: Mapped[str] = mapped_column(Text, server_default="textbook")   # textbook | ai | recall_book
+    visibility: Mapped[str] = mapped_column(Text, server_default="all")       # all | admin (private source)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), default=None, deferred=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ConceptReview(Base):
+    """Per-user spaced-repetition state for one concept."""
+
+    __tablename__ = "concept_reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    concept_id: Mapped[int] = mapped_column(ForeignKey("concept_cards.id", ondelete="CASCADE"))
+    box: Mapped[int] = mapped_column(server_default="0")
+    next_due: Mapped[datetime] = mapped_column(server_default=func.now())
+    last_result: Mapped[str | None] = mapped_column(Text, default=None)
+    lapses: Mapped[int] = mapped_column(server_default="0")
+    reviews: Mapped[int] = mapped_column(server_default="0")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+    concept: Mapped["ConceptCard"] = relationship()
+
+
+class AnswerEvent(Base):
+    """Every answered MCQ with the student's confidence."""
+
+    __tablename__ = "answer_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    mcq_id: Mapped[int | None] = mapped_column(ForeignKey("mcqs.id", ondelete="SET NULL"), default=None)
+    concept_id: Mapped[int | None] = mapped_column(ForeignKey("concept_cards.id", ondelete="SET NULL"), default=None)
+    selected_option: Mapped[str | None] = mapped_column(Text, default=None)
+    is_correct: Mapped[bool]
+    confidence: Mapped[str] = mapped_column(Text, server_default="sure")   # sure | unsure | guess
+    subject: Mapped[str | None] = mapped_column(Text, default=None)
+    source: Mapped[str] = mapped_column(Text, server_default="quiz")       # quiz | dose | retest
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class DailySession(Base):
+    """The assembled Daily Dose for one user and day."""
+
+    __tablename__ = "daily_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    day: Mapped[date]
+    items: Mapped[list] = mapped_column(JSONB, default=list)
+    completed_at: Mapped[datetime | None] = mapped_column(default=None)
+    freeze_used: Mapped[bool] = mapped_column(server_default="false")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class RecallItem(Base):
+    """A past-paper recall (question -> published answer) and its textbook verdict (migration a9c1e3f5b7d9)."""
+
+    __tablename__ = "recall_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(default=None)
+    chapter: Mapped[str | None] = mapped_column(Text, default=None)
+    headline_no: Mapped[int | None] = mapped_column(default=None)
+    kind: Mapped[str] = mapped_column(Text, server_default="variant")
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text)
+    visibility: Mapped[str] = mapped_column(Text, server_default="admin")
+    verdict: Mapped[str | None] = mapped_column(Text, default=None)
+    textbook_answer: Mapped[str | None] = mapped_column(Text, default=None)
+    evidence: Mapped[list | None] = mapped_column(JSONB, default=None)
+    explanation: Mapped[str | None] = mapped_column(Text, default=None)
+    concept_id: Mapped[int | None] = mapped_column(ForeignKey("concept_cards.id", ondelete="SET NULL"), default=None)
+    mcq_id: Mapped[int | None] = mapped_column(ForeignKey("mcqs.id", ondelete="SET NULL"), default=None)
+    review_status: Mapped[str] = mapped_column(Text, server_default="unreviewed")
+    reviewer_note: Mapped[str | None] = mapped_column(Text, default=None)
+    refereed_at: Mapped[datetime | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())

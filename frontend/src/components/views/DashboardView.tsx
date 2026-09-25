@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ReportsPanel } from "@/components/ReportsPanel";
+import { ReadinessCard } from "@/components/ReadinessCard";
 import {
   BookOpen,
   Stethoscope,
@@ -49,6 +50,8 @@ export default function DashboardView({
           Access textbook grounding and board exam practice modules.
         </p>
       </div>
+
+      <ReadinessCard token={token} onOpenDailyDose={() => setActiveView("daily")} />
 
       {/* Bento Grid Stats */}
       <div className="dashboard-grid">

@@ -30,6 +30,8 @@ export function useQuiz({
   const [quizMCQs, setQuizMCQs] = useState<any[]>([]);
   const [quizCurrentIdx, setQuizCurrentIdx] = useState(0);
   const [quizSelectedAnswers, setQuizSelectedAnswers] = useState<{ [key: number]: string }>({});
+  // Retention engine: how sure the student was per question (default "sure").
+  const [quizConfidence, setQuizConfidence] = useState<{ [key: number]: "sure" | "unsure" | "guess" }>({});
   const [quizAttemptId, setQuizAttemptId] = useState<number | null>(null);
   const [quizIsLoading, setQuizIsLoading] = useState(false);
   const [quizIsSubmitting, setQuizIsSubmitting] = useState(false);
@@ -71,6 +73,7 @@ export function useQuiz({
       }
       setQuizStep("config");
       setQuizSelectedAnswers({});
+      setQuizConfidence({});
       setQuizCurrentIdx(0);
       setQuizSecondsElapsed(0);
       setQuizTimerActive(false);
@@ -139,6 +142,7 @@ export function useQuiz({
     const formattedAnswers = Object.entries(quizSelectedAnswers).map(([mcqId, option]) => ({
       mcq_id: parseInt(mcqId),
       selected_option: option,
+      confidence: quizConfidence[parseInt(mcqId)] ?? "sure",
     }));
 
     try {
@@ -254,6 +258,7 @@ export function useQuiz({
       setQuizAttemptId(data.quiz_attempt_id);
       setQuizCurrentIdx(0);
       setQuizSelectedAnswers({});
+      setQuizConfidence({});
       setQuizStep("taker");
       setQuizSecondsElapsed(0);
 
@@ -400,6 +405,7 @@ export function useQuiz({
       setQuizAttemptId(data.quiz_attempt_id);
       setQuizCurrentIdx(0);
       setQuizSelectedAnswers({});
+      setQuizConfidence({});
       setQuizStep("taker");
       setQuizSecondsElapsed(0);
       if (data.timer_mode === "session") setQuizTimerCountdown(data.timer_value * 60);
@@ -445,6 +451,7 @@ export function useQuiz({
       setQuizAttemptId(data.quiz_attempt_id);
       setQuizCurrentIdx(0);
       setQuizSelectedAnswers({});
+      setQuizConfidence({});
       setQuizStep("taker");
       setQuizSecondsElapsed(0);
       setQuizTimerActive(true);
@@ -469,6 +476,8 @@ export function useQuiz({
     setQuizCurrentIdx,
     quizSelectedAnswers,
     setQuizSelectedAnswers,
+    quizConfidence,
+    setQuizConfidence,
     quizAttemptId,
     setQuizAttemptId,
     quizIsLoading,

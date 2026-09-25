@@ -552,7 +552,7 @@ class GenerateAiQuizRequest(BaseModel):
     page_number: int | None = None
     count: int | None = None
     difficulty: int | None = None  # 1 (easy) - 5 (hard); falls back to AI_MCQ_DIFFICULTY env
-    exam_profile: str | None = None  # 'fcps' (A-E, default) | 'usmle' (A-D)
+    exam_profile: str | None = None  # 'fcps' (A-E, default) | 'usmle' (A-E vignette) | 'quick' (A-D recall)
     request_id: str | None = None  # client idempotency key; a retry returns the same set
 
 
@@ -731,6 +731,7 @@ class StartQuizRequest(BaseModel):
 class SelectedAnswer(BaseModel):
     mcq_id: int
     selected_option: str
+    confidence: str | None = None   # 'sure' | 'unsure' | 'guess' (retention engine)
 
 
 class SubmitQuizRequest(BaseModel):
@@ -895,6 +896,19 @@ def submit_quiz_endpoint(
     attempt.completed_at = datetime.utcnow()
     db.commit()
     db.refresh(attempt)
+
+    # Retention engine: log each answer with its confidence; wrong or guessed
+    # answers get a concept card (built in the background) and a re-test schedule.
+    from app.retention import record_answer
+
+    for ans in req.answers:
+        mcq = mcq_map.get(ans.mcq_id)
+        if mcq is not None:
+            try:
+                record_answer(db, current_user.id, mcq, ans.selected_option, ans.confidence or "sure", source="quiz")
+            except Exception:
+                logger.exception("Retention logging failed for MCQ %s", ans.mcq_id)
+                db.rollback()
     
     return {
         "score": attempt.score,
@@ -1974,3 +1988,302 @@ def update_answer_report(
     db.commit()
     db.refresh(report)
     return _serialize_report(report)
+
+
+# ─── Daily loop: Daily Dose, answers with confidence, concept cards, readiness ──
+
+class StudyAnswerRequest(BaseModel):
+    mcq_id: int
+    selected_option: str
+    confidence: str = "sure"          # sure | unsure | guess
+    dose_index: int | None = None     # position in today's Daily Dose, if answered there
+
+
+class ExamDateRequest(BaseModel):
+    exam_date: str | None = None      # YYYY-MM-DD, or null to clear
+
+
+def _mcq_payload(m: MCQ) -> dict:
+    return {
+        "id": m.id,
+        "question_text": m.question_text,
+        "options": m.options,
+        "correct_option": m.correct_option,
+        "explanation_markdown": m.explanation_markdown,
+        "sub_category": m.sub_category,
+        "main_category": m.main_category,
+        "figure_id": m.figure_id,
+        "concept_id": m.concept_id,
+        "grounding": m.grounding,
+    }
+
+
+@app.get("/api/study/daily")
+def get_daily_dose(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Today's Daily Dose: due concept re-tests, new questions, a spot-the-diagnosis image, a pearl."""
+    from app.models import ConceptCard
+    from app.retention import get_or_build_daily_session, serialize_card, streak
+
+    session = get_or_build_daily_session(db, current_user)
+    items = []
+    for i, item in enumerate(session.items or []):
+        entry = {**item, "index": i}
+        if item.get("mcq_id"):
+            m = db.get(MCQ, item["mcq_id"])
+            entry["mcq"] = _mcq_payload(m) if m else None
+        if item.get("type") == "pearl" and item.get("concept_id"):
+            card = db.get(ConceptCard, item["concept_id"])
+            entry["concept"] = serialize_card(db, card) if card else None
+        items.append(entry)
+    return {
+        "day": session.day.isoformat(),
+        "items": items,
+        "completed": session.completed_at is not None,
+        "streak": streak(db, current_user.id),
+        "streak_freezes": current_user.streak_freezes,
+    }
+
+
+@app.post("/api/study/answer")
+def study_answer(
+    req: StudyAnswerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Answer one question with a confidence tap; schedules concept re-tests."""
+    from app.models import ConceptCard, DailySession
+    from app.retention import mark_item_done, record_answer, serialize_card
+    from datetime import date as _date
+
+    mcq = db.get(MCQ, req.mcq_id)
+    if mcq is None:
+        raise HTTPException(status_code=404, detail="Question not found.")
+    source = "dose" if req.dose_index is not None else "practice"
+    result = record_answer(db, current_user.id, mcq, req.selected_option, req.confidence, source=source)
+    if req.dose_index is not None:
+        session = db.query(DailySession).filter_by(user_id=current_user.id, day=_date.today()).first()
+        if session is not None:
+            mark_item_done(db, session, req.dose_index, result["is_correct"])
+    card = db.get(ConceptCard, mcq.concept_id) if mcq.concept_id else None
+    return {
+        **result,
+        "explanation_markdown": mcq.explanation_markdown,
+        "concept": serialize_card(db, card) if card else None,
+    }
+
+
+@app.post("/api/study/dose/{index}/done")
+def mark_dose_item_done(
+    index: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Mark a non-question Daily Dose item (e.g. the pearl) as done."""
+    from app.models import DailySession
+    from app.retention import mark_item_done, streak
+    from datetime import date as _date
+
+    session = db.query(DailySession).filter_by(user_id=current_user.id, day=_date.today()).first()
+    if session is None:
+        raise HTTPException(status_code=404, detail="No Daily Dose for today yet.")
+    mark_item_done(db, session, index)
+    return {"completed": session.completed_at is not None, "streak": streak(db, current_user.id)}
+
+
+@app.get("/api/concepts/by-mcq/{mcq_id}")
+def concept_for_mcq(
+    mcq_id: int,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Concept card for a question. 202 while it is still being written in the background."""
+    from app.retention import concept_status_for_mcq, ensure_concept_async, serialize_card
+
+    state, card = concept_status_for_mcq(db, mcq_id)
+    if state == "missing":
+        raise HTTPException(status_code=404, detail="Question not found.")
+    if state == "none":
+        ensure_concept_async(mcq_id)
+        state = "pending"
+    if state == "pending":
+        response.status_code = status.HTTP_202_ACCEPTED
+        return {"status": "pending"}
+    return {"status": "ready", "concept": serialize_card(db, card)}
+
+
+@app.get("/api/concepts/{concept_id}")
+def get_concept(
+    concept_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    from app.models import ConceptCard
+    from app.retention import serialize_card
+
+    card = db.get(ConceptCard, concept_id)
+    if card is None:
+        raise HTTPException(status_code=404, detail="Concept not found.")
+    return serialize_card(db, card)
+
+
+@app.get("/api/study/readiness")
+def get_readiness(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Readiness estimate vs the 75% line, concept mastery, exam countdown, streak."""
+    from app.retention import readiness
+
+    return readiness(db, current_user)
+
+
+@app.put("/api/study/exam-date")
+def set_exam_date(
+    req: ExamDateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    from datetime import date as _date
+
+    if req.exam_date:
+        try:
+            current_user.exam_date = _date.fromisoformat(req.exam_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="exam_date must be YYYY-MM-DD.")
+    else:
+        current_user.exam_date = None
+    db.commit()
+    return {"exam_date": current_user.exam_date.isoformat() if current_user.exam_date else None}
+
+
+# ─── Answer-Key Referee + private recall bank (admin-only until licensed) ─────
+
+class RefereeRequest(BaseModel):
+    question: str
+    answer: str | None = None                 # recall style: "question = answer"
+    options: dict[str, str] | None = None     # MCQ style
+    key: str | None = None                    # published key for the MCQ, if any
+
+
+class RecallReviewRequest(BaseModel):
+    review_status: str                        # confirmed | corrected | rejected | unreviewed
+    reviewer_note: str | None = None
+
+
+def _serialize_recall(r) -> dict:
+    return {
+        "id": r.id, "source": r.source, "page": r.page, "chapter": r.chapter, "kind": r.kind,
+        "headline_no": r.headline_no, "question": r.question, "answer": r.answer, "verdict": r.verdict,
+        "textbook_answer": r.textbook_answer, "evidence": r.evidence or [], "explanation": r.explanation,
+        "review_status": r.review_status, "reviewer_note": r.reviewer_note,
+        "refereed_at": r.refereed_at.isoformat() if r.refereed_at else None,
+    }
+
+
+@app.post("/api/referee", dependencies=[Depends(rate_limiter(limit=30, window=60))])
+def referee_question(
+    req: RefereeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Check a recall answer or MCQ key against the textbooks (verified quotes only)."""
+    from app.referee import judge
+
+    if not (req.question or "").strip():
+        raise HTTPException(status_code=400, detail="Question is required.")
+    if not req.answer and not req.options:
+        raise HTTPException(status_code=400, detail="Give the published answer, or the options (and key).")
+    try:
+        return judge(db, req.question, answer=req.answer, options=req.options, key=req.key)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/recalls")
+def list_recalls(
+    verdict: str | None = None,
+    chapter: str | None = None,
+    q: str | None = None,
+    review_status: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Browse the private recall bank with verdicts (admin)."""
+    from app.models import RecallItem
+
+    query = db.query(RecallItem)
+    if verdict == "unrefereed":
+        query = query.filter(RecallItem.verdict.is_(None))
+    elif verdict == "disputed":
+        query = query.filter(RecallItem.verdict.in_(("contradicted", "books_conflict")))
+    elif verdict:
+        query = query.filter(RecallItem.verdict == verdict)
+    if chapter:
+        query = query.filter(RecallItem.chapter.ilike(f"%{chapter}%"))
+    if review_status:
+        query = query.filter(RecallItem.review_status == review_status)
+    if q:
+        like = f"%{q}%"
+        query = query.filter((RecallItem.question.ilike(like)) | (RecallItem.answer.ilike(like)))
+    total = query.count()
+    rows = query.order_by(RecallItem.page, RecallItem.id).offset(max(0, offset)).limit(min(max(1, limit), 200)).all()
+    counts = dict(db.query(RecallItem.verdict, func.count(RecallItem.id)).group_by(RecallItem.verdict).all())
+    return {
+        "total": total,
+        "items": [_serialize_recall(r) for r in rows],
+        "counts": {("unrefereed" if k is None else k): v for k, v in counts.items()},
+        "chapters": [c for (c,) in db.query(RecallItem.chapter).distinct().order_by(RecallItem.chapter) if c],
+    }
+
+
+@app.post("/api/recalls/{recall_id}/referee")
+def referee_recall(
+    recall_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """(Re)run the referee for one recall and store the verdict."""
+    from app.models import RecallItem
+    from app.referee import judge
+
+    item = db.get(RecallItem, recall_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Recall not found.")
+    r = judge(db, item.question, answer=item.answer)
+    if not r.get("verdict"):
+        raise HTTPException(status_code=502, detail=r.get("error") or "Referee failed.")
+    item.verdict = r["verdict"]
+    item.textbook_answer = r.get("textbook_answer")
+    item.evidence = r.get("evidence")
+    item.explanation = (r.get("explanation") or "") + (
+        f"\n\nAI reasoning (not from the textbooks): {r['ai_reasoning']}" if r.get("ai_reasoning") else "")
+    item.refereed_at = datetime.utcnow()
+    db.commit()
+    return {**_serialize_recall(item), "figures": r.get("figures", [])}
+
+
+@app.patch("/api/recalls/{recall_id}")
+def review_recall(
+    recall_id: int,
+    req: RecallReviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """A doctor's review of the verdict (confirmed / corrected / rejected)."""
+    from app.models import RecallItem
+
+    if req.review_status not in ("unreviewed", "confirmed", "corrected", "rejected"):
+        raise HTTPException(status_code=400, detail="Invalid review_status.")
+    item = db.get(RecallItem, recall_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Recall not found.")
+    item.review_status = req.review_status
+    item.reviewer_note = (req.reviewer_note or "").strip()[:2000] or None
+    db.commit()
+    return _serialize_recall(item)
