@@ -342,3 +342,69 @@ The books were added for **trust, MCQ content and level setting** (undergraduate
   - Result: vector search **19 s → 0.07–0.16 s**.
 - The rerank pool shrank from 24 to 16 by fused rank, plus the top 3 of every individual result list. The top-3 guarantee was needed because Bailey's angiofibroma paragraph ranks #2 in one list but #19 after fusion. Neighbour paragraphs are scored in one batch with the rewritten query only.
 - The 21-question suite is unchanged (21/21 with context; multi-book questions 2–4 books).
+
+## 9. Round 4 (2026-09-25): the FCPS daily loop, Answer-Key Referee, duels
+
+The goal of this round is a daily habit that improves retention, rather than a bigger question bank. Competitors (ReviseFCPS1, PrepFCPS, Part1PK, FcpsWorld) all advertise book-cited banks, mocks and spaced repetition. medNAMA's differentiator is *visible, verified* evidence: the real passage, page and figure, plus honesty when the books are silent or disagree.
+
+**Retention core** (`app/retention.py`, migration `f2b4d6e8a0c1`)
+- **Concept cards and re-tests.** Every wrong answer, and every right answer tapped "Guess", produces a **concept card**:
+  - the concept in 2–3 lines
+  - a textbook quote, verbatim-checked against the chunk, with book and page
+  - a captioned figure when one matches
+  - an optional mnemonic, left empty rather than forced
+  - The card is built by a single background worker, so it never blocks answering.
+- **Review schedule.** Cards are reviewed at 1 → 3 → 7 → 16 → 35 → 60 days.
+  - **Each review uses a different MCQ on the same concept** (a variant generated in the background), so students learn the concept rather than the answer letter.
+- **Confidence tap** (Sure / Unsure / Guess) on every answer. Readiness counts only sure-and-correct.
+- **Daily Dose** (`/api/study/daily`):
+  - due reviews
+  - 5 new MCQs from the weakest subject
+  - one "spot the diagnosis" figure MCQ
+  - one pearl
+  - A streak counter with freezes for duty days.
+- **Readiness meter:** mastered concepts and predicted score vs the 75% CPSP line, plus an exam-date countdown and a paced daily target.
+- **Explain it back:** the student writes the concept in their own words. The AI grades it against the textbook passage, lists the missed points and updates the schedule.
+- **Mock format.** FCPS profile is A–E. The mock presets follow the CPSP format: 100 questions in 2 h, no negative marking.
+
+**Answer-Key Referee** (`app/referee.py`, admin-only while private)
+- Takes a recall question plus the published key. It returns:
+  - the textbook-supported answer
+  - quoted evidence with book and page
+  - whether it agrees with the key
+  - a verdict: `supported` / `contradicted` / `books_conflict` / `textbooks_silent`
+- Every quote is string-verified against its passage. If no quote verifies, the verdict is downgraded to `textbooks_silent`, with the AI reasoning labelled as such.
+- The recall book is never used as evidence for its own keys.
+
+**Private recall source (Rafiullah 14th ed.)**
+- OCR: `scripts/ocr_book.py` (Docling + EasyOCR, full-page, local, resumable).
+- Extraction: `scripts/extract_recalls.py` produces `recall_items` (numbered headline recalls and their "also asked as" variants) and `recall_book` pearls.
+- Batch judging: `scripts/referee_recalls.py` writes the disputed-keys CSV.
+- Output lives in git-ignored `data/private/`. All rows are `visibility = 'admin'`.
+- The Referee screen has three tabs: paste-and-check, the recall bank (filter by verdict, chapter or disputed), and a **high-yield map** of how often each system appears in the recall bank.
+
+**Engagement**
+- **Challenge a friend:** `/?duel=CODE` gives both players the same 10 MCQs. Answers are hidden until you've played, and results appear side by side.
+- **Study a chapter:** with a chapter scoped in chat, you can get a cited high-yield summary, or 10 MCQs drawn only from that chapter (background job).
+
+**Measured**
+- Retention engine: 4 wrong answers produced 4 cards and 4 re-tests, each with a **different** MCQ id. The Daily Dose builds in 1.7 s.
+- Explain-back scored a correct explanation 95 and a wrong one 0, listing each error.
+- The end-to-end loop through the frontend proxy (daily → answer → card → explain-back → readiness → duel → referee) passes 11/11 checks.
+- Referee spot checks (to be confirmed by a doctor):
+  - "pericardial cavity" key contradicted (Snell)
+  - "hyperexcitability" key contradicted (Guyton)
+  - PAN–hepatitis B supported
+  - SA-node books conflict
+  - cardiac-plexus textbooks silent
+- First 83 headline recalls judged: 59 supported, 18 textbooks silent, 3 contradicted, 3 books conflict.
+- Recall bank so far (OCR pages 1–148): 1,744 recalls (415 headlines). Cardiovascular 44%, Gastroenterology 21%, Pulmonology 18%.
+
+**Still to do**
+- Finish OCR and extraction for the remaining pages. Referee the remaining headlines, then the variants.
+- A doctor needs to spot-check 30 verdicts; the target is ≥ 90% agreement.
+- Phase D:
+  - FCPS Part 2 (SEQ marking, TOACS image stations, viva drill)
+  - a weekly mock with a percentile
+  - a VPS launch with free/paid limits
+- Showing Rafiullah-derived content to students requires the author's permission.
