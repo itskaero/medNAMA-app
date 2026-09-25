@@ -101,7 +101,11 @@ if [ "$WITH_DB" = 1 ]; then
   mkdir -p "$OUT/db"
   DUMP_NAME="medrag-$(date +%Y%m%d-%H%M).dump"
   MSYS_NO_PATHCONV=1 docker exec "$DB_CID" pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc -Z6 -f /tmp/bundle.dump
-  MSYS_NO_PATHCONV=1 docker cp "$DB_CID:/tmp/bundle.dump" "$OUT/db/$DUMP_NAME"
+  LOCAL_DUMP="$OUT/db/$DUMP_NAME"
+  # MSYS_NO_PATHCONV stops Git Bash mangling the container path, but then the local
+  # path must be given in Windows form explicitly.
+  command -v cygpath >/dev/null 2>&1 && LOCAL_DUMP="$(cygpath -w "$LOCAL_DUMP")"
+  MSYS_NO_PATHCONV=1 docker cp "$DB_CID:/tmp/bundle.dump" "$LOCAL_DUMP"
   MSYS_NO_PATHCONV=1 docker exec "$DB_CID" rm -f /tmp/bundle.dump
   [ "$(head -c 5 "$OUT/db/$DUMP_NAME")" = "PGDMP" ] || { echo "ERROR: $OUT/db/$DUMP_NAME is not a pg_dump file"; exit 1; }
   "$PY" - "$DB_CID" "$DB_USER" "$DB_NAME" > "$OUT/db/CONTENTS.txt" <<'PYEOF' || true
@@ -145,7 +149,8 @@ PYEOF
   echo "frontend image: $(docker image inspect nas-frontend:latest --format '{{.Id}}' | cut -c8-19)"
   echo "alembic head:   ${ALEMBIC_HEAD:-?} (applied automatically when the backend starts)"
   echo "MedCPT bundled: $( [ -f "$OUT/hf-medcpt.tar" ] && echo yes || echo 'no (downloaded on first start)')"
-  echo "database dump:  $(ls "$OUT"/db/*.dump 2>/dev/null | xargs -r -n1 basename || echo 'none')$( [ -d "$OUT/db" ] && echo '  -> deploy with: bash deploy.sh --restore-db')"
+  echo "database dump:  $(cd "$OUT" && ls db/*.dump 2>/dev/null | sed 's|^db/||' | tr '
+' ' ' || true)$( [ -d "$OUT/db" ] && echo '-> deploy with: bash deploy.sh --restore-db' || echo 'none')"
   echo
   echo "Optional .env settings (defaults shown):"
   echo "  RERANKER_SECOND_STAGE=ncbi/MedCPT-Cross-Encoder   (empty = single-stage, faster on a weak CPU)"
