@@ -120,6 +120,8 @@ interface QuizViewProps {
   books?: Book[];
   getHeaders?: () => HeadersInit;
   startAiCustomQuiz?: (quizSetId: string) => Promise<void>;
+  startQuizWith?: (filters: Record<string, unknown>, label?: string, returnTo?: string) => Promise<void>;
+  lastRun?: { filters: Record<string, unknown>; label: string; returnTo?: string; total: number; unseen: number; batch: number } | null;
 }
 
 interface AiQuizSetSummary {
@@ -209,6 +211,8 @@ export default function QuizView({
   books = [],
   getHeaders,
   startAiCustomQuiz,
+  startQuizWith,
+  lastRun,
 }: QuizViewProps) {
   // Segmented control and generation states inside QuizView
   const [builderMode, setBuilderMode] = React.useState<"manual" | "ai_assistant" | "saved_history">("manual");
@@ -1763,8 +1767,41 @@ export default function QuizView({
               <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Completed in {formatTime(quizSecondsElapsed)}</span>
             </div>
             <div className="stat-card" style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: "var(--sp-3)" }}>
-              <button className="btn-primary" onClick={() => setQuizStep("config")} style={{ width: "100%" }}>Start New Session</button>
-              <button className="btn-workspace" onClick={() => setActiveView("dashboard")} style={{ width: "100%" }}>Back to Dashboard</button>
+              {lastRun && startQuizWith ? (
+                <>
+                  {/* A run through a whole selection (past papers, "Do all"): keep going batch by batch. */}
+                  {(() => {
+                    const left = Math.max(0, lastRun.unseen - Math.min(lastRun.batch, lastRun.unseen));
+                    const size = Number(lastRun.filters.num_questions) || lastRun.batch || 50;
+                    return left > 0 ? (
+                      <button className="btn-primary" style={{ width: "100%" }}
+                        onClick={() => startQuizWith({ ...lastRun.filters, drill_wrong: false }, lastRun.label, lastRun.returnTo)}>
+                        Continue: next {Math.min(size, left)} ({left.toLocaleString()} unanswered left of {lastRun.total.toLocaleString()})
+                      </button>
+                    ) : (
+                      <div style={{ fontSize: "0.82rem", color: "var(--sea-green)", fontWeight: 600, textAlign: "center" }}>
+                        You have answered every question in this selection ({lastRun.total.toLocaleString()}).
+                      </div>
+                    );
+                  })()}
+                  {correctCount < totalCount ? (
+                    <button className="btn-workspace" style={{ width: "100%" }}
+                      onClick={() => startQuizWith({ ...lastRun.filters, drill_wrong: true }, `${lastRun.label} · missed`, lastRun.returnTo)}>
+                      Practise my missed questions
+                    </button>
+                  ) : null}
+                  {lastRun.returnTo ? (
+                    <button className="btn-workspace" onClick={() => setActiveView(lastRun.returnTo!)} style={{ width: "100%" }}>
+                      Back to {lastRun.returnTo === "pastpapers" ? "past papers" : "dashboard"}
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <button className="btn-primary" onClick={() => setQuizStep("config")} style={{ width: "100%" }}>Start New Session</button>
+                  <button className="btn-workspace" onClick={() => setActiveView("dashboard")} style={{ width: "100%" }}>Back to Dashboard</button>
+                </>
+              )}
             </div>
           </div>
 

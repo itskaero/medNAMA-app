@@ -131,13 +131,17 @@ def question_media(db: Session, mcq_ids: list[int]) -> dict[int, list[int]]:
 
 
 def paper_years(db: Session, mcq_ids: list[int]) -> dict[int, list[int]]:
-    """Which past-paper years each question appeared in (for 'Asked in 2023, 2025' badges)."""
+    """Which past-paper years each question was asked in (for 'Past paper 2023, 2025' badges).
+    Uses mcqs.asked_years (which counts reworded repeats in other years) when it has been computed."""
     if not mcq_ids:
         return {}
+    ranked = {mid: [int(y) for y in ys] for mid, ys in db.query(MCQ.id, MCQ.asked_years).filter(
+        MCQ.id.in_(mcq_ids), MCQ.asked_years.isnot(None))}
     out: dict[int, list[int]] = {}
     for mid, year in (db.query(PastPaperQuestion.mcq_id, PastPaper.year)
                       .join(PastPaper, PastPaper.id == PastPaperQuestion.paper_id)
                       .filter(PastPaperQuestion.mcq_id.in_(mcq_ids)).distinct()):
         if year:
             out.setdefault(mid, []).append(int(year))
+    out.update(ranked)
     return {k: sorted(v) for k, v in out.items()}

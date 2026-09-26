@@ -62,13 +62,25 @@ export function useQuiz({
   const [explanationLoading, setExplanationLoading] = useState(false);
   const [explanationError, setExplanationError] = useState<string | null>(null);
 
-  const isReviewNavigation = useRef(false);
+  // Set before switching to the quiz view with a session already loaded, so the
+  // "entering quiz view resets to the builder" effect below leaves it alone.
+  const skipNextQuizReset = useRef(false);
+  // The filters of the last session started with startQuizWith (past papers, "Do all"), so the
+  // results screen can offer "Continue with the next batch" and "Missed only".
+  const [lastRun, setLastRun] = useState<{
+    filters: Record<string, unknown>;
+    label: string;
+    returnTo?: string;
+    total: number;   // questions in the whole selection
+    unseen: number;  // of those, never answered before this batch
+    batch: number;   // questions in this batch
+  } | null>(null);
 
   // Reset quiz state on entering quiz view
   useEffect(() => {
     if (activeView === "quiz") {
-      if (isReviewNavigation.current) {
-        isReviewNavigation.current = false;
+      if (skipNextQuizReset.current) {
+        skipNextQuizReset.current = false;
         return;
       }
       setQuizStep("config");
@@ -230,6 +242,7 @@ export function useQuiz({
 
   // Launch quiz attempt
   const handleStartQuiz = async () => {
+    setLastRun(null);
     setQuizIsLoading(true);
     try {
       const res = await fetch(`${API}/api/quizzes/start`, {
@@ -302,7 +315,7 @@ export function useQuiz({
       setQuizSecondsElapsed(0);
       setQuizTimerActive(false);
       setQuizStep("summary");
-      isReviewNavigation.current = true;
+      skipNextQuizReset.current = true;
       setActiveView("quiz");
     } catch (err: any) {
       toast.error(err.message || "Failed to load quiz attempt details.", { duration: Infinity });
@@ -455,7 +468,11 @@ export function useQuiz({
       setQuizStep("taker");
       setQuizSecondsElapsed(0);
       setQuizTimerActive(true);
-      setActiveView("quiz");
+      setLastRun(null);
+      if (activeView !== "quiz") {
+        skipNextQuizReset.current = true;
+        setActiveView("quiz");
+      }
       toast.success("AI Practice Quiz Initialized", {
         description: `${data.mcqs.length} custom MCQs prepared for your practice session.`,
       });
@@ -467,7 +484,7 @@ export function useQuiz({
   };
 
   // Launch a practice quiz from explicit filters (e.g. past papers: exam, years, subject/topic tags)
-  const startQuizWith = async (filters: Record<string, unknown>, label = "Practice") => {
+  const startQuizWith = async (filters: Record<string, unknown>, label = "Practice", returnTo?: string) => {
     setQuizIsLoading(true);
     try {
       const res = await fetch(`${API}/api/quizzes/start`, {
@@ -490,7 +507,11 @@ export function useQuiz({
       setQuizSecondsElapsed(0);
       setQuizTimerCountdown(0);
       setQuizTimerActive(true);
-      setActiveView("quiz");
+      setLastRun({ filters, label, returnTo, total: data.total_in_scope ?? 0, unseen: data.unseen_in_scope ?? 0, batch: data.mcqs.length });
+      if (activeView !== "quiz") {
+        skipNextQuizReset.current = true;
+        setActiveView("quiz");
+      }
       toast.success(label, { description: `${data.mcqs.length} questions loaded.` });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to start the quiz.");
@@ -501,6 +522,8 @@ export function useQuiz({
 
   return {
     startQuizWith,
+    lastRun,
+    setLastRun,
     // core
     quizStep,
     setQuizStep,

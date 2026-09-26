@@ -25,6 +25,9 @@ interface DashboardViewProps {
   /** Admins see the "Reported answers" review queue. */
   isAdmin?: boolean;
   token?: string | null;
+  /** Work through every question of a subject, 50 at a time. */
+  onDoAll?: (main: string, sub: string, count: number) => void;
+  onRapidReview?: (main: string, sub: string) => void;
 }
 
 export default function DashboardView({
@@ -38,6 +41,8 @@ export default function DashboardView({
   handleReviewPreviousQuiz,
   isAdmin = false,
   token = null,
+  onDoAll,
+  onRapidReview,
 }: DashboardViewProps) {
   return (
     <div className="dashboard-view" role="region" aria-label="Dashboard metrics">
@@ -287,24 +292,43 @@ export default function DashboardView({
                     <div className="accordion-content">
                       <div className="topics-grid" role="list">
                         {cat.sub_categories.map((sub: any, subIdx: number) => (
-                          <button
-                            key={subIdx}
-                            className="topic-item-card"
-                            role="listitem"
-                            onClick={() => {
-                              setSelectedTopic({
-                                name: sub.name,
-                                count: sub.count,
-                                main_category: cat.main_category,
-                              });
-                              setActiveView("quiz");
-                            }}
-                          >
-                            <span className="topic-name" title={sub.name}>
-                              {sub.name}
-                            </span>
-                            <span className="topic-count">{sub.count} MCQs</span>
-                          </button>
+                          <div key={subIdx} role="listitem" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <button
+                              className="topic-item-card"
+                              title="Choose how many questions, timer and mode"
+                              onClick={() => {
+                                setSelectedTopic({
+                                  name: sub.name,
+                                  count: sub.count,
+                                  main_category: cat.main_category,
+                                });
+                                setActiveView("quiz");
+                              }}
+                            >
+                              <span className="topic-name" title={sub.name}>
+                                {sub.name}
+                              </span>
+                              <span className="topic-count">{sub.count} MCQs</span>
+                            </button>
+                            {onDoAll || onRapidReview ? (
+                              <div style={{ display: "flex", gap: "4px" }}>
+                                {onDoAll ? (
+                                  <button type="button" className="btn-workspace" style={{ flex: 1, padding: "2px 6px", fontSize: "0.68rem" }}
+                                    title="Work through every question of this subject, 50 at a time, unanswered first"
+                                    onClick={() => onDoAll(cat.main_category, sub.name, sub.count)}>
+                                    Do all ({sub.count})
+                                  </button>
+                                ) : null}
+                                {onRapidReview ? (
+                                  <button type="button" className="btn-workspace" style={{ flex: 1, padding: "2px 6px", fontSize: "0.68rem" }}
+                                    title="Answer keys at a glance, a one-page summary and a 10-question drill"
+                                    onClick={() => onRapidReview(cat.main_category, sub.name)}>
+                                    Rapid review
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
                         ))}
                       </div>
                     </div>

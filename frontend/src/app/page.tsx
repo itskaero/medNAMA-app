@@ -40,15 +40,21 @@ import DuelView from "@/components/views/DuelView";
 import WeeklyMockView from "@/components/views/WeeklyMockView";
 import LookalikesView from "@/components/views/LookalikesView";
 import PastPapersView from "@/components/views/PastPapersView";
+import RapidReviewView, { ReviewScope } from "@/components/views/RapidReviewView";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [timedMockId, setTimedMockId] = useState<number | null>(null);
+  const [reviewScope, setReviewScope] = useState<ReviewScope | null>(null);
+  const openRapidReview = (scope: ReviewScope) => {
+    setReviewScope(scope);
+    setActiveView("review");
+  };
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [quickReplyVal, setQuickReplyVal] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -358,6 +364,14 @@ export default function Home() {
           handleReviewPreviousQuiz={quiz.handleReviewPreviousQuiz}
           isAdmin={isAdmin}
           token={token}
+          onDoAll={(main, sub, count) =>
+            quiz.startQuizWith(
+              { categories: [main], sub_categories: [sub], num_questions: 50, prefer_unseen: true },
+              `${sub} · all ${count}`,
+              "dashboard"
+            )
+          }
+          onRapidReview={(main, sub) => openRapidReview({ label: `${main} · ${sub}`, main, sub, returnTo: "dashboard" })}
         />
       );
     }
@@ -463,11 +477,25 @@ export default function Home() {
       return (
         <PastPapersView
           token={token}
-          onPractice={(filters, label) => quiz.startQuizWith(filters, label)}
+          onPractice={(filters, label) => quiz.startQuizWith(filters, label, "pastpapers")}
+          onRapidReview={(scope) => openRapidReview({ ...scope, returnTo: "pastpapers" })}
           onTimedPaper={(id) => {
             setTimedMockId(id);
             setActiveView("paper");
           }}
+        />
+      );
+    }
+
+    if (activeView === "review" && reviewScope) {
+      return (
+        <RapidReviewView
+          key={JSON.stringify(reviewScope)}
+          token={token}
+          scope={reviewScope}
+          isAdmin={isAdmin}
+          onDrill={(filters, label) => quiz.startQuizWith(filters, label, reviewScope.returnTo)}
+          onBack={() => setActiveView((reviewScope.returnTo || "dashboard") as typeof activeView)}
         />
       );
     }

@@ -122,6 +122,7 @@ class MCQ(Base):
     source: Mapped[str | None] = mapped_column(Text, default=None)   # e.g. 'seed:p1/patho.js' (scripts/seed_mcqs.py)
     source_ref: Mapped[str | None] = mapped_column(Text, default=None)   # importer's external id
     access: Mapped[str] = mapped_column(Text, server_default="open")      # open | restricted (PAST_PAPERS_ACCESS)
+    asked_years: Mapped[list | None] = mapped_column(JSONB, default=None)  # incl. reworded repeats (rank_past_papers.py)
 
     book: Mapped["Book | None"] = relationship()
 
@@ -511,4 +512,19 @@ class MCQMedia(Base):
     mime: Mapped[str] = mapped_column(Text)
     data: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
     origin: Mapped[str | None] = mapped_column(Text, default=None)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class TopicSummary(Base):
+    """Rapid Review: cached one-page summary for a topic scope (migration c7e9a1b3d5f7)."""
+
+    __tablename__ = "topic_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    scope_key: Mapped[str] = mapped_column(Text, unique=True)
+    label: Mapped[str] = mapped_column(Text)
+    markdown: Mapped[str] = mapped_column(Text)
+    citations: Mapped[list] = mapped_column(JSONB, default=list)
+    key_count: Mapped[int] = mapped_column(server_default="0")
+    access: Mapped[str] = mapped_column(Text, server_default="open")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

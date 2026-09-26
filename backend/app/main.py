@@ -801,15 +801,25 @@ def start_quiz_endpoint(
         ).subquery()
         query = query.filter(MCQ.id.notin_(mastered_subquery))
         
+    # "Seen" = answered anywhere: quiz attempts, and the Daily Dose / sprint / mocks (answer_events).
+    from app.models import AnswerEvent
+
+    seen_ids = db.query(AttemptAnswer.mcq_id).join(
+        QuizAttempt, QuizAttempt.id == AttemptAnswer.quiz_attempt_id
+    ).filter(QuizAttempt.user_id == current_user.id).union(
+        db.query(AnswerEvent.mcq_id).filter(AnswerEvent.user_id == current_user.id, AnswerEvent.mcq_id.isnot(None))
+    )
+    # Size of the whole selection and how much of it is still unanswered, so "work through all"
+    # sessions can show "N left" and offer the next batch.
+    total_in_scope = query.order_by(None).count()
+    unseen_in_scope = query.order_by(None).filter(MCQ.id.notin_(seen_ids)).count()
+
     # Unseen first: never-attempted questions before ones already answered, so a
     # growing bank keeps producing fresh practice. Random within each group.
     if req.prefer_unseen and not req.drill_wrong:
         from sqlalchemy import case
 
-        seen_subquery = db.query(AttemptAnswer.mcq_id).join(
-            QuizAttempt, QuizAttempt.id == AttemptAnswer.quiz_attempt_id
-        ).filter(QuizAttempt.user_id == current_user.id).subquery()
-        seen_rank = case((MCQ.id.in_(db.query(seen_subquery.c.mcq_id)), 1), else_=0)
+        seen_rank = case((MCQ.id.in_(seen_ids), 1), else_=0)
         mcqs = query.order_by(seen_rank, func.random()).limit(req.num_questions).all()
     else:
         mcqs = query.order_by(func.random()).limit(req.num_questions).all()
@@ -851,6 +861,8 @@ def start_quiz_endpoint(
         
     return {
         "quiz_attempt_id": attempt.id,
+        "total_in_scope": total_in_scope,
+        "unseen_in_scope": unseen_in_scope,
         "mcqs": mcqs_data,
         "timer_mode": attempt.timer_mode,
         "timer_value": attempt.timer_value,
@@ -2764,3 +2776,49 @@ def mcq_media(media_id: int, db: Session = Depends(get_db), current_user: User =
     if media is None or mcq is None or not can_see_mcq(current_user, mcq):
         raise HTTPException(status_code=404, detail="Image not found.")
     return Response(content=media.data, media_type=media.mime, headers={"Cache-Control": "private, max-age=86400"})
+
+
+# ─── Rapid Review: key list + cached one-page topic summary ─────────────────
+
+class ReviewScopeRequest(BaseModel):
+    exam: str | None = None                   # past-paper exam, e.g. "FCPS Part 1"
+    years: list[int] | None = None
+    tags: dict[str, list[str]] | None = None  # {"subject": [...], "topic": [...], "specialty": [...]}
+    main: str | None = None                   # or a bank category
+    sub: str | None = None
+    order: str = "most_asked"                 # most_asked | topic
+    only_missed: bool = False
+    offset: int = 0
+    limit: int = 100
+    regenerate: bool = False                  # summary: admins may rebuild a cached page
+
+
+@app.post("/api/study/keys")
+def study_keys(req: ReviewScopeRequest, db: Session = Depends(get_db),
+               current_user: User = Depends(require_student_or_admin)):
+    """Every question of a scope as 'stem -> answer', most-asked first (instant, no AI)."""
+    from app.rapid_review import keys
+
+    return keys(db, current_user, req.model_dump(), req.order, req.only_missed, req.offset, req.limit)
+
+
+@app.post("/api/study/topic-summary")
+def study_topic_summary(req: ReviewScopeRequest, db: Session = Depends(get_db),
+                        current_user: User = Depends(require_student_or_admin)):
+    """One cached page of high-yield points for a topic, cited to the textbooks where they support it."""
+    from app.models import TopicSummary
+    from app.rapid_review import build_summary, serialize_summary, summary_allowed, summary_key
+    from app.retention import restricted_allowed
+
+    scope = req.model_dump()
+    if not summary_allowed(scope):
+        raise HTTPException(status_code=400, detail="Pick a subject or topic first.")
+    cached = db.query(TopicSummary).filter_by(scope_key=summary_key(scope)).first()
+    if cached is not None and cached.access == "restricted" and not restricted_allowed(current_user):
+        raise HTTPException(status_code=403, detail="This summary is not available on this account.")
+    if cached is not None and not (req.regenerate and current_user.role == "admin"):
+        return serialize_summary(cached, True)
+    try:
+        return serialize_summary(build_summary(db, current_user, scope), False)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))

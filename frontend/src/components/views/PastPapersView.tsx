@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { History, Loader2, Lock, PlayCircle, RotateCcw, Timer, X } from "lucide-react";
+import { History, Loader2, Lock, PlayCircle, RotateCcw, Timer, X, Zap } from "lucide-react";
+import type { ReviewScope } from "@/components/views/RapidReviewView";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 
@@ -23,10 +24,12 @@ export default function PastPapersView({
   token,
   onPractice,
   onTimedPaper,
+  onRapidReview,
 }: {
   token: string | null;
   onPractice: (filters: Record<string, unknown>, label: string) => void;
   onTimedPaper: (mockId: number) => void;
+  onRapidReview?: (scope: ReviewScope) => void;
 }) {
   const [exams, setExams] = useState<Exam[] | null>(null);
   const [locked, setLocked] = useState(false);
@@ -36,7 +39,7 @@ export default function PastPapersView({
   const [tags, setTags] = useState<Record<Axis, string[]>>({ subject: [], topic: [], specialty: [] });
   const [scope, setScope] = useState<Scope | null>(null);
   const [scopeLoading, setScopeLoading] = useState(false);
-  const [count, setCount] = useState(20);
+  const [count, setCount] = useState<number | "all">(20);
   const [missedOnly, setMissedOnly] = useState(false);
   const [timed, setTimed] = useState({ count: 100, minutes: 120 });
   const [creating, setCreating] = useState(false);
@@ -117,11 +120,12 @@ export default function PastPapersView({
         past_paper_exam: exam,
         years: years.length ? years : null,
         tags: activeTags,
-        num_questions: count,
+        // "All": work through the whole selection 50 at a time (unseen first, Continue after each batch).
+        num_questions: count === "all" ? 50 : count,
         prefer_unseen: true,
         drill_wrong: missedOnly,
       },
-      `Past papers · ${describe()}`
+      `Past papers · ${describe()}${count === "all" ? " · all" : ""}`
     );
   };
 
@@ -269,9 +273,13 @@ export default function PastPapersView({
         <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Practice</span>
-            {[10, 20, 50, 100].map((n) => (
+            {[10, 20, 50].map((n) => (
               <button key={n} type="button" style={chip(count === n)} onClick={() => setCount(n)}>{n}</button>
             ))}
+            <button type="button" style={chip(count === "all")} onClick={() => setCount("all")}
+              title="Work through every question in this selection, 50 at a time; unanswered ones first">
+              All ({(scope?.count ?? 0).toLocaleString()})
+            </button>
             <label style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.76rem", color: "var(--text-secondary)" }}>
               <input type="checkbox" checked={missedOnly} onChange={(e) => setMissedOnly(e.target.checked)} /> missed only
             </label>
@@ -280,6 +288,13 @@ export default function PastPapersView({
               <PlayCircle size={13} /> Practise
             </button>
           </div>
+          {onRapidReview ? (
+            <button className="btn-workspace" disabled={!scope?.count}
+              title="Answer keys at a glance, a one-page summary (pick a subject or topic) and a 10-question drill"
+              onClick={() => exam && onRapidReview({ label: describe(), exam, years: years.length ? years : null, tags: activeTags })}>
+              <Zap size={13} /> Rapid review
+            </button>
+          ) : null}
           <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Timed paper</span>
             {[{ count: 50, minutes: 60 }, { count: 100, minutes: 120 }, { count: 200, minutes: 240 }].map((t) => (
