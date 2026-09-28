@@ -446,15 +446,13 @@ export default function Home() {
     if (activeView === "stats") {
       return (
         <StatsView
-          detailedStats={detailedStats}
-          isLoadingDetailedStats={isLoadingDetailedStats}
-          getHeaders={getHeaders}
-          handleReviewPreviousQuiz={quiz.handleReviewPreviousQuiz}
-          setActiveView={setActiveView}
-          setQuizAttemptId={quiz.setQuizAttemptId}
-          setQuizMCQs={quiz.setQuizMCQs}
-          setQuizSelectedAnswers={quiz.setQuizSelectedAnswers}
-          setQuizStep={quiz.setQuizStep}
+          token={token}
+          onReviewQuiz={quiz.handleReviewPreviousQuiz}
+          onOpenPaper={(id) => {
+            setTimedMockId(id);
+            setActiveView("paper");
+          }}
+          onPractise={(filters, label) => quiz.startQuizWith(filters, label, "stats")}
         />
       );
     }

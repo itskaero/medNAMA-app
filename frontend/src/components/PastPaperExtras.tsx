@@ -190,16 +190,10 @@ export function PastPaperExtras({ mcq, token, onFigureClick }: {
         </div>
       ) : null}
 
-      {twists?.status === "running" ? (
-        <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "flex", gap: "6px", alignItems: "center" }}>
-          <Loader2 size={12} className="animate-spin" /> Writing twists from your textbooks and checking each against them (a minute or two)…
-        </div>
-      ) : null}
       {twists?.status === "failed" ? (
         <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>No twist this time: {twists.detail}</div>
       ) : null}
-      {twists?.status === "done"
-        ? (twists.twists || []).map((t, i) => (
+      {(twists?.twists || []).map((t, i) => (
           <div key={t.id} style={{ borderRadius: "12px", border: "1px solid var(--border-light)", padding: "12px" }}>
             <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px", display: "flex", gap: "8px" }}>
               <span>Twist {i + 1} · {t.twist_label}</span>
@@ -209,8 +203,15 @@ export function PastPaperExtras({ mcq, token, onFigureClick }: {
             </div>
             <StudyQuestion mcq={t} token={token} onFigureClick={onFigureClick} />
           </div>
-        ))
-        : null}
+        ))}
+      {twists?.status === "running" ? (
+        <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "flex", gap: "6px", alignItems: "center" }}>
+          <Loader2 size={12} className="animate-spin" />
+          {twists.twists?.length
+            ? "Checking the next twist against your textbooks…"
+            : "Writing twists from your textbooks and checking each one (the first usually appears within a minute)…"}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -56,8 +56,11 @@ SUBJECT_BY_BOOK = [
 ]
 PART1_SUBJECTS = ["Anatomy", "Physiology", "Pathology", "Pharmacology", "Microbiology", "Biochemistry",
                   "Behavioural Sciences", "Community Medicine"]
-# Seeded banks (scripts/seed_mcqs.py) name their subject/specialty in sub_category.
-SEEDED_SUBJECT_CATEGORIES = ("FCPS Part 1", "FCPS Part 2")
+# The seeded banks (scripts/seed_mcqs.py) are the two papers of FCPS Part 1: Paper 1, the basic sciences common
+# to every faculty, and Paper 2, the faculty paper. They name their subject / faculty in sub_category.
+PAPER1 = "Paper 1 · Basic sciences"
+PAPER2 = "Paper 2 · Faculty"
+SEEDED_SUBJECT_CATEGORIES = (PAPER1, PAPER2)
 # Seeded sets that are not FCPS practice: kept out of the Daily Dose, duels and the weekly mock.
 NOT_A_SUBJECT = ("Mixed", "Minor Subjects")
 # Dentistry-only past-paper questions (scripts/seed_mediverse.py) are their own exam, not FCPS Part 1 practice.
@@ -418,7 +421,7 @@ def _schedule(review: ConceptReview, is_correct: bool, confidence: str) -> None:
 
 
 def record_answer(db: Session, user_id: int, mcq: MCQ, selected: str, confidence: str = "sure",
-                  source: str = "quiz") -> dict[str, Any]:
+                  source: str = "quiz", session_ref: str | None = None) -> dict[str, Any]:
     """Log an answer, update the concept schedule, and start a concept card when needed."""
     from app.study_modes import classify_mistake, queue_pair_for_event
 
@@ -427,7 +430,8 @@ def record_answer(db: Session, user_id: int, mcq: MCQ, selected: str, confidence
     mistake = classify_mistake(mcq, selected, is_correct, confidence)
     event = AnswerEvent(user_id=user_id, mcq_id=mcq.id, concept_id=mcq.concept_id,
                         selected_option=selected, is_correct=is_correct, confidence=confidence,
-                        subject=subject_for_mcq(db, mcq), source=source, mistake_type=mistake)
+                        subject=subject_for_mcq(db, mcq), source=source, mistake_type=mistake,
+                        session_ref=session_ref)
     db.add(event)
     needs_card = (not is_correct) or confidence == "guess"
     concept_status = "none"

@@ -10,6 +10,7 @@ Usage (any machine that can reach the site; the token must belong to an admin):
 """
 
 import argparse
+import http.client
 import json
 import time
 import urllib.error
@@ -27,8 +28,8 @@ def call(base: str, token: str, method: str, path: str, timeout: int = 120) -> t
             return e.code, json.loads(e.read() or b"{}")
         except ValueError:
             return e.code, {}
-    except (urllib.error.URLError, TimeoutError) as e:
-        return 0, {"detail": str(e)}
+    except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException) as e:
+        return 0, {"detail": str(e)}   # backend restarting (a deploy or rebuild): the caller retries
 
 
 def main() -> None:
@@ -55,7 +56,13 @@ def main() -> None:
     for n, seed in enumerate(todo, 1):
         t0 = time.time()
         status, body = call(args.base_url, token, "POST", f"/api/mcqs/{seed}/twists")
-        while status in (200, 429) and body.get("status") in ("running", None) and time.time() - t0 < args.max_wait:
+        for _ in range(8):   # the backend was down or restarting: wait for it instead of skipping the seed
+            if status not in (0, 500, 502, 503, 504):
+                break
+            time.sleep(30)
+            status, body = call(args.base_url, token, "POST", f"/api/mcqs/{seed}/twists")
+        while ((status in (200, 429) and body.get("status") in ("running", None)) or status in (0, 502, 503, 504)) \
+                and time.time() - t0 < args.max_wait:
             time.sleep(5 if status == 200 else 20)
             status, body = call(args.base_url, token, "GET", f"/api/mcqs/{seed}/twists")
         if body.get("status") == "done":

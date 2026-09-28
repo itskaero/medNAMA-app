@@ -44,7 +44,7 @@ export default function LightboxModal({ lightboxFig, setLightboxFig, token }: Li
         </div>
         <div className="modal-img-area">
           <img
-            src={`${API}/api/figures/${lightboxFig.id}?token=${token ?? ""}`}
+            src={`${API}/api/figures/${lightboxFig.id}`}
             alt={lightboxFig.figure_label}
           />
         </div>

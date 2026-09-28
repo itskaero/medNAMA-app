@@ -45,7 +45,7 @@ from app.models import (
     WeeklyMockEntry,
 )
 from app.retention import (
-    PASS_LINE, _embed, _jobs, _norm_ws, _now, _variant_mcq, fcps_only, high_yield_enabled, open_only,
+    PAPER1, PAPER2, PASS_LINE, _embed, _jobs, _norm_ws, _now, _variant_mcq, fcps_only, high_yield_enabled, open_only,
     restricted_allowed, subject_for,
 )
 
@@ -372,16 +372,16 @@ def week_start(d: date | None = None) -> date:
     return d - timedelta(days=d.weekday())
 
 
-PARTS = {"p1": "FCPS Part 1", "p2": "FCPS Part 2"}
+PARTS = {"p1": "Paper 1", "p2": "Paper 2"}   # the two papers of FCPS Part 1
 
 
 def part2_tracks(db: Session) -> list[str]:
     return [t for (t,) in db.query(MCQ.sub_category).filter(
-        MCQ.main_category == "FCPS Part 2", MCQ.status == "ready").distinct().order_by(MCQ.sub_category) if t]
+        MCQ.main_category == PAPER2, MCQ.status == "ready").distinct().order_by(MCQ.sub_category) if t]
 
 
 def paper_key(db: Session, part: str | None, track: str | None) -> tuple[str, str]:
-    """Validate (part, track): Part 1 has no track; a Part 2 track must be a seeded specialty ('' = mixed)."""
+    """Validate (part, track): Paper 1 has no track; a Paper 2 track must be a seeded faculty ('' = mixed)."""
     part = part if part in PARTS else "p1"
     track = (track or "").strip() if part == "p2" else ""
     if track and track not in part2_tracks(db):
@@ -390,7 +390,7 @@ def paper_key(db: Session, part: str | None, track: str | None) -> tuple[str, st
 
 
 def _mix_key(part: str, track: str, titles: dict, book_id, main, sub, topic) -> str:
-    """What a paper is balanced across: subjects (Part 1), a specialty's topics, or specialties (mixed Part 2)."""
+    """What a paper is balanced across: subjects (Paper 1), a faculty's topics, or faculties (mixed Paper 2)."""
     if part == "p2":
         return (topic or "Mixed") if track else (sub or "Mixed")
     return subject_for(titles.get(book_id), main, sub) or "Mixed"
@@ -405,14 +405,14 @@ def get_or_create_weekly_mock(db: Session, part: str = "p1", track: str = "", ws
     base = open_only(db.query(MCQ.id, MCQ.book_id, MCQ.main_category, MCQ.sub_category, MCQ.topic).filter(
         MCQ.status == "ready", MCQ.figure_id.is_(None)))
     if part == "p2":
-        pool = base.filter(MCQ.main_category == "FCPS Part 2")
+        pool = base.filter(MCQ.main_category == PAPER2)
         if track:
             pool = pool.filter(MCQ.sub_category == track)
     else:
-        # The seeded FCPS Part 1 bank when it can fill a paper, else the FCPS pool minus Part 2.
-        part1 = base.filter(MCQ.main_category == "FCPS Part 1")
+        # The seeded Paper 1 bank when it can fill a paper, else the FCPS pool minus Paper 2.
+        part1 = base.filter(MCQ.main_category == PAPER1)
         pool = part1 if part1.count() >= MOCK_SIZE else fcps_only(base).filter(
-            or_(MCQ.main_category.is_(None), MCQ.main_category != "FCPS Part 2"))
+            or_(MCQ.main_category.is_(None), MCQ.main_category != PAPER2))
     # Deterministic shuffle per week and paper: every candidate sits the same questions.
     rows = pool.order_by(func.md5(func.concat(MCQ.id, ws.isoformat(), part, track))).all()
     groups: dict[str, list[int]] = {}
@@ -423,7 +423,7 @@ def get_or_create_weekly_mock(db: Session, part: str = "p1", track: str = "", ws
         for g in sorted(groups):
             if groups[g] and len(ids) < MOCK_SIZE:
                 ids.append(groups[g].pop(0))
-    label = PARTS[part] + (f" · {track}" if track else (" · all specialties" if part == "p2" else ""))
+    label = PARTS[part] + (f" · {track}" if track else (" · all faculties" if part == "p2" else ""))
     mock = WeeklyMock(week_start=ws, part=part, track=track, title=f"{label} mock · week of {ws:%d %b %Y}",
                       mcq_ids=ids, duration_min=MOCK_MINUTES)
     db.add(mock)
@@ -553,7 +553,8 @@ def submit_mock(db: Session, user: User, answers: dict[str, Any], part: str = "p
     db.commit()
     for k, v in clean.items():   # feed the retention engine (concept cards for misses)
         try:
-            record_answer(db, user.id, by_id[int(k)], v["option"], "unsure" if v["flagged"] else "sure", source="mock")
+            record_answer(db, user.id, by_id[int(k)], v["option"], "unsure" if v["flagged"] else "sure", source="mock",
+                          session_ref=f"mock:{mock.id}")
         except Exception:
             logger.exception("Retention logging failed for mock MCQ %s", k)
             db.rollback()

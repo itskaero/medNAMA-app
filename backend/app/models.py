@@ -146,6 +146,7 @@ class QuizAttempt(Base):
     timer_mode: Mapped[str] = mapped_column(Text, server_default="none")
     timer_value: Mapped[int | None] = mapped_column(default=None)
     feedback_mode: Mapped[str] = mapped_column(Text, server_default="tutor")
+    label: Mapped[str | None] = mapped_column(Text, default=None)   # what the session was started as (Stats)
 
     user: Mapped["User"] = relationship(back_populates="attempts")
     answers: Mapped[list["AttemptAnswer"]] = relationship(back_populates="attempt", cascade="all, delete-orphan")
@@ -334,6 +335,7 @@ class AnswerEvent(Base):
     source: Mapped[str] = mapped_column(Text, server_default="quiz")       # quiz | dose | retest
     mistake_type: Mapped[str | None] = mapped_column(Text, default=None)   # confusion | misconception | gap
     pair_id: Mapped[int | None] = mapped_column(ForeignKey("confusable_pairs.id", ondelete="SET NULL"), default=None)
+    session_ref: Mapped[str | None] = mapped_column(Text, default=None)   # quiz:<id> | dose:<id> | mock:<id> | duel:<id> | practice:<date>
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
@@ -447,7 +449,7 @@ class WeeklyMock(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     week_start: Mapped[date]
     part: Mapped[str] = mapped_column(Text, server_default="p1")     # p1 | p2
-    track: Mapped[str] = mapped_column(Text, server_default="")      # Part 2 specialty; '' = mixed
+    track: Mapped[str] = mapped_column(Text, server_default="")      # Paper 2 faculty; '' = mixed
     title: Mapped[str] = mapped_column(Text)
     mcq_ids: Mapped[list] = mapped_column(JSONB)
     duration_min: Mapped[int] = mapped_column(server_default="120")

@@ -101,6 +101,11 @@ if [ "$DO_BACKUP" = 1 ]; then
       echo "ERROR: backup $DUMP is not a valid pg_dump file - aborting before any change."; exit 1
     fi
     echo "Backup: $DUMP ($(du -h "$DUMP" | cut -f1))"
+    # Keep the newest backups only (each is ~1.2 GB); the one just made is always among them.
+    KEEP="${MEDNAMA_KEEP_BACKUPS:-5}"
+    ls -1t "$BACKUP_DIR"/medrag-*.dump 2>/dev/null | tail -n +"$((KEEP + 1))" | while read -r old; do
+      echo "Removing old backup $old"; rm -f -- "$old"
+    done
   else
     echo "Database container '$DB_CONTAINER' is not running (first install?) - nothing to back up."
   fi

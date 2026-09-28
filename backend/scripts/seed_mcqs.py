@@ -12,7 +12,8 @@ options A-E, a correct letter and (when present) an explanation:
 Files are evaluated by scripts/dump_mcq_js.js in a Node sandbox (no fs/network).
 
 Categories (main_category / sub_category):
-  FCPS Part 1 / <subject>      FCPS Part 2 / <specialty>     NTS MCQ bank / Mixed
+  Paper 1 · Basic sciences / <subject>   Paper 2 · Faculty / <faculty>   (the two papers of FCPS Part 1)
+  NTS MCQ bank / Mixed
   NTS mocks / NTS Mock N       English / <Grammar|Sentence correction|Vocabulary>
 
 Answer keys in some files are heavily skewed (P1: ~90% B/C), which teaches "pick B".
@@ -48,6 +49,7 @@ from sqlalchemy import text  # noqa: E402
 
 from app.database import SessionLocal  # noqa: E402
 from app.models import MCQ  # noqa: E402
+from app.retention import PAPER1, PAPER2  # noqa: E402
 
 LETTERS = "ABCDE"
 P1_SUBJECT = {"behavioral": "Behavioural Sciences", "biochem": "Biochemistry", "community": "Community Medicine",
@@ -133,10 +135,10 @@ def normalise(dumped: list[dict]) -> tuple[list[dict], collections.Counter]:
                 elif isinstance(v, dict) and k.endswith("_PASSAGES"):
                     passages = v
         if top == "p1":
-            main, sub = "FCPS Part 1", P1_SUBJECT.get(stem, stem.capitalize())
+            main, sub = PAPER1, P1_SUBJECT.get(stem, stem.capitalize())
         elif top == "p2":
             spec = f.split("/")[1]
-            main, sub = "FCPS Part 2", P2_SPECIALTY.get(spec, spec.capitalize())
+            main, sub = PAPER2, P2_SPECIALTY.get(spec, spec.capitalize())
         elif top == "english":
             main, sub = "English", ENGLISH.get(stem, stem)
         elif top == "nts_range":

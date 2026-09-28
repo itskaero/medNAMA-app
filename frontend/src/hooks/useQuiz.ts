@@ -491,7 +491,7 @@ export function useQuiz({
         method: "POST",
         headers: { ...getHeaders(), "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ timer_mode: "none", timer_value: 0, exclude_mastered: false, feedback_mode: "tutor", ...filters }),
+        body: JSON.stringify({ timer_mode: "none", timer_value: 0, exclude_mastered: false, feedback_mode: "tutor", label, ...filters }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));

@@ -50,3 +50,10 @@ rafiullah-*.pdf
 /*.pdf
 data/private/
 mednama-nas-deploy/db/
+
+# The MCQ banks and the imported past-paper archives are local only (~200 MB, never tracked):
+# scripts/seed_*.py read them and the SQL dumps are machine-specific.
+mcqs/
+
+# 0-byte file from a stray shell redirect
+/joined-explorer-no

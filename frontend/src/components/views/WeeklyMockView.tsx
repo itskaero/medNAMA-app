@@ -85,7 +85,7 @@ export default function WeeklyMockView({
   const dirty = useRef(false);
   const submittedRef = useRef(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  // Which paper: FCPS Part 1 (all subjects mixed) or Part 2 (a specialty, or all specialties). Remembered per browser.
+  // Which paper of FCPS Part 1: Paper 1 (basic sciences, all subjects mixed) or Paper 2 (a faculty, or all faculties). Remembered per browser.
   const [part, setPart] = useState<Part>(() => {
     try {
       return (localStorage.getItem("mock_part") as Part) === "p2" ? "p2" : "p1";
@@ -381,9 +381,9 @@ export default function WeeklyMockView({
         </button>
       ))}
       {part === "p2" ? (
-        <select value={track} onChange={(e) => choosePaper("p2", e.target.value)} aria-label="Part 2 specialty"
+        <select value={track} onChange={(e) => choosePaper("p2", e.target.value)} aria-label="Paper 2 faculty"
           style={{ background: "var(--surface-3)", border: "1px solid var(--border-light)", borderRadius: "8px", color: "var(--text-primary)", padding: "5px 8px", fontSize: "0.8rem" }}>
-          <option value="">All specialties (mixed)</option>
+          <option value="">All faculties (mixed)</option>
           {(overview.papers.find((pp) => pp.part === "p2")?.tracks || []).map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
@@ -417,7 +417,7 @@ export default function WeeklyMockView({
           <Share2 size={12} /> Share my result
         </button>
 
-        <h2 style={{ fontSize: "0.95rem", margin: "0 0 8px" }}>By {!mockId && part === "p2" && track ? "topic" : !mockId && part === "p2" ? "specialty" : "subject"} (weakest first)</h2>
+        <h2 style={{ fontSize: "0.95rem", margin: "0 0 8px" }}>By {!mockId && part === "p2" && track ? "topic" : !mockId && part === "p2" ? "faculty" : "subject"} (weakest first)</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "var(--sp-5)" }}>
           {result.subjects.map((s) => {
             const pct = s.total ? s.correct / s.total : 0;
@@ -483,8 +483,8 @@ export default function WeeklyMockView({
           <Trophy size={20} style={{ color: "#f59e0b" }} /> Weekly mock
         </h1>
         <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-          Two papers every week, like the exam: FCPS Part 1 (all subjects mixed) and FCPS Part 2 (your specialty&apos;s topics
-          mixed). Each is {mock.total} single-best-answer questions in {mock.duration_min / 60} hours, no negative marking, and
+          Two papers every week, like the FCPS Part 1 exam: Paper 1 (basic sciences, all subjects mixed) and Paper 2 (your
+          faculty&apos;s topics mixed). Each is {mock.total} single-best-answer questions in {mock.duration_min / 60} hours, no negative marking, and
           everyone sits the same questions. Afterwards: your rank and percentile, the 75% line, and a subject breakdown.
         </p>
       </div>

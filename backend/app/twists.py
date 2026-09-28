@@ -23,6 +23,7 @@ import logging
 import random
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 import numpy as np
@@ -212,12 +213,13 @@ def generate_twists(db: Session, seed: MCQ) -> list[MCQ]:
         candidates.append((kind, q))
     vecs = _embed([q["question_text"] for _, q in candidates])
 
-    created: list[MCQ] = []
+    # 1) Cheap checks on this thread: duplicates, and whether the cited passage states the answer.
+    survivors = []   # (kind, question, vector, source) where source is None or plain values of the chunk
     for (kind, q), v in zip(candidates, vecs):
         if _is_duplicate(q, v, pool_vecs, pool_answers, pool_stems, kept):
             drop("duplicate")
             continue
-        key_text = q["options"][q["correct_option"]]
+        kept.append((q, v))
         chunk = None
         try:
             src = q.get("source_chunk")
@@ -225,36 +227,62 @@ def generate_twists(db: Session, seed: MCQ) -> list[MCQ]:
                 chunk = blocks[int(src) - 1]
         except (TypeError, ValueError):
             chunk = None
-        if chunk is not None and not _answer_supported(key_text, chunk.content or ""):
+        if chunk is not None and not _answer_supported(q["options"][q["correct_option"]], chunk.content or ""):
             chunk = None
-        verdict = judge(db, q["question_text"], options=q["options"], key=q["correct_option"])
-        v_name = verdict.get("verdict")
-        if v_name in DROP_VERDICTS or (v_name == "supported" and verdict.get("agrees_with_key") is False):
-            drop(f"referee {v_name}")
-            continue
-        kept.append((q, v))
-        grounding = "book" if chunk is not None else "ai"
-        explanation = str(q.get("explanation") or "").strip() or "No detailed explanation provided."
-        if chunk is not None:
-            explanation += f"\n\n**Source**: {chunk.book.title if chunk.book else 'Textbook'}, Page {chunk.page_number or 'N/A'}"
-        else:
-            explanation += "\n\n**Source**: AI clinical knowledge (not from the ingested textbooks)"
-        explanation += (f"\n\n**Twist of a past-paper question** ({TWIST_TYPES[kind][0].lower()}): "
-                        f"{' '.join(seed.question_text.split())[:160]} (answer: {answer})")
-        mcq = MCQ(
-            question_text=q["question_text"], options=q["options"], correct_option=q["correct_option"],
-            main_category=CATEGORY, sub_category=seed.sub_category, topic=seed.topic,
-            tested_concept=(str(q.get("tested_concept") or "").strip()[:200] or concept[:200]),
-            explanation_markdown=explanation, status="ready", access=seed.access, grounding=grounding,
-            stem_embedding=v.tolist(), source_chunk_ids=(chunk.chunk_ids if chunk is not None else []),
-            concept_id=card.id if card else None, twist_of=seed.id, book_id=chunk.book_id if chunk is not None else None,
-        )
-        db.add(mcq)
-        db.flush()
-        db.add(MCQTag(mcq_id=mcq.id, axis="twist", label=kind))
-        db.add(MCQTag(mcq_id=mcq.id, axis="referee", label=v_name or "unchecked"))
-        created.append(mcq)
-    db.commit()
+        source = None if chunk is None else {
+            "title": chunk.book.title if chunk.book else "Textbook", "page": chunk.page_number,
+            "chunk_ids": chunk.chunk_ids, "book_id": chunk.book_id}
+        survivors.append((kind, q, v, source))
+
+    # 2) The Answer-Key Referee, all twists at once (each check is a retrieval + an AI call). Each twist is
+    #    saved the moment its check passes, so the panel can show it while the others are still being checked.
+    def referee(q: dict) -> dict:
+        from app.database import SessionLocal
+
+        s = SessionLocal()
+        try:
+            return judge(s, q["question_text"], options=q["options"], key=q["correct_option"])
+        except Exception as e:
+            logger.warning("Referee failed for a twist of %s: %s", seed.id, e)
+            return {"verdict": None}
+        finally:
+            s.close()
+
+    created: list[MCQ] = []
+    with ThreadPoolExecutor(max_workers=max(1, len(survivors))) as pool:
+        futures = {pool.submit(referee, sv[1]): sv for sv in survivors}
+        for fut in as_completed(futures):
+            kind, q, v, source = futures[fut]
+            verdict = fut.result()
+            v_name = verdict.get("verdict")
+            if v_name in DROP_VERDICTS or (v_name == "supported" and verdict.get("agrees_with_key") is False):
+                drop(f"referee {v_name}")
+                continue
+            if v_name is None and source is None:   # neither refereed nor textbook-grounded
+                drop("unverified")
+                continue
+            explanation = str(q.get("explanation") or "").strip() or "No detailed explanation provided."
+            if source is not None:
+                explanation += f"\n\n**Source**: {source['title']}, Page {source['page'] or 'N/A'}"
+            else:
+                explanation += "\n\n**Source**: AI clinical knowledge (not from the ingested textbooks)"
+            explanation += (f"\n\n**Twist of a past-paper question** ({TWIST_TYPES[kind][0].lower()}): "
+                            f"{' '.join(seed.question_text.split())[:160]} (answer: {answer})")
+            mcq = MCQ(
+                question_text=q["question_text"], options=q["options"], correct_option=q["correct_option"],
+                main_category=CATEGORY, sub_category=seed.sub_category, topic=seed.topic,
+                tested_concept=(str(q.get("tested_concept") or "").strip()[:200] or concept[:200]),
+                explanation_markdown=explanation, status="ready", access=seed.access,
+                grounding="book" if source is not None else "ai", stem_embedding=v.tolist(),
+                source_chunk_ids=source["chunk_ids"] if source else [], book_id=source["book_id"] if source else None,
+                concept_id=card.id if card else None, twist_of=seed.id,
+            )
+            db.add(mcq)
+            db.flush()
+            db.add(MCQTag(mcq_id=mcq.id, axis="twist", label=kind))
+            db.add(MCQTag(mcq_id=mcq.id, axis="referee", label=v_name or "unchecked"))
+            db.commit()
+            created.append(mcq)
     logger.info("Twists for %s: %d kept of %d written (dropped %s)", seed.id, len(created), len(items), dropped or "none")
     if not created:
         raise TwistError("No twist passed the checks for this question" + (f" ({dropped})" if dropped else "") + ".")
@@ -278,12 +306,13 @@ def serialize(db: Session, twists: list[MCQ]) -> list[dict[str, Any]]:
 
 def status(db: Session, seed_id: int) -> dict[str, Any]:
     twists = db.query(MCQ).filter(MCQ.twist_of == seed_id).order_by(MCQ.id).all()
-    if twists:
-        return {"status": "done", "twists": serialize(db, twists)}
     with _jobs_lock:
         job = dict(_jobs.get(seed_id) or {})
-    if job.get("status") == "running":
-        return {"status": "running", "elapsed_s": round(time.time() - job["started_at"], 1)}
+    if job.get("status") == "running":   # twists saved so far are shown while the rest are checked
+        return {"status": "running", "elapsed_s": round(time.time() - job["started_at"], 1),
+                "twists": serialize(db, twists)}
+    if twists:
+        return {"status": "done", "twists": serialize(db, twists)}
     if job.get("status") == "failed":
         return {"status": "failed", "detail": job.get("detail")}
     return {"status": "none"}

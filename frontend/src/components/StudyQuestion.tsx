@@ -154,7 +154,7 @@ export function StudyQuestion({
           aria-label="Enlarge figure"
         >
           <img
-            src={`${API}/api/figures/${mcq.figure_id}?token=${token ?? ""}`}
+            src={`${API}/api/figures/${mcq.figure_id}`}
             alt="Identify what this textbook figure shows"
             style={{ width: "100%", maxHeight: "360px", objectFit: "contain", display: "block" }}
           />

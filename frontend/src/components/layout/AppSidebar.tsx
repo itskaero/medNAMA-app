@@ -56,6 +56,39 @@ interface AppSidebarProps {
   mcqSearchText: string;
 }
 
+interface NavItem { view: string; label: string; icon: React.ReactNode; active: string[]; title?: string }
+
+/** Sidebar: what to do today, ways to practise, ways to learn, and progress / tools. */
+function navGroups(isAdmin: boolean): { title: string; items: NavItem[] }[] {
+  const item = (view: string, label: string, icon: React.ReactNode, extra: Partial<NavItem> = {}): NavItem =>
+    ({ view, label, icon, active: [view], ...extra });
+  return [
+    { title: "Today", items: [
+      item("dashboard", "Dashboard", <LayoutDashboard size={14} />),
+      item("daily", "Daily Dose", <Flame size={14} style={{ color: "#f59e0b" }} />),
+    ] },
+    { title: "Practice", items: [
+      item("pastpapers", "Past papers", <History size={14} />, { active: ["pastpapers", "paper"] }),
+      item("quiz", "Mock Builder", <GraduationCap size={14} />),
+      item("mock", "Weekly mock", <Trophy size={14} />),
+      item("duel", "Challenge a friend", <Swords size={14} />),
+    ] },
+    { title: "Learn", items: [
+      item("chat", "Discuss with Dr MedNama", <Stethoscope size={14} style={{ color: "var(--sky)" }} />),
+      item("lookalikes", "Look-alikes", <GitCompareArrows size={14} />),
+      item("sprint", "Final sprint", <Zap size={14} />, { title: "Opens in the last 7 days before your exam" }),
+      item("study", "Study Corner", <NotebookPen size={14} />),
+      item("bookmarks", "Bookmarks", <Bookmark size={14} />),
+    ] },
+    { title: "Progress & tools", items: [
+      item("stats", "Stats", <TrendingUp size={14} />),
+      item("mcq-bank", "MCQ Bank", <BookMarked size={14} />),
+      ...(isAdmin ? [item("referee", "Answer-Key Referee", <Scale size={14} />,
+        { title: "Admin: check recall answers and MCQ keys against the textbooks" })] : []),
+    ] },
+  ];
+}
+
 export default function AppSidebar({
   activeView,
   setActiveView,
@@ -153,162 +186,31 @@ export default function AppSidebar({
         </button>
       </div>
 
-      {/* Workspace Navigation Links */}
-      <div
-        style={{
-          padding: "var(--sp-2) var(--sp-3)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "2px",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <button
-          className={`btn-workspace-nav ${activeView === "dashboard" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("dashboard");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <LayoutDashboard size={14} />
-          Dashboard
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "daily" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("daily");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <Flame size={14} style={{ color: "#f59e0b" }} />
-          Daily Dose
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "duel" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("duel");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <Swords size={14} />
-          Challenge a friend
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "pastpapers" || activeView === "paper" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("pastpapers");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <History size={14} />
-          Past papers
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "mock" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("mock");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <Trophy size={14} />
-          Weekly mock
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "lookalikes" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("lookalikes");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <GitCompareArrows size={14} />
-          Look-alikes
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "sprint" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("sprint");
-            setMobileMenuOpen(false);
-          }}
-          title="Opens in the last 7 days before your exam"
-        >
-          <Zap size={14} />
-          Final sprint
-        </button>
-        {isAdmin ? (
-          <button
-            className={`btn-workspace-nav ${activeView === "referee" ? "active" : ""}`}
-            onClick={() => {
-              setActiveView("referee");
-              setMobileMenuOpen(false);
-            }}
-            title="Admin: check recall answers and MCQ keys against the textbooks"
-          >
-            <Scale size={14} />
-            Answer-Key Referee
-          </button>
-        ) : null}
-        <button
-          className={`btn-workspace-nav ${activeView === "chat" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("chat");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <Stethoscope size={14} style={{ color: "var(--sky)" }} />
-          Discuss with Dr MedNama
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "mcq-bank" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("mcq-bank");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <BookMarked size={14} />
-          MCQ Bank
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "bookmarks" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("bookmarks");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <Bookmark size={14} />
-          Bookmarks
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "study" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("study");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <NotebookPen size={14} />
-          Study Corner
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "quiz" ? "active" : ""}`}
-          onClick={() => {
-            setSelectedTopic(null);
-            setActiveView("quiz");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <GraduationCap size={14} />
-          Mock Builder
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "stats" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("stats");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <TrendingUp size={14} />
-          Stats
-        </button>
-      </div>
+      {/* Workspace navigation, in four groups */}
+      <nav aria-label="Main" style={{ padding: "var(--sp-2) var(--sp-3)", display: "flex", flexDirection: "column", gap: "2px", borderBottom: "1px solid var(--border)" }}>
+        {navGroups(isAdmin).map((group) => (
+          <div key={group.title} role="group" aria-label={group.title} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <div style={{ fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", padding: "8px 10px 2px" }}>
+              {group.title}
+            </div>
+            {group.items.map((item) => (
+              <button
+                key={item.view}
+                className={`btn-workspace-nav ${item.active.includes(activeView) ? "active" : ""}`}
+                title={item.title}
+                onClick={() => {
+                  if (item.view === "quiz") setSelectedTopic(null);
+                  setActiveView(item.view);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ))}
+      </nav>
 
       {/* Library */}
       <div className="sidebar-section-label" aria-label="Library section">

@@ -36,7 +36,7 @@ function FigureThumb({ fig, token, onFigureClick }: { fig: Figure; token: string
           </span>
         ) : (
           <img
-            src={`${API}/api/figures/${fig.id}?token=${token ?? ""}`}
+            src={`${API}/api/figures/${fig.id}`}
             alt={fig.caption || fig.figure_label}
             loading="lazy"
             onError={() => setFailed(true)}

@@ -156,6 +156,23 @@ interface StudioMessage {
   timestamp: string;
 }
 
+// Mock Builder categories, grouped: the exam banks, sets written for this student, and non-FCPS exams.
+const CATEGORY_GROUPS: { title: string; match: (c: string) => boolean }[] = [
+  { title: "Question banks", match: () => true },
+  { title: "Made for you", match: (c) => ["AI MCQs", "Concept re-test", "Past-paper twists", "Look-alikes", "Spot the diagnosis", "High-yield"].includes(c) },
+  { title: "Other exams", match: (c) => ["English", "NTS MCQ bank", "NTS mocks"].includes(c) },
+];
+const SMALL_CATEGORY = 20;   // sets smaller than this sit behind "More"
+const categoryCount = (c: any): number => c.sub_categories.reduce((sum: number, s: any) => sum + s.count, 0);
+function groupCategories(categories: any[]): { title: string; items: any[] }[] {
+  const groups = CATEGORY_GROUPS.map((g) => ({ title: g.title, items: [] as any[] }));
+  for (const c of categories) {
+    const i = CATEGORY_GROUPS.findIndex((g, k) => k > 0 && g.match(c.main_category));
+    groups[i < 0 ? 0 : i].items.push(c);
+  }
+  return groups.filter((g, k) => k === 0 || g.items.length);
+}
+
 export default function QuizView({
   quizStep,
   setQuizStep,
@@ -216,6 +233,7 @@ export default function QuizView({
   lastRun,
 }: QuizViewProps) {
   // Segmented control and generation states inside QuizView
+  const [showSmallCategories, setShowSmallCategories] = React.useState(false);
   const [builderMode, setBuilderMode] = React.useState<"manual" | "ai_assistant" | "saved_history">("manual");
   const [promptInput, setPromptInput] = React.useState("");
   const [selectedBookId, setSelectedBookId] = React.useState<number | "all">("all");
@@ -841,36 +859,52 @@ export default function QuizView({
                         <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                           Main Categories
                         </label>
-                        <div className="config-category-grid" role="group">
-                          <button
-                            type="button"
-                            className={`config-category-card ${quizConfigCategories.length === 0 ? "active" : ""}`}
-                            onClick={() => { setQuizConfigCategories([]); setQuizConfigSubCategories([]); }}
-                          >
-                            <span className="config-category-title">Mixed Practice (All)</span>
-                            <span className="config-category-subtitle">Select all ingested subjects</span>
-                          </button>
-                          {mainCategories.map((c: any, i: number) => {
-                            const count = c.sub_categories.reduce((sum: number, s: any) => sum + s.count, 0);
-                            const isSelected = quizConfigCategories.includes(c.main_category);
-                            return (
-                              <button
-                                key={i}
-                                type="button"
-                                className={`config-category-card ${isSelected ? "active" : ""}`}
-                                onClick={() => toggleCategory(c.main_category)}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: "12px" }}>
-                                  <span className="config-category-title" title={c.main_category} style={{ textAlign: "left", flex: 1 }}>{c.main_category}</span>
-                                  <div style={{ flexShrink: 0, marginTop: "2px" }}>
-                                    <Checkbox checked={isSelected} readOnly />
-                                  </div>
-                                </div>
-                                <span className="config-category-subtitle">{c.sub_categories.length} subtopics · {count} MCQs</span>
-                              </button>
-                            );
-                          })}
-                        </div>
+                        {groupCategories(mainCategories).map((group) => {
+                          const shown = showSmallCategories ? group.items : group.items.filter((c: any) => categoryCount(c) >= SMALL_CATEGORY);
+                          const hidden = group.items.length - shown.length;
+                          return (
+                            <div key={group.title} style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "10px" }}>
+                              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{group.title}</div>
+                              <div className="config-category-grid" role="group" aria-label={group.title}>
+                                {group.title === CATEGORY_GROUPS[0].title ? (
+                                  <button
+                                    type="button"
+                                    className={`config-category-card ${quizConfigCategories.length === 0 ? "active" : ""}`}
+                                    onClick={() => { setQuizConfigCategories([]); setQuizConfigSubCategories([]); }}
+                                  >
+                                    <span className="config-category-title">Mixed Practice (All)</span>
+                                    <span className="config-category-subtitle">Every subject you can practise</span>
+                                  </button>
+                                ) : null}
+                                {shown.map((c: any) => {
+                                  const isSelected = quizConfigCategories.includes(c.main_category);
+                                  return (
+                                    <button
+                                      key={c.main_category}
+                                      type="button"
+                                      className={`config-category-card ${isSelected ? "active" : ""}`}
+                                      onClick={() => toggleCategory(c.main_category)}
+                                    >
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: "12px" }}>
+                                        <span className="config-category-title" title={c.main_category} style={{ textAlign: "left", flex: 1 }}>{c.main_category}</span>
+                                        <div style={{ flexShrink: 0, marginTop: "2px" }}>
+                                          <Checkbox checked={isSelected} readOnly />
+                                        </div>
+                                      </div>
+                                      <span className="config-category-subtitle">{c.sub_categories.length} subtopics · {categoryCount(c).toLocaleString()} MCQs</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {hidden > 0 ? (
+                                <button type="button" className="btn-workspace" style={{ padding: "3px 10px", fontSize: "0.72rem" }}
+                                  onClick={() => setShowSmallCategories(true)}>
+                                  More ({hidden} small set{hidden > 1 ? "s" : ""})
+                                </button>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", marginTop: "24px" }}>

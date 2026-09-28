@@ -263,7 +263,7 @@ export default function DuelView({ token, initialCode }: { token: string | null;
       <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginBottom: "8px" }}>Question {idx + 1} of {duel.total} · {answered} answered · answers are revealed after you submit</div>
       {q ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {q.figure_id ? <img src={`${API}/api/figures/${q.figure_id}?token=${token ?? ""}`} alt="Question figure" style={{ maxHeight: "300px", objectFit: "contain" }} /> : null}
+          {q.figure_id ? <img src={`${API}/api/figures/${q.figure_id}`} alt="Question figure" style={{ maxHeight: "300px", objectFit: "contain" }} /> : null}
           <p style={{ fontSize: "1rem", lineHeight: 1.6, margin: 0 }}>{q.question_text}</p>
           {Object.keys(q.options).sort().map((k) => (
             <button key={k} type="button" onClick={() => setAnswers((a) => ({ ...a, [String(q.id)]: k }))}
