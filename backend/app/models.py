@@ -520,7 +520,8 @@ class MCQMedia(Base):
 
 
 class TopicSummary(Base):
-    """Rapid Review: cached one-page summary for a topic scope (migration c7e9a1b3d5f7)."""
+    """A cached one-page revision sheet: a Rapid Review topic scope (exam + tags, or a bank
+    category) or a book scope (books + chapter + topic, migration b6e2f8a0c4d7)."""
 
     __tablename__ = "topic_summaries"
 
@@ -529,6 +530,8 @@ class TopicSummary(Base):
     label: Mapped[str] = mapped_column(Text)
     markdown: Mapped[str] = mapped_column(Text)
     citations: Mapped[list] = mapped_column(JSONB, default=list)
-    key_count: Mapped[int] = mapped_column(server_default="0")
+    figures: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
+    coverage: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")  # book scope only: how much was read
+    key_count: Mapped[int] = mapped_column(server_default="0")   # past-paper keys, or book-scope gaps
     access: Mapped[str] = mapped_column(Text, server_default="open")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

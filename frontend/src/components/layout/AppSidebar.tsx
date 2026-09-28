@@ -26,6 +26,7 @@ import {
   GitCompareArrows,
   Zap,
   History,
+  BookOpenCheck,
 } from "lucide-react";
 import { Book } from "@/types";
 import { BookItem } from "@/components";
@@ -75,6 +76,8 @@ function navGroups(isAdmin: boolean): { title: string; items: NavItem[] }[] {
     ] },
     { title: "Learn", items: [
       item("chat", "Discuss with Dr MedNama", <Stethoscope size={14} style={{ color: "var(--sky)" }} />),
+      item("revise", "Revise from books", <BookOpenCheck size={14} style={{ color: "var(--sea-green)" }} />,
+        { title: "A one-page summary of a topic, written from your own books" }),
       item("lookalikes", "Look-alikes", <GitCompareArrows size={14} />),
       item("sprint", "Final sprint", <Zap size={14} />, { title: "Opens in the last 7 days before your exam" }),
       item("study", "Study Corner", <NotebookPen size={14} />),

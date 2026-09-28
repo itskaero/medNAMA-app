@@ -41,12 +41,13 @@ import WeeklyMockView from "@/components/views/WeeklyMockView";
 import LookalikesView from "@/components/views/LookalikesView";
 import PastPapersView from "@/components/views/PastPapersView";
 import RapidReviewView, { ReviewScope } from "@/components/views/RapidReviewView";
+import ReviseView from "@/components/views/ReviseView";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review" | "revise"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [timedMockId, setTimedMockId] = useState<number | null>(null);
@@ -500,6 +501,18 @@ export default function Home() {
           isAdmin={isAdmin}
           onDrill={(filters, label) => quiz.startQuizWith(filters, label, reviewScope.returnTo)}
           onBack={() => setActiveView((reviewScope.returnTo || "dashboard") as typeof activeView)}
+        />
+      );
+    }
+
+    if (activeView === "revise") {
+      return (
+        <ReviseView
+          token={token}
+          isAdmin={isAdmin}
+          onBack={() => setActiveView("dashboard")}
+          onFigureClick={setLightboxFig}
+          onTestMe={(quizSetId, label) => quiz.startAiCustomQuiz(quizSetId)}
         />
       );
     }
