@@ -3240,6 +3240,31 @@ svg.lucide {
   box-shadow: 0 4px 12px rgba(48, 197, 255, 0.15), inset 0 0 0 1px rgba(48, 197, 255, 0.2);
 }
 
+/* Harder-versions (AI) difficulty toggle, Mock Builder */
+.config-grade-chip {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 5px 13px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.config-grade-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.config-grade-chip.active {
+  background: rgba(76, 217, 100, 0.14);
+  border-color: rgba(76, 217, 100, 0.5);
+  color: var(--teal);
+  box-shadow: 0 4px 12px rgba(76, 217, 100, 0.12);
+}
+
 /* Diagnostics Sidebar Card */
 .config-diagnostics-card {
   background: var(--surface-2);

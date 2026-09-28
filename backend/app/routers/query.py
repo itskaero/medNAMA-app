@@ -332,6 +332,46 @@ def delete_ai_quiz_set(
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+class HardenMcqsRequest(BaseModel):
+    """Ask AI to rewrite existing questions into harder versions (same facts, harder
+    statements & options) — app/hardening.py. Either list seed_ids explicitly, or give
+    the same topic filters Mock Builder uses; the questions are picked from those."""
+    seed_ids: list[int] | None = None
+    categories: list[str] | None = None
+    sub_categories: list[str] | None = None
+    topics: list[str] | None = None
+    num_questions: int = 5        # multiples of 5, 5..20 (one harder rewrite per seed)
+    difficulty: int = 4           # 4 = multi-step reasoning, 5 = deep integration
+    request_id: str | None = None # idempotency key; a retry returns the same set
+    label: str | None = None      # shows in the set's title ("Hardened · <label>")
+
+@router.post("/api/chat/harden/jobs", status_code=status.HTTP_202_ACCEPTED)
+def start_harden_job_route(
+    req: HardenMcqsRequest,
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Start harder-rewrite generation in the background; poll /jobs/{job_id}."""
+    from app.hardening import start_harden_job
+
+    out = start_harden_job(current_user, req.model_dump(exclude_none=True))
+    if out.get("error"):
+        raise HTTPException(status_code=400, detail=out["error"])
+    return out
+
+@router.get("/api/chat/harden/jobs/{job_id}")
+def get_harden_job_route(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Poll a harden job: {status: running|done|failed, result?, detail?}."""
+    from app.hardening import get_harden_job
+
+    job = get_harden_job(db, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Harden job not found.")
+    return job
+
 # ─── Practice Quiz Management (Phase 11) ───────────────────────
 
 class StartQuizRequest(BaseModel):

@@ -156,10 +156,30 @@ interface StudioMessage {
   timestamp: string;
 }
 
+// What a finished background job (AI quiz or hardening) returns, plus the result
+// shape the chat cards and Manual-builder harden card render.
+interface QuizJobResult {
+  quiz_set_id: string;
+  quiz_set_title: string;
+  total_questions: number;
+  difficulty?: number | null;
+  duplicates_skipped?: number;
+  failed_batches?: number;
+  grounding?: string;
+  mcqs: Array<{
+    id: number;
+    question_text: string;
+    options: Record<string, string>;
+    correct_option: string;
+    difficulty?: number | null;
+    explanation_markdown?: string;
+  }>;
+}
+
 // Mock Builder categories, grouped: the exam banks, sets written for this student, and non-FCPS exams.
 const CATEGORY_GROUPS: { title: string; match: (c: string) => boolean }[] = [
   { title: "Question banks", match: () => true },
-  { title: "Made for you", match: (c) => ["AI MCQs", "Concept re-test", "Past-paper twists", "Look-alikes", "Spot the diagnosis", "High-yield"].includes(c) },
+  { title: "Made for you", match: (c) => ["AI MCQs", "Concept re-test", "Past-paper twists", "Look-alikes", "Spot the diagnosis", "High-yield", "Hardened MCQs"].includes(c) },
   { title: "Other exams", match: (c) => ["English", "NTS MCQ bank", "NTS mocks"].includes(c) },
 ];
 const SMALL_CATEGORY = 20;   // sets smaller than this sit behind "More"
@@ -241,6 +261,13 @@ export default function QuizView({
   const [aiDifficulty, setAiDifficulty] = React.useState(3); // 1-5, sent to the AI quiz generator
   const [aiCount, setAiCount] = React.useState(5); // F3 — multiples of 5 only: 5/10/15/20
   const [aiProfile, setAiProfile] = React.useState<"fcps" | "usmle" | "quick">("fcps"); // FCPS/USMLE = 5 options A-E
+  // Tap-a-topic chips in the AI MCQs tab (the bank's subtopic labels, like the Manual builder pills).
+  const [pickedTopic, setPickedTopic] = React.useState<string | null>(null);
+  // "Harder versions (AI)": rewrite existing questions into harder statements & options.
+  const [hardenDifficulty, setHardenDifficulty] = React.useState<4 | 5>(4);
+  const [isHardening, setIsHardening] = React.useState(false);
+  const [hardenResult, setHardenResult] = React.useState<QuizJobResult | null>(null);
+  const [generatingNote, setGeneratingNote] = React.useState("Searching your textbooks and drafting board-style MCQs...");
   const [quizHistory, setQuizHistory] = React.useState<AiQuizSetSummary[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
   const [historySearch, setHistorySearch] = React.useState("");
@@ -279,6 +306,23 @@ export default function QuizView({
         (item.topic && item.topic.toLowerCase().includes(q))
     );
   }, [quizHistory, historySearch]);
+
+  // Tap-a-topic chips for the AI MCQs tab: the bank's real subtopics (with counts),
+  // exactly what the Manual builder pills show, most-covered first.
+  const allTopicChips = React.useMemo(() => {
+    const byName = new Map<string, number>();
+    for (const cat of stats?.categories || []) {
+      for (const sub of cat?.sub_categories || []) {
+        const name = String(sub?.name || "").trim();
+        if (!name) continue;
+        byName.set(name, (byName.get(name) || 0) + Number(sub?.count || 0));
+      }
+    }
+    return Array.from(byName.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 60);
+  }, [stats]);
 
   const [studioMessages, setStudioMessages] = React.useState<StudioMessage[]>([
     {
@@ -324,10 +368,10 @@ export default function QuizView({
     }
   }, [studioMessages, isGenerating, builderMode]);
 
-  // Poll a background quiz job until it finishes. Transient network errors
+  // Poll a background job until it finishes. Transient network errors
   // (e.g. a proxy restart) are tolerated; only a real job failure or the overall
   // wait cap ends it.
-  const waitForQuizJob = async (jobId: string): Promise<any> => {
+  const waitForJob = async (jobId: string, path: string): Promise<QuizJobResult> => {
     if (!getHeaders) throw new Error("Not signed in.");
     const started = Date.now();
     let networkFailures = 0;
@@ -335,27 +379,30 @@ export default function QuizView({
       await new Promise((r) => setTimeout(r, QUIZ_POLL_INTERVAL_MS));
       let res: Response;
       try {
-        res = await fetch(`${API}/api/chat/generate-ai-quiz/jobs/${encodeURIComponent(jobId)}`, {
+        res = await fetch(`${API}${path}/${encodeURIComponent(jobId)}`, {
           headers: getHeaders(),
           credentials: "include",
         });
       } catch {
-        if (++networkFailures >= 10) throw new Error("Lost contact with the server while the quiz was generating.");
+        if (++networkFailures >= 10) throw new Error("Lost contact with the server while the job was running.");
         continue;
       }
       networkFailures = 0;
       const body = (await res.json().catch(() => null)) as any;
       if (!res.ok) {
         if (res.status >= 500) continue; // proxy hiccup; keep polling
-        throw new Error((body && body.detail) || `Quiz status check failed (HTTP ${res.status}).`);
+        throw new Error((body && body.detail) || `Job status check failed (HTTP ${res.status}).`);
       }
       if (body?.status === "done") return body.result;
-      if (body?.status === "failed") throw new Error(body.detail || "Quiz generation failed.");
+      if (body?.status === "failed") throw new Error(body.detail || "The job failed.");
     }
     throw new Error(
-      "The quiz is still generating after several minutes. It will appear in Saved History when it finishes."
+      "The job is still running after several minutes. It will appear in Saved History when it finishes."
     );
   };
+
+  const waitForQuizJob = async (jobId: string): Promise<any> =>
+    waitForJob(jobId, "/api/chat/generate-ai-quiz/jobs");
 
   // Phase 6 — turn a missed question into a spaced-repetition flashcard.
   const [flashcardSavedIds, setFlashcardSavedIds] = React.useState<number[]>([]);
@@ -475,6 +522,111 @@ export default function QuizView({
       ]);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Start a harden job and wait for it: AI rewrites existing questions (either explicit
+  // seed_ids or the current topic selection) into harder statements & options at a chosen
+  // difficulty, keeping the same facts and correct answers.
+  const startHarden = async (payload: Record<string, unknown>): Promise<QuizJobResult> => {
+    if (!getHeaders) throw new Error("Not signed in.");
+    const requestId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const startRes = await proxySafeFetch(`${API}/api/chat/harden/jobs`, {
+      method: "POST",
+      headers: { ...getHeaders(), "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ ...payload, request_id: requestId }),
+    });
+    const started = (await startRes.json().catch(() => null)) as { job_id?: string; detail?: string } | null;
+    if (!startRes.ok || !started?.job_id) {
+      throw new Error((started && started.detail) || `Failed to start hardening (HTTP ${startRes.status}).`);
+    }
+    return waitForJob(started.job_id, "/api/chat/harden/jobs");
+  };
+
+  // Manual Builder: harden the current topic selection.
+  const hardenFromSelection = async () => {
+    if (isHardening) return;
+    const count = Math.max(5, Math.min(20, Math.round(quizConfigNumQuestions / 5) * 5));
+    setIsHardening(true);
+    setHardenResult(null);
+    try {
+      const data = await startHarden({
+        categories: quizConfigCategories.length ? quizConfigCategories : null,
+        sub_categories: quizConfigSubCategories.length ? quizConfigSubCategories : null,
+        num_questions: count,
+        difficulty: hardenDifficulty,
+        label: (quizConfigSubCategories.length ? quizConfigSubCategories.join(", ") : quizConfigCategories.join(", ")) || "practice",
+      });
+      setHardenResult(data);
+      fetchQuizHistory();
+      toast.success("Harder versions ready", {
+        description: `${data.total_questions} rewrites saved to Quiz History - same facts and answers, harder statements and options (difficulty ${data.difficulty}/5).`,
+      });
+    } catch (e) {
+      toast.error(`Could not harden: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setIsHardening(false);
+    }
+  };
+
+  // AI MCQs chat: make an offered/generated set harder (same answers, harder rewrites).
+  const handleHardenFromSet = async (set: StudioMessage["quizResult"]) => {
+    const ids = (set?.mcqs || []).map((m) => Number(m?.id)).filter(Boolean).slice(0, 20);
+    if (!ids.length) {
+      toast.error("No questions in that set to rewrite.");
+      return;
+    }
+    const target = Math.max(4, aiDifficulty) as 4 | 5;
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    setStudioMessages((prev) => [
+      ...prev,
+      {
+        id: `user-${Date.now()}`,
+        sender: "user",
+        content: `Rewrite this set harder (difficulty ${target}/5): ${set?.quiz_set_title || "previous set"}`,
+        timestamp: timeStr,
+      },
+    ]);
+    setGeneratingNote("Rewriting these questions to a harder difficulty (same facts, tougher statements and options)...");
+    setIsGenerating(true);
+    try {
+      const data = await startHarden({
+        seed_ids: ids,
+        num_questions: Math.max(5, Math.min(20, Math.round(ids.length / 5) * 5)),
+        difficulty: target,
+        label: String(set?.quiz_set_title || "practice").replace(/^(AI\s*)?/i, ""),
+      });
+      setStudioMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}`,
+          sender: "ai",
+          content:
+            `I've rewritten **${data.quiz_set_title}** into ${data.total_questions} harder versions - the same facts and ` +
+            `correct answers, but tougher statements and options at difficulty ${data.difficulty}/5. It is saved in Quiz History.`,
+          quizResult: data,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+      fetchQuizHistory();
+    } catch (err) {
+      setStudioMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-err-${Date.now()}`,
+          sender: "ai",
+          isError: true,
+          content: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+    } finally {
+      setIsGenerating(false);
+      setGeneratingNote("Searching your textbooks and drafting board-style MCQs...");
     }
   };
 
@@ -935,6 +1087,68 @@ export default function QuizView({
                         </div>
                       </div>
 
+                      <div style={{ marginTop: "16px", border: "1px dashed var(--teal)", borderRadius: "12px", padding: "12px 14px", background: "rgba(76, 217, 100, 0.05)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                          <Layers size={14} style={{ color: "var(--teal)", flexShrink: 0 }} />
+                          <strong style={{ fontSize: "0.84rem" }}>Harder versions (AI)</strong>
+                        </div>
+                        <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", margin: "0 0 10px", lineHeight: 1.45 }}>
+                          Rewrites the existing questions in your selection: the same facts and correct answers, with harder
+                          statements and options at a chosen difficulty. Saved to Quiz History when done.
+                        </p>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                          {([4, 5] as const).map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              className={`config-grade-chip ${hardenDifficulty === d ? "active" : ""}`}
+                              onClick={() => setHardenDifficulty(d)}
+                              title={`Target difficulty ${d}/5`}
+                            >
+                              {d === 4 ? "4 · Hard" : "5 · Brutal"}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            className="btn-workspace"
+                            disabled={isHardening}
+                            onClick={hardenFromSelection}
+                            style={{ padding: "7px 14px", fontSize: "0.78rem" }}
+                          >
+                            {isHardening ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                            &nbsp;{isHardening ? "Rewriting…" : "Generate harder versions"}
+                          </button>
+                        </div>
+                        {isHardening && (
+                          <div style={{ marginTop: "10px", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                            <Loader2 size={13} className="animate-spin text-[var(--teal)]" style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+                            Rewriting {Math.max(5, Math.min(20, Math.round(quizConfigNumQuestions / 5) * 5))} questions at difficulty {hardenDifficulty}/5…
+                            takes a few minutes; the rest of the app keeps working.
+                          </div>
+                        )}
+                        {hardenResult && (
+                          <div style={{ marginTop: "12px", padding: "10px 12px", border: "1px solid var(--border-light)", borderRadius: "10px", background: "var(--surface-1)" }}>
+                            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginBottom: "6px" }}>
+                              <span className="workspace-badge" style={{ background: "var(--surface-3)", color: "var(--teal)", display: "inline-flex" }}>
+                                {hardenResult.total_questions} harder MCQs · difficulty {hardenResult.difficulty}/5
+                              </span>
+                              <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                                Saved to Quiz History — same facts and answers, harder statements & options.
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              onClick={() => startAiCustomQuiz?.(hardenResult.quiz_set_id)}
+                              style={{ padding: "7px 14px", fontSize: "0.78rem" }}
+                            >
+                              <Play size={13} fill="currentColor" style={{ marginRight: "6px" }} />
+                              Practice harder versions
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
                       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "auto", paddingTop: "var(--sp-4)" }}>
                         <button className="btn-primary" onClick={handleNextStep}>
                           <span>Configure Session Rules</span>
@@ -1059,6 +1273,17 @@ export default function QuizView({
                                             <Play size={12} fill="currentColor" />
                                             <span>Practice Now</span>
                                           </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleHardenFromSet(msg.quizResult)}
+                                            disabled={isGenerating || isHardening}
+                                            className="btn-secondary py-2 px-3 text-xs font-bold rounded-lg flex items-center gap-1"
+                                            style={{ minHeight: "36px", background: "var(--surface-3)", border: "1px solid var(--border-light)", color: "var(--teal)", cursor: isGenerating || isHardening ? "not-allowed" : "pointer" }}
+                                            title="Rewrite the same facts and answers at a harder difficulty"
+                                          >
+                                            {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Layers size={12} />}
+                                            <span>{isGenerating ? "Rewriting…" : "Make harder (AI)"}</span>
+                                          </button>
                                         </div>
                                       </div>
                                     )}
@@ -1075,7 +1300,7 @@ export default function QuizView({
                                   </div>
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-secondary)", fontSize: "0.82rem" }}>
                                     <Loader2 size={16} className="animate-spin text-[var(--sky)] shrink-0" />
-                                    <span>Searching your textbooks and drafting board-style MCQs...</span>
+                                    <span>{generatingNote}</span>
                                   </div>
                                 </div>
                               </div>
@@ -1083,6 +1308,30 @@ export default function QuizView({
                           </div>
                         )}
                       </div>
+
+                      {allTopicChips.length ? (
+                        <div style={{ marginTop: "10px" }}>
+                          <div style={{ fontSize: "0.66rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+                            Or tap a topic from your bank
+                          </div>
+                          <div className="config-sub-pills-list" style={{ maxHeight: "112px", overflowY: "auto", paddingRight: "2px" }}>
+                            {allTopicChips.map((c) => (
+                              <button
+                                key={c.name}
+                                type="button"
+                                className={`config-sub-pill ${pickedTopic === c.name ? "active" : ""}`}
+                                title={`Generate MCQs on ${c.name}`}
+                                onClick={() => {
+                                  setPickedTopic(c.name);
+                                  handleGenerate(c.name);
+                                }}
+                              >
+                                {pickedTopic === c.name ? "✓ " : ""}{c.name} ({c.count})
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
 
                       {/* Chat Input */}
                       <div className="chat-composer-box" style={{ padding: "8px 12px", background: "var(--surface-2)", borderRadius: "var(--r-md)", border: "1px solid var(--border-light)" }}>
