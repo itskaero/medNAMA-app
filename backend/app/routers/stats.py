@@ -20,6 +20,15 @@ def stats_overview(sessions_offset: int = 0, db: Session = Depends(get_db),
 
     return overview(db, current_user, sessions_offset=sessions_offset)
 
+
+@router.get("/api/stats/mastery")
+def stats_mastery(db: Session = Depends(get_db),
+                  current_user: User = Depends(require_student_or_admin)):
+    """Topic-level coverage of the practice bank, and the weak/untouched topics to focus on."""
+    from app.stats import mastery
+
+    return mastery(db, current_user)
+
 @router.get("/api/dashboard/detailed-stats")
 def get_detailed_stats(
     db: Session = Depends(get_db),

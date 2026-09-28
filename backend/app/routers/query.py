@@ -338,6 +338,7 @@ class StartQuizRequest(BaseModel):
     quiz_set_id: str | None = None
     categories: list[str] | None = None
     sub_categories: list[str] | None = None
+    topics: list[str] | None = None              # mcqs.topic labels, ANDed with the other filters
     num_questions: int = 10
     exclude_mastered: bool = False
     drill_wrong: bool = False                 # answer-only the user's missed MCQs
@@ -404,6 +405,8 @@ def start_quiz_endpoint(
         query = query.filter(MCQ.sub_category.in_(req.sub_categories))
     elif req.categories:
         query = query.filter(MCQ.main_category.in_(req.categories))
+    if req.topics:
+        query = query.filter(MCQ.topic.in_(req.topics))
         
     # Exclude mastered questions (answered correctly in any past attempt)
     if req.exclude_mastered:

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Loader2, PlayCircle, RotateCcw, TrendingUp } from "lucide-react";
 import { API } from "@/lib/constants";
+import MasteryMap from "./MasteryMap";
 
 interface Pct { accuracy: number | null }
 interface Feature extends Pct { feature: string; answered: number; last_at: string }
@@ -258,6 +259,10 @@ export default function StatsView({
             </div>
           ) : null}
         </section>
+      </div>
+
+      <div style={{ marginBottom: "var(--sp-5)" }}>
+        <MasteryMap token={token} onPractise={onPractise} />
       </div>
 
       <section style={card}>
