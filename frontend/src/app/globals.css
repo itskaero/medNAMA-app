@@ -1977,8 +1977,21 @@ body {
   flex-grow: 1;
 }
 
+/* Icons sit inline with their label ("<Clock /> Closes Sunday"); Tailwind's base would make them blocks.
+   Inside flex containers this has no effect. */
+svg.lucide {
+  display: inline-block;
+  vertical-align: -0.15em;
+  flex-shrink: 0;
+}
+
 .btn-workspace {
   align-self: flex-start;
+  /* Tailwind's base makes svg display:block; without flex an icon sits on its own line above the label */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 0.6rem 1.2rem;
   background: var(--surface-2);
   border: 1px solid var(--border-light);
@@ -2133,7 +2146,7 @@ body {
     transform: translateX(-100%);
     transition: transform var(--dur-normal) var(--ease-out);
     z-index: 1010;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+    box-shadow: none;   /* a shadow on the closed drawer bleeds into the page's left edge */
     border-right: 1px solid var(--border);
     max-height: none !important;
     flex-direction: column !important;
@@ -2143,6 +2156,7 @@ body {
 
   .sidebar.mobile-open {
     transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
   }
 
   .sidebar-brand {

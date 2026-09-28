@@ -443,8 +443,11 @@ def get_dashboard_stats(
     """Returns general statistics and topic lists for the student/admin dashboard."""
     from sqlalchemy import func
     
+    from app.retention import access_scope
+
     total_books = db.query(Book).count()
-    total_mcqs = db.query(MCQ).count()
+    # What this user can practise: restricted past papers only with access, recall-derived rows never.
+    total_mcqs = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user).count()
     total_quizzes_taken = db.query(QuizAttempt).filter(QuizAttempt.user_id == current_user.id).count()
     
     attempts = db.query(QuizAttempt).filter(
@@ -737,6 +740,7 @@ class StartQuizRequest(BaseModel):
     past_paper_exam: str | None = None            # e.g. "FCPS Part 1": questions from its past papers
     years: list[int] | None = None                # past-paper years
     tags: dict[str, list[str]] | None = None      # {"subject": [...], "topic": [...], "specialty": [...]}
+    twists: bool = False                          # with past-paper filters: their twists instead (app/twists.py)
 
 
 class SelectedAnswer(BaseModel):
@@ -767,7 +771,11 @@ def start_quiz_endpoint(
     if req.past_paper_exam or req.years or req.tags:
         from app.past_papers import past_paper_filter
 
-        query = past_paper_filter(db, query, req.past_paper_exam, req.years, req.tags)
+        if req.twists:   # the twists written from the selected past-paper questions
+            seeds = past_paper_filter(db, db.query(MCQ.id), req.past_paper_exam, req.years, req.tags)
+            query = query.filter(MCQ.twist_of.in_(seeds))
+        else:
+            query = past_paper_filter(db, query, req.past_paper_exam, req.years, req.tags)
     
     # Drill mode: only previously-missed questions (user-scoped by construct)
     if req.drill_wrong:
@@ -802,34 +810,42 @@ def start_quiz_endpoint(
         query = query.filter(MCQ.id.notin_(mastered_subquery))
         
     # "Seen" = answered anywhere: quiz attempts, and the Daily Dose / sprint / mocks (answer_events).
+    # Answering one archive's version of a past-paper question counts for its other versions too.
     from app.models import AnswerEvent
+    from app.past_papers import distinct_by_group, group_key, with_recall_groups
 
-    seen_ids = db.query(AttemptAnswer.mcq_id).join(
+    seen_ids = with_recall_groups(db, db.query(AttemptAnswer.mcq_id).join(
         QuizAttempt, QuizAttempt.id == AttemptAnswer.quiz_attempt_id
     ).filter(QuizAttempt.user_id == current_user.id).union(
         db.query(AnswerEvent.mcq_id).filter(AnswerEvent.user_id == current_user.id, AnswerEvent.mcq_id.isnot(None))
-    )
+    ))
     # Size of the whole selection and how much of it is still unanswered, so "work through all"
-    # sessions can show "N left" and offer the next batch.
-    total_in_scope = query.order_by(None).count()
-    unseen_in_scope = query.order_by(None).filter(MCQ.id.notin_(seen_ids)).count()
+    # sessions can show "N left" and offer the next batch. Two versions of one question count once.
+    count_q = query.order_by(None).with_entities(func.count(func.distinct(group_key())))
+    total_in_scope = count_q.scalar() or 0
+    unseen_in_scope = count_q.filter(MCQ.id.notin_(seen_ids)).scalar() or 0
 
     # Unseen first: never-attempted questions before ones already answered, so a
     # growing bank keeps producing fresh practice. Random within each group.
+    # Over-fetch, then keep one version of each recalled question.
+    fetch = req.num_questions * 2 + 10
     if req.prefer_unseen and not req.drill_wrong:
         from sqlalchemy import case
 
         seen_rank = case((MCQ.id.in_(seen_ids), 1), else_=0)
-        mcqs = query.order_by(seen_rank, func.random()).limit(req.num_questions).all()
+        mcqs = query.order_by(seen_rank, func.random()).limit(fetch).all()
     else:
-        mcqs = query.order_by(func.random()).limit(req.num_questions).all()
+        mcqs = query.order_by(func.random()).limit(fetch).all()
+    mcqs = distinct_by_group(mcqs, req.num_questions)
     
     if not mcqs:
         raise HTTPException(
             status_code=400,
-            detail="No questions found matching the specified filters."
+            detail=("No twists have been written for these questions yet: answer a past-paper question and tap "
+                    "'Twist it' (the most-asked questions get theirs written in the background)."
+                    if req.twists else "No questions found matching the specified filters.")
         )
-        
+
     attempt = QuizAttempt(
         user_id=current_user.id,
         total_questions=len(mcqs),
@@ -842,10 +858,11 @@ def start_quiz_endpoint(
     db.refresh(attempt)
     
     # Format questions (excluding deep explanation details initially)
-    from app.past_papers import paper_years, question_media
+    from app.past_papers import paper_years, question_media, recall_info
 
     media = question_media(db, [m.id for m in mcqs])
     years = paper_years(db, [m.id for m in mcqs])
+    recalls = recall_info(db, mcqs)
     mcqs_data = []
     for m in mcqs:
         mcqs_data.append({
@@ -857,6 +874,7 @@ def start_quiz_endpoint(
             "sub_category": m.sub_category,
             "media": media.get(m.id, []),
             "paper_years": years.get(m.id, []),
+            **recalls.get(m.id, {}),
         })
         
     return {
@@ -1296,12 +1314,16 @@ def delete_conversation(
 
 @app.get("/api/mcqs")
 def get_all_mcqs(
+    response: Response,
     category: str | None = None,
     search: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student_or_admin)
 ):
-    """Retrieves list of all MCQs inside the database with category filters, searches, and bookmark indicators."""
+    """A page of the MCQ bank (category filter, search, bookmark flags), in a stable order.
+    The number of matching questions is in the X-Total-Count header."""
     from app.retention import access_scope
 
     query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user)
@@ -1309,8 +1331,9 @@ def get_all_mcqs(
         query = query.filter(MCQ.main_category == category)
     if search:
         query = query.filter(MCQ.question_text.ilike(f"%{search}%"))
-        
-    mcqs = query.limit(100).all()
+
+    response.headers["X-Total-Count"] = str(query.order_by(None).count())
+    mcqs = query.order_by(MCQ.id).offset(max(0, offset)).limit(max(1, min(200, limit))).all()
     
     # Fetch user's bookmarked MCQ IDs
     bookmarks = db.query(MCQBookmark.mcq_id).filter(MCQBookmark.user_id == current_user.id).all()
@@ -1839,31 +1862,42 @@ def export_mcqs_csv(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student_or_admin),
 ):
-    """Download the MCQ bank as a CSV (global shared bank — any student may export)."""
+    """Download the MCQ bank as a CSV: the questions this user may see (restricted past papers only with
+    PAST_PAPERS_ACCESS; recall-derived private rows never). Streamed, so 70k rows stay light on the NAS."""
     import csv
     import io
 
-    mcqs = db.query(MCQ).order_by(MCQ.id.asc()).all()
-    buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerow([
-        "id", "quiz_set_title", "topic", "main_category", "sub_category",
-        "difficulty", "question_text", "option_a", "option_b", "option_c",
-        "option_d", "correct_option", "explanation_markdown",
-    ])
-    for m in mcqs:
-        opts = m.options if isinstance(m.options, dict) else {}
+    from app.retention import access_scope
+
+    query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user).order_by(MCQ.id.asc())
+
+    def rows():
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        buf.write("\ufeff")  # BOM so Excel renders UTF-8 correctly
         writer.writerow([
-            m.id, m.quiz_set_title, m.topic, m.main_category, m.sub_category,
-            m.difficulty if m.difficulty is not None else "",
-            m.question_text,
-            opts.get("A", ""), opts.get("B", ""), opts.get("C", ""), opts.get("D", ""),
-            m.correct_option,
-            (m.explanation_markdown or "").replace("\n", " "),
+            "id", "quiz_set_title", "topic", "main_category", "sub_category",
+            "difficulty", "question_text", "option_a", "option_b", "option_c",
+            "option_d", "option_e", "correct_option", "explanation_markdown",
         ])
-    csv_content = "\ufeff" + buf.getvalue()  # BOM so Excel renders UTF-8 correctly
-    return Response(
-        content=csv_content,
+        for m in query.yield_per(1000):
+            opts = m.options if isinstance(m.options, dict) else {}
+            writer.writerow([
+                m.id, m.quiz_set_title, m.topic, m.main_category, m.sub_category,
+                m.difficulty if m.difficulty is not None else "",
+                m.question_text,
+                opts.get("A", ""), opts.get("B", ""), opts.get("C", ""), opts.get("D", ""), opts.get("E", ""),
+                m.correct_option,
+                (m.explanation_markdown or "").replace("\n", " "),
+            ])
+            if buf.tell() > 256_000:
+                yield buf.getvalue()
+                buf.seek(0)
+                buf.truncate(0)
+        yield buf.getvalue()
+
+    return StreamingResponse(
+        rows(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="mednama_mcq_bank.csv"'},
     )
@@ -2699,6 +2733,71 @@ def past_papers_scope(req: PastPaperScopeRequest, db: Session = Depends(get_db),
 
     _require_past_papers(current_user)
     return scope(db, current_user, req.exam, req.years, req.tags)
+
+
+def _past_paper_mcq(db: Session, mcq_id: int, user: User) -> MCQ:
+    _require_past_papers(user)
+    mcq = db.get(MCQ, mcq_id)
+    if mcq is None or mcq.status == "private":
+        raise HTTPException(status_code=404, detail="Question not found.")
+    return mcq
+
+
+@app.get("/api/mcqs/{mcq_id}/recalls")
+def mcq_recalls(mcq_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """The other archives' versions of this past-paper question (same recalled question, own wording and key)."""
+    from app.past_papers import recall_versions
+
+    return {"versions": recall_versions(db, _past_paper_mcq(db, mcq_id, current_user))}
+
+
+@app.post("/api/mcqs/{mcq_id}/check-key", dependencies=[Depends(rate_limiter(limit=10, window=60))])
+def mcq_check_key(mcq_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """Answer-Key Referee on a past-paper question whose archives disagree: what do the textbooks say?"""
+    from app.referee import judge
+
+    mcq = _past_paper_mcq(db, mcq_id, current_user)
+    try:
+        return judge(db, mcq.question_text, options=mcq.options, key=mcq.correct_option)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/mcqs/{mcq_id}/twists")
+def mcq_twists(mcq_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """Twists of a past-paper question: {status: none | running | done | failed, twists?}."""
+    from app import twists
+
+    mcq = _past_paper_mcq(db, mcq_id, current_user)
+    if not twists.is_seed(mcq):
+        raise HTTPException(status_code=400, detail="Twists are written from past-paper questions.")
+    return twists.status(db, mcq.id)
+
+
+@app.post("/api/mcqs/{mcq_id}/twists", dependencies=[Depends(rate_limiter(limit=20, window=60))])
+def mcq_twists_start(mcq_id: int, db: Session = Depends(get_db),
+                     current_user: User = Depends(require_student_or_admin)):
+    """Write twists of a past-paper question (same concept, a different ask), or return the stored ones."""
+    from app import twists
+
+    mcq = _past_paper_mcq(db, mcq_id, current_user)
+    if not twists.is_seed(mcq):
+        raise HTTPException(status_code=400, detail="Twists are written from past-paper questions.")
+    current = twists.status(db, mcq.id)
+    if current["status"] in ("done", "running"):
+        return current
+    twists.start(mcq.id)
+    return {"status": "running"}
+
+
+@app.get("/api/twists/seeds")
+def twist_seeds(min_years: int = 2, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    """Past-paper questions (one per recalled question) asked in at least min_years years, for pre-generation."""
+    from app import twists
+
+    ids = twists.most_asked_seeds(db, max(1, min_years))
+    have = {i for (i,) in db.query(MCQ.twist_of).filter(MCQ.twist_of.in_(ids)).distinct()} if ids else set()
+    return {"seeds": ids, "with_twists": sorted(have)}
 
 
 @app.post("/api/past-papers/timed", status_code=201)

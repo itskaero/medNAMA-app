@@ -155,7 +155,7 @@ export function AIMessage({
     "Consulting medical reference library...",
     "Cross-referencing textbook chapters...",
     "Reranking candidate passages with Cross-Encoder...",
-    "Synthesizing RAG-grounded clinical explanation..."
+    "Writing a textbook-grounded explanation..."
   ];
 
   return (

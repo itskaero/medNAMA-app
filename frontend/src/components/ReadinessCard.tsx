@@ -145,7 +145,7 @@ export function ReadinessCard({
 
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         <div style={{ fontSize: "0.82rem", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "6px" }}>
-          <Flame size={15} style={{ color: "#f59e0b" }} /> <b>{data.streak.current}</b>-day streak
+          <Flame size={15} style={{ color: "#f59e0b" }} /> <span><b>{data.streak.current}</b>-day streak</span>
           <span style={{ color: "var(--text-muted)" }}>(best {data.streak.best})</span>
         </div>
         <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
@@ -158,6 +158,7 @@ export function ReadinessCard({
         ) : null}
         <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.76rem", color: "var(--text-secondary)", flexWrap: "wrap" }}>
           <CalendarClock size={13} />
+          <span>Exam date</span>
           <input
             type="date"
             value={dateInput}

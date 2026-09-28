@@ -32,7 +32,7 @@ import numpy as np
 from sqlalchemy import and_, func, or_, text
 from sqlalchemy.orm import Session
 
-from app.llm import chat_completion, llm_configured
+from app.llm import chat_completion, key_instruction, llm_configured
 from app.models import MCQ, AnswerEvent, Book, ConceptCard, ConceptReview, DailySession, Figure, User
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,9 @@ PART1_SUBJECTS = ["Anatomy", "Physiology", "Pathology", "Pharmacology", "Microbi
 # Seeded banks (scripts/seed_mcqs.py) name their subject/specialty in sub_category.
 SEEDED_SUBJECT_CATEGORIES = ("FCPS Part 1", "FCPS Part 2")
 # Seeded sets that are not FCPS practice: kept out of the Daily Dose, duels and the weekly mock.
-NON_FCPS_CATEGORIES = ("English", "NTS mocks")
+NOT_A_SUBJECT = ("Mixed", "Minor Subjects")
+# Dentistry-only past-paper questions (scripts/seed_mediverse.py) are their own exam, not FCPS Part 1 practice.
+NON_FCPS_CATEGORIES = ("English", "NTS mocks", "Past papers · FCPS Part 1 (Dentistry)")
 
 _pending: set[int] = set()          # mcq ids whose concept card is being built
 _pending_recalls: set[int] = set()  # recall ids whose high-yield question is being written
@@ -80,6 +82,8 @@ def subject_for_title(title: str | None) -> str | None:
 
 
 def subject_for(book_title: str | None, main_category: str | None, sub_category: str | None) -> str | None:
+    if sub_category in NOT_A_SUBJECT:   # an archive's catch-all bucket says nothing about the subject
+        return subject_for_title(book_title)
     if sub_category and (main_category in SEEDED_SUBJECT_CATEGORIES or (main_category or "").startswith("Past papers")):
         return sub_category
     return subject_for_title(book_title) or subject_for_title(sub_category)
@@ -305,6 +309,7 @@ def generate_variant(db: Session, card: ConceptCard, avoid_stems: list[str]) -> 
                 {"role": "user", "content": (
                     f"CONCEPT: {card.title}\nEVIDENCE:\n{evidence}\n\nAVOID THESE QUESTIONS:\n"
                     + "\n".join(f"- {s[:160]}" for s in avoid_stems[:5])
+                    + f"\n\n{key_instruction()}"
                 )},
             ],
             json_mode=True, temperature=0.5, max_tokens=900, label="variant", role="fast",
@@ -466,6 +471,10 @@ def _seen_mcq_ids(db: Session, user_id: int) -> set[int]:
     ids |= {r[0] for r in db.execute(text(
         "SELECT DISTINCT a.mcq_id FROM attempt_answers a JOIN quiz_attempts q ON q.id = a.quiz_attempt_id "
         "WHERE q.user_id = :u"), {"u": user_id})}
+    if ids:   # another archive's version of an answered past-paper question counts as seen
+        ids |= {r[0] for r in db.execute(text(
+            "SELECT m.id FROM mcqs m WHERE m.recall_group IN "
+            "(SELECT recall_group FROM mcqs WHERE id = ANY(:ids) AND recall_group IS NOT NULL)"), {"ids": list(ids)})}
     return ids
 
 
@@ -505,9 +514,11 @@ def _new_questions(db: Session, user_id: int, seen: set[int], n: int) -> list[MC
     if cond is not None:
         picked = base.filter(cond).order_by(func.random()).limit(n).all()
     if len(picked) < n:
-        more = base.filter(MCQ.id.notin_([m.id for m in picked] or [-1])).order_by(func.random()).limit(n - len(picked)).all()
+        more = base.filter(MCQ.id.notin_([m.id for m in picked] or [-1])).order_by(func.random()).limit(2 * n).all()
         picked += more
-    return picked
+    from app.past_papers import distinct_by_group   # two archives' versions of one question: keep one
+
+    return distinct_by_group(picked, n)
 
 
 # ─── high-yield (past-paper frequency) ──────────────────────────────────────
@@ -567,6 +578,7 @@ def generate_high_yield_mcq(db: Session, recall: Any) -> MCQ | None:
                 )},
                 {"role": "user", "content": (
                     f"TOPIC: {recall.question} -> {recall.textbook_answer or recall.answer}\n\nTEXTBOOK QUOTES:\n{quotes}"
+                    f"\n\n{key_instruction()}"
                 )},
             ],
             json_mode=True, temperature=0.4, max_tokens=900, label="high-yield", role="fast",
@@ -814,6 +826,8 @@ def readiness(db: Session, user: User) -> dict[str, Any]:
     stats = subject_accuracy(db, user.id)
     subjects = []
     for name in sorted(stats, key=lambda k: -stats[k]["n"]):
+        if name == "Other" or name in NOT_A_SUBJECT:   # answers with no known subject (older events)
+            continue
         s = stats[name]
         subjects.append({"subject": name, "answered": int(s["n"]), "mastery": round(s["mastery"], 3),
                          "enough_data": s["n"] >= 10})

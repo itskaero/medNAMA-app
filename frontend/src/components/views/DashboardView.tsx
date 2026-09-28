@@ -112,8 +112,8 @@ export default function DashboardView({
         <div className="workspace-card quiz-card">
           <h3 className="workspace-title">Practice Exam Center</h3>
           <p className="workspace-desc">
-            Self-assess your clinical knowledge across our database of 12,000+ board exam questions. Access
-            instant results and detailed on-demand RAG explanations.
+            Build a practice session from {stats ? `${stats.total_mcqs.toLocaleString()} board-style questions` : "the question bank"}:
+            pick subjects and length, get instant results, and textbook-cited explanations on demand.
           </p>
           <button
             className="btn-workspace"
@@ -135,7 +135,7 @@ export default function DashboardView({
               <h3 className="practice-title" style={{ fontSize: "1rem" }}>
                 Recent Practice History
               </h3>
-              <p className="practice-subtitle">Review your previous quiz submissions and RAG grounding</p>
+              <p className="practice-subtitle">Review your previous practice sessions and their explanations</p>
             </div>
             <span className="topic-count" style={{ fontSize: "0.75rem" }}>
               {stats.recent_attempts.length} attempts logged

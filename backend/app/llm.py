@@ -9,6 +9,7 @@ without touching the code. Every client has a bounded timeout and retry count.
 """
 
 import logging
+import random
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -93,3 +94,12 @@ def chat_completion(messages: list[dict], *, json_mode: bool = False, temperatur
         label, role, ep.model, elapsed, getattr(usage, "completion_tokens", "?"),
     )
     return response.choices[0].message.content or ""
+
+
+def key_instruction(n: int = 1, keys: str = "ABCDE") -> str:
+    """Tell the model where to put the correct answers. Left alone (and shown an example key of "A") it put
+    54% of keys at A, which teaches "pick A"; a random position per question keeps keys balanced."""
+    plan = [random.choice(keys) for _ in range(max(1, n))]
+    if n <= 1:
+        return f"Put the correct answer at option {plan[0]}."
+    return "Put the correct answers at these options, question by question: " + ", ".join(plan) + "."

@@ -29,10 +29,10 @@ export interface ChatScope {
 }
 
 const SUGGESTIONS = [
-  { icon: <span>🔬</span>, text: "What did Louis Pasteur say about microbes?" },
-  { icon: <span>📖</span>, text: "What manual is used for bacterial classification?" },
-  { icon: <span>📚</span>, text: "Who drew the artwork for Pelczar's fifth edition?" },
-  { icon: <span>🩺</span>, text: "What is the difference between gram-positive and gram-negative bacteria?" },
+  { icon: <span>🫀</span>, text: "Explain the Frank-Starling mechanism and what shifts the curve" },
+  { icon: <span>💊</span>, text: "Mechanism and adverse effects of SGLT2 inhibitors" },
+  { icon: <span>🔬</span>, text: "Nephritic vs nephrotic syndrome: key differences" },
+  { icon: <span>🧠</span>, text: "Blood supply of the internal capsule and the effect of its lesions" },
 ];
 
 interface ChatViewProps {
@@ -579,7 +579,7 @@ export default function ChatView({
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <div className="model-chip-pill">
                   <span className="model-chip-dot" />
-                  <span>Dr. MedNama 1.5 · Textbook RAG</span>
+                  <span>Dr. MedNama · answers from your textbooks</span>
                   <ChevronDown size={10} style={{ marginLeft: "4px" }} />
                 </div>
               </div>

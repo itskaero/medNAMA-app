@@ -23,11 +23,13 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.llm import chat_completion, llm_configured
-from app.models import MCQ, AnswerEvent, MCQTag, PastPaper, PastPaperQuestion, TopicSummary, User
-from app.past_papers import AXES, past_paper_filter, paper_years
+from app.models import MCQ, AnswerEvent, PastPaper, PastPaperQuestion, TopicSummary, User
+from app.past_papers import one_per_recall_group, past_paper_filter, paper_years
 from app.retention import access_scope, restricted_allowed
 
 logger = logging.getLogger(__name__)
+
+TOPIC_AXES = ("subject", "topic", "specialty", "system")   # what a scope is about (not which archive / sitting)
 
 SUMMARY_KEYS = 60
 KEYS_PAGE_MAX = 200
@@ -58,6 +60,8 @@ def keys(db: Session, user: User, scope: dict[str, Any], order: str = "most_aske
          offset: int = 0, limit: int = 100) -> dict[str, Any]:
     limit = max(1, min(KEYS_PAGE_MAX, int(limit or 100)))
     q = _scope_query(db, user, scope)
+    if scope.get("exam"):   # a question both archives recalled is one key
+        q = one_per_recall_group(db, q)
     if only_missed:
         per_q = (db.query(AnswerEvent.mcq_id, func.bool_or(AnswerEvent.is_correct).label("ok"))
                  .filter(AnswerEvent.user_id == user.id).group_by(AnswerEvent.mcq_id).subquery())
@@ -86,7 +90,7 @@ def keys(db: Session, user: User, scope: dict[str, Any], order: str = "most_aske
 
 def _scope_label(scope: dict[str, Any]) -> str:
     if scope.get("exam"):
-        labels = [lab for axis in AXES for lab in (scope.get("tags") or {}).get(axis, [])]
+        labels = [lab for axis in TOPIC_AXES for lab in (scope.get("tags") or {}).get(axis, [])]
         return f"{scope['exam']}: {', '.join(labels) or 'all topics'}"
     return " / ".join(x for x in (scope.get("main"), scope.get("sub")) if x) or "Mixed"
 
@@ -103,7 +107,8 @@ def summary_key(scope: dict[str, Any]) -> str:
 
 def summary_allowed(scope: dict[str, Any]) -> bool:
     """A summary needs a topic to be about: some subject/topic/specialty label, or a bank sub-category."""
-    return bool((scope.get("exam") and any((scope.get("tags") or {}).values())) or scope.get("sub"))
+    tags = scope.get("tags") or {}
+    return bool((scope.get("exam") and any(tags.get(a) for a in TOPIC_AXES)) or scope.get("sub"))
 
 
 def get_summary(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary | None:
@@ -118,14 +123,15 @@ def build_summary(db: Session, user: User, scope: dict[str, Any]) -> TopicSummar
 
     scope = {**scope, "years": None}   # all years: the summary covers the topic, not one sitting
     top = keys(db, user, scope, "most_asked", False, 0, SUMMARY_KEYS)["items"]
-    labels = [lab for axis in AXES for lab in (scope.get("tags") or {}).get(axis, [])] or [scope.get("sub") or ""]
+    labels = [lab for axis in TOPIC_AXES for lab in (scope.get("tags") or {}).get(axis, [])] or [scope.get("sub") or ""]
     topic = " ".join(labels).strip()
 
     # 1) Textbook passages: the topic with its dominant subject, plus the three most-asked questions.
     subject = None
     if top and scope.get("exam"):
-        row = (db.query(MCQTag.label, func.count()).filter(MCQTag.axis == "subject", MCQTag.mcq_id.in_([k["id"] for k in top]))
-               .group_by(MCQTag.label).order_by(func.count().desc()).first())
+        row = (db.query(MCQ.sub_category, func.count()).filter(MCQ.id.in_([k["id"] for k in top]),
+                                                              MCQ.sub_category.notin_(("Mixed", "Minor Subjects")))
+               .group_by(MCQ.sub_category).order_by(func.count().desc()).first())
         subject = row[0] if row else None
     queries = [f"{topic} {subject or ''}".strip()] + [
         f"{' '.join(k['question_text'].split())[:160]} {k['answer']}" for k in top[:3]]

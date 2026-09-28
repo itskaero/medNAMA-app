@@ -33,7 +33,7 @@ export default function ExplanationPanel({
       <div className="explanation-inline-header">
         <h3 className="explanation-inline-title">
           <GraduationCap size={16} style={{ color: "var(--teal)" }} />
-          RAG Explanation
+          Textbook explanation
         </h3>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <ReportButton
@@ -59,7 +59,7 @@ export default function ExplanationPanel({
               className="spinner"
               style={{ margin: "0 auto 10px", display: "inline-block", animation: "spin 1s linear infinite" }}
             />
-            <span style={{ display: "block", fontSize: "0.82rem" }}>Generating RAG Explanation...</span>
+            <span style={{ display: "block", fontSize: "0.82rem" }}>Writing the explanation from your textbooks...</span>
           </div>
         ) : explanationError ? (
           <div style={{ color: "var(--danger)", padding: "16px", fontSize: "0.82rem", textAlign: "center" }}>

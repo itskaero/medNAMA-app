@@ -1,23 +1,36 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { History, Loader2, Lock, PlayCircle, RotateCcw, Timer, X, Zap } from "lucide-react";
+import { History, Loader2, Lock, PlayCircle, RotateCcw, Shuffle, Timer, X, Zap } from "lucide-react";
 import type { ReviewScope } from "@/components/views/RapidReviewView";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 
-type Axis = "subject" | "topic" | "specialty";
+type Axis = "subject" | "topic" | "specialty" | "system" | "source";
 const AXES: { axis: Axis; label: string; hint: string }[] = [
-  { axis: "subject", label: "Subject", hint: "The paper's subject sections" },
-  { axis: "topic", label: "Topic", hint: "System / topic within the subjects" },
-  { axis: "specialty", label: "Specialty group", hint: "Which specialty's paper the question was asked in" },
+  { axis: "subject", label: "Subject", hint: "FCPS Part 1 subject" },
+  { axis: "topic", label: "Topic", hint: "Topic within the subjects" },
+  { axis: "specialty", label: "Faculty paper", hint: "Which faculty's paper (Medicine, Surgery, Gynae & Obs...) the question was asked in" },
+  { axis: "system", label: "Body system", hint: "Organ system (MediVerse labels)" },
+  { axis: "source", label: "Archive", hint: "Which archive recalled it. A question both archives recalled counts once and is shown once." },
 ];
+const EMPTY_TAGS: Record<Axis, string[]> = { subject: [], topic: [], specialty: [], system: [], source: [] };
 
-interface Paper { id: number; year: number | null; title: string; total: number; answered: number; correct: number }
-interface Exam { exam: string; papers: Paper[]; total: number; answered: number; correct: number }
+interface Stats { total: number; answered: number; correct: number }
+interface Paper extends Stats { id: number; year: number | null; title: string; source?: string }
+interface Year extends Stats { year: number | null; papers: Paper[] }
+interface Exam extends Stats { exam: string; years?: Year[]; papers: Paper[] }
 interface Scope { count: number; answered: number; missed: number; facets: Record<Axis, { label: string; count: number }[]> }
 
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+/** "FCPS Part 1 · Surgery · 18 Sep 2019 (M+E)" -> "Surgery · 18 Sep 2019 (M+E)" */
+const sittingName = (p: Paper, exam: string) => {
+  const t = p.title.startsWith(`${exam} · `) ? p.title.slice(exam.length + 3) : p.title;
+  return p.source === "Radiant" && p.year != null && t === String(p.year) ? "Whole year (Radiant)" : t;
+};
+/** Exams from before sittings existed carry papers only: one year per paper. */
+const yearsOf = (e: Exam): Year[] =>
+  e.years ?? e.papers.map((p) => ({ year: p.year, total: p.total, answered: p.answered, correct: p.correct, papers: [p] }));
 
 /** Past papers by exam and year, filtered by subject / topic / specialty; practice or sit a timed paper. */
 export default function PastPapersView({
@@ -36,14 +49,16 @@ export default function PastPapersView({
   const [error, setError] = useState<string | null>(null);
   const [exam, setExam] = useState<string | null>(null);
   const [years, setYears] = useState<number[]>([]);
-  const [tags, setTags] = useState<Record<Axis, string[]>>({ subject: [], topic: [], specialty: [] });
+  const [sittings, setSittings] = useState<number[]>([]);
+  const [showCollections, setShowCollections] = useState(false);
+  const [tags, setTags] = useState<Record<Axis, string[]>>(EMPTY_TAGS);
   const [scope, setScope] = useState<Scope | null>(null);
   const [scopeLoading, setScopeLoading] = useState(false);
   const [count, setCount] = useState<number | "all">(20);
   const [missedOnly, setMissedOnly] = useState(false);
   const [timed, setTimed] = useState({ count: 100, minutes: 120 });
   const [creating, setCreating] = useState(false);
-  const [showAll, setShowAll] = useState<Record<Axis, boolean>>({ subject: false, topic: false, specialty: false });
+  const [showAll, setShowAll] = useState<Record<Axis, boolean>>({ subject: false, topic: false, specialty: false, system: false, source: false });
   const [refreshKey, setRefreshKey] = useState(0);
 
   const headers = useCallback((): HeadersInit => {
@@ -72,8 +87,13 @@ export default function PastPapersView({
     };
   }, [headers, refreshKey]);
 
-  const activeTags = Object.fromEntries(Object.entries(tags).filter(([, v]) => v.length)) as Record<string, string[]>;
-  const filterKey = JSON.stringify({ exam, years, activeTags });
+  // Picked sittings replace the year filter (collections have no year); they travel as tags.paper.
+  const activeTags = {
+    ...Object.fromEntries(Object.entries(tags).filter(([, v]) => v.length)),
+    ...(sittings.length ? { paper: sittings.map(String) } : {}),
+  } as Record<string, string[]>;
+  const yearsParam = sittings.length || !years.length ? null : years;
+  const filterKey = JSON.stringify({ exam, yearsParam, activeTags });
 
   useEffect(() => {
     if (!exam) return;
@@ -82,7 +102,7 @@ export default function PastPapersView({
       setScopeLoading(true);
       fetch(`${API}/api/past-papers/scope`, {
         method: "POST", headers: headers(), credentials: "include",
-        body: JSON.stringify({ exam, years: years.length ? years : null, tags: activeTags }),
+        body: JSON.stringify({ exam, years: yearsParam, tags: activeTags }),
       })
         .then((r) => (r.ok ? r.json() : null))
         .then((body) => {
@@ -100,32 +120,46 @@ export default function PastPapersView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey, headers, refreshKey]);
 
-  const toggleYear = (y: number) => setYears((ys) => (ys.includes(y) ? ys.filter((x) => x !== y) : [...ys, y].sort()));
+  const toggleYear = (y: number) => {
+    // A sitting belongs to its year: dropping a year drops its picked sittings.
+    if (years.includes(y)) {
+      const cur = exams?.find((e) => e.exam === exam);
+      const gone = new Set(cur ? yearsOf(cur).filter((yr) => yr.year === y).flatMap((yr) => yr.papers.map((p) => p.id)) : []);
+      setSittings((s) => s.filter((id) => !gone.has(id)));
+    }
+    setYears((ys) => (ys.includes(y) ? ys.filter((x) => x !== y) : [...ys, y].sort()));
+  };
+  const toggleSitting = (id: number) => setSittings((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const toggleTag = (axis: Axis, label: string) =>
     setTags((t) => ({ ...t, [axis]: t[axis].includes(label) ? t[axis].filter((x) => x !== label) : [...t[axis], label] }));
   const clearFilters = () => {
     setYears([]);
-    setTags({ subject: [], topic: [], specialty: [] });
+    setSittings([]);
+    setShowCollections(false);
+    setTags(EMPTY_TAGS);
   };
 
   const describe = () => {
-    const bits = [exam, years.length ? years.join(", ") : "all years", ...Object.values(activeTags).flat()];
-    return bits.filter(Boolean).join(" · ");
+    const labels = Object.entries(activeTags).filter(([a]) => a !== "paper").flatMap(([, v]) => v);
+    const when = sittings.length ? `${sittings.length} sitting${sittings.length > 1 ? "s" : ""}`
+      : years.length ? years.join(", ") : "all years";
+    return [exam, when, ...labels].filter(Boolean).join(" · ");
   };
 
-  const practice = () => {
+  const practice = (twists = false) => {
     if (!exam) return;
     onPractice(
       {
         past_paper_exam: exam,
-        years: years.length ? years : null,
+        years: yearsParam,
         tags: activeTags,
         // "All": work through the whole selection 50 at a time (unseen first, Continue after each batch).
-        num_questions: count === "all" ? 50 : count,
+        num_questions: twists ? 20 : count === "all" ? 50 : count,
         prefer_unseen: true,
-        drill_wrong: missedOnly,
+        drill_wrong: !twists && missedOnly,
+        twists,
       },
-      `Past papers · ${describe()}${count === "all" ? " · all" : ""}`
+      twists ? `Twists · ${describe()}` : `Past papers · ${describe()}${count === "all" ? " · all" : ""}`
     );
   };
 
@@ -135,7 +169,7 @@ export default function PastPapersView({
     try {
       const r = await fetch(`${API}/api/past-papers/timed`, {
         method: "POST", headers: headers(), credentials: "include",
-        body: JSON.stringify({ exam, years: years.length ? years : null, tags: activeTags, count: timed.count, minutes: timed.minutes }),
+        body: JSON.stringify({ exam, years: yearsParam, tags: activeTags, count: timed.count, minutes: timed.minutes }),
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(body.detail || `HTTP ${r.status}`);
@@ -175,6 +209,11 @@ export default function PastPapersView({
   }
 
   const current = exams.find((e) => e.exam === exam) || exams[0];
+  const allYears = yearsOf(current);
+  // Sittings of the selected years (and the undated pools when "Collections" is open).
+  const openPapers = allYears
+    .filter((y) => (y.year != null ? years.includes(y.year) : showCollections))
+    .flatMap((y) => y.papers);
   const chip = (active: boolean): React.CSSProperties => ({
     padding: "4px 10px", borderRadius: "999px", fontSize: "0.76rem", cursor: "pointer",
     border: `1px solid ${active ? "var(--sky)" : "var(--border-light)"}`,
@@ -188,8 +227,9 @@ export default function PastPapersView({
           <History size={20} style={{ color: "var(--sky)" }} /> Past papers
         </h1>
         <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-          Recalled questions from past sittings, by year. Filter by subject, topic or specialty group, then practise at your own pace or
-          sit a timed paper. Answers feed your review schedule like any other question.
+          Recalled questions from past sittings, by year; pick a year to choose single sittings. Filter by subject, topic, faculty
+          paper, body system or archive, then practise at your own pace or sit a timed paper. A question both archives recalled is
+          shown once. Answers feed your review schedule like any other question.
         </p>
       </div>
 
@@ -210,24 +250,46 @@ export default function PastPapersView({
           Years
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px" }}>
-          {current.papers.map((p) => {
-            const on = p.year != null && years.includes(p.year);
+          {allYears.map((y) => {
+            const on = y.year != null ? years.includes(y.year) : showCollections;
+            const dated = y.papers.filter((p) => p.source !== "Radiant").length;
             return (
-              <button key={p.id} type="button" onClick={() => p.year != null && toggleYear(p.year)} aria-pressed={on}
+              <button key={y.year ?? "collections"} type="button" aria-pressed={on}
+                onClick={() => (y.year != null ? toggleYear(y.year) : setShowCollections((v) => !v))}
                 style={{ textAlign: "left", padding: "10px 12px", borderRadius: "12px", cursor: "pointer",
+                  display: "flex", flexDirection: "column", justifyContent: "flex-start",   // same top line when text wraps
                   border: `1px solid ${on ? "var(--sky)" : "var(--border-light)"}`, background: on ? "rgba(48,197,255,0.10)" : "var(--surface-2)", color: "var(--text-primary)" }}>
-                <div style={{ fontWeight: 800, fontSize: "1.05rem" }}>{p.year ?? p.title}</div>
-                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{p.total.toLocaleString()} questions</div>
+                <div style={{ fontWeight: 800, fontSize: "1.05rem" }}>{y.year ?? "Collections"}</div>
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                  {y.total.toLocaleString()} questions{dated ? ` · ${dated} ${y.year != null ? "sittings" : "pools"}` : ""}
+                </div>
                 <div style={{ height: "5px", borderRadius: "999px", background: "var(--surface-3)", marginTop: "6px" }}>
-                  <div style={{ width: `${pct(p.answered, p.total)}%`, height: "100%", borderRadius: "999px", background: "var(--sky)" }} />
+                  <div style={{ width: `${pct(y.answered, y.total)}%`, height: "100%", borderRadius: "999px", background: "var(--sky)" }} />
                 </div>
                 <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "3px" }}>
-                  {p.answered ? `${pct(p.answered, p.total)}% done · ${pct(p.correct, p.answered)}% right` : "Not started"}
+                  {y.answered ? `${pct(y.answered, y.total)}% done · ${pct(y.correct, y.answered)}% right` : "Not started"}
                 </div>
               </button>
             );
           })}
         </div>
+        {openPapers.length > 1 || (showCollections && openPapers.length) ? (
+          <div style={{ marginTop: "10px" }}>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}
+              title="Practise single sittings. With none picked, the whole of each selected year is used.">
+              Sittings{sittings.length ? ` · ${sittings.length} picked` : " · optional"}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", maxHeight: "220px", overflowY: "auto" }}>
+              {openPapers.map((p) => (
+                <button key={p.id} type="button" onClick={() => toggleSitting(p.id)} aria-pressed={sittings.includes(p.id)}
+                  style={chip(sittings.includes(p.id))} title={`${p.title} · ${p.source ?? ""}`}>
+                  {sittingName(p, current.exam)} <span style={{ color: "var(--text-muted)" }}>{p.total.toLocaleString()}</span>
+                  {p.answered ? <span style={{ color: "var(--sky)" }}> · {pct(p.answered, p.total)}%</span> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {AXES.map(({ axis, label, hint }) => {
@@ -264,7 +326,7 @@ export default function PastPapersView({
           <span style={{ color: "var(--text-secondary)" }}>
             {describe()} · answered {(scope?.answered ?? 0).toLocaleString()} · missed {(scope?.missed ?? 0).toLocaleString()}
           </span>
-          {years.length || Object.keys(activeTags).length ? (
+          {years.length || sittings.length || Object.keys(activeTags).length ? (
             <button type="button" className="btn-workspace" onClick={clearFilters} style={{ padding: "2px 8px", fontSize: "0.72rem" }}>
               <X size={11} /> Clear filters
             </button>
@@ -283,15 +345,19 @@ export default function PastPapersView({
             <label style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.76rem", color: "var(--text-secondary)" }}>
               <input type="checkbox" checked={missedOnly} onChange={(e) => setMissedOnly(e.target.checked)} /> missed only
             </label>
-            <button className="btn-workspace" disabled={!scope?.count || (missedOnly && !scope?.missed)} onClick={practice}
+            <button className="btn-workspace" disabled={!scope?.count || (missedOnly && !scope?.missed)} onClick={() => practice()}
               style={{ background: "var(--sky)", color: "#0b1320", fontWeight: 700 }}>
               <PlayCircle size={13} /> Practise
             </button>
           </div>
+          <button className="btn-workspace" disabled={!scope?.count} onClick={() => practice(true)}
+            title="Questions written from these past-paper questions that ask something different (next step, mechanism, a changed finding...). Checked against your textbooks. Generate them with 'Twist it' after answering a question.">
+            <Shuffle size={13} /> Twists
+          </button>
           {onRapidReview ? (
             <button className="btn-workspace" disabled={!scope?.count}
               title="Answer keys at a glance, a one-page summary (pick a subject or topic) and a 10-question drill"
-              onClick={() => exam && onRapidReview({ label: describe(), exam, years: years.length ? years : null, tags: activeTags })}>
+              onClick={() => exam && onRapidReview({ label: describe(), exam, years: yearsParam, tags: activeTags })}>
               <Zap size={13} /> Rapid review
             </button>
           ) : null}

@@ -215,7 +215,10 @@ export default function Home() {
   const {
     mcqsList,
     setMcqsList,
+    mcqTotal,
     isLoadingMcqs,
+    isLoadingMore,
+    loadMoreMcqs,
     mcqSearchText,
     setMcqSearchText,
     mcqFilterCategory,
@@ -397,7 +400,10 @@ export default function Home() {
         <MCQBankView
           stats={stats}
           mcqsList={mcqsList}
+          mcqTotal={mcqTotal}
           isLoadingMcqs={isLoadingMcqs}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={loadMoreMcqs}
           mcqSearchText={mcqSearchText}
           setMcqSearchText={setMcqSearchText}
           mcqFilterCategory={mcqFilterCategory}

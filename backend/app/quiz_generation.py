@@ -29,7 +29,7 @@ import numpy as np
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.llm import chat_completion
+from app.llm import chat_completion, key_instruction
 from app.models import MCQ
 from app.retrieval import retrieval_service
 
@@ -288,7 +288,7 @@ def _build_prompts(prompt_text: str, profile: dict, difficulty: int | None, cont
         f"Prefer facts from {focus}.\n\n"
         f"TEXTBOOK CONTEXT:\n{context_str}\n\n"
         "ALREADY ASKED (do NOT test these facts again; write about different facts or angles):\n"
-        f"{avoid_lines}"
+        f"{avoid_lines}\n\n{key_instruction(batch_target, ''.join(keys))}"
     )
     return system_prompt, user_prompt
 

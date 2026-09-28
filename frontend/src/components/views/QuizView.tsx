@@ -42,6 +42,7 @@ import { Slider } from "@/components/ui/slider";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import BasicDropdown from "@/components/ui/basic-dropdown";
 import { PaperYears, QuestionMedia } from "@/components/QuestionMedia";
+import { ArchiveBadges, PastPaperExtras } from "@/components/PastPaperExtras";
 
 // Quiz generation runs as a background job: the start request returns at once
 // and the page polls its status, so no proxy/browser timeout can cut it off.
@@ -602,7 +603,8 @@ export default function QuizView({
           style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
         >
           <div>
-            <h1 className="dashboard-title">Configure Practice Session</h1>
+            <h1 className="dashboard-title">Mock Builder</h1>
+            <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)" }}>Set up a practice session: topics, rules, then review.</p>
           </div>
           <button className="btn-workspace" onClick={() => setActiveView("dashboard")}>
             Back to Dashboard
@@ -1039,7 +1041,7 @@ export default function QuizView({
                                   </div>
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-secondary)", fontSize: "0.82rem" }}>
                                     <Loader2 size={16} className="animate-spin text-[var(--sky)] shrink-0" />
-                                    <span>Searching textbook RAG context & drafting board-style MCQs...</span>
+                                    <span>Searching your textbooks and drafting board-style MCQs...</span>
                                   </div>
                                 </div>
                               </div>
@@ -1558,6 +1560,7 @@ export default function QuizView({
                     {currentMCQ.sub_category || currentMCQ.main_category || "Board MCQ"}
                   </span>
                   <PaperYears years={currentMCQ.paper_years} />
+                  <ArchiveBadges mcq={currentMCQ} />
                 </span>
                 <button type="button" className="chat-delete-btn"
                   style={{ position: "static", opacity: 1, color: bookmarkedMcqs.some(b => b.id === currentMCQ.id) ? "var(--teal)" : "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
@@ -1628,6 +1631,11 @@ export default function QuizView({
                     );
                   })}
                 </div>
+              ) : null}
+
+              {/* Past-paper question: other archives' versions, textbook check when keys disagree, Twists */}
+              {isAnswered && quizConfigFeedbackMode !== "board" ? (
+                <PastPaperExtras key={currentMCQ.id} mcq={currentMCQ} token={token} onFigureClick={onFigureClick} />
               ) : null}
 
               {/* Action Bar */}

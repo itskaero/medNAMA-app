@@ -39,7 +39,7 @@ from sqlalchemy import func, or_, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.llm import chat_completion, llm_configured
+from app.llm import chat_completion, key_instruction, llm_configured
 from app.models import (
     MCQ, AnswerEvent, Book, ConceptCard, ConceptReview, ConfusablePair, StudySession, User, WeeklyMock,
     WeeklyMockEntry,
@@ -208,7 +208,7 @@ def build_pair(db: Session, pair: ConfusablePair, stem: str = "") -> None:
                 )},
                 {"role": "user", "content": (
                     f"CONCEPT A: {pair.term_a}\nCONCEPT B: {pair.term_b}\nQUESTION THE STUDENT MISSED: {stem}\n\n"
-                    f"TEXTBOOK PASSAGES:\n{context[:9000]}"
+                    f"TEXTBOOK PASSAGES:\n{context[:9000]}\n\n{key_instruction(2)}"
                 )},
             ],
             json_mode=True, temperature=0.3, max_tokens=2200, label="confusable-pair", role="fast",

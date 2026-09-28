@@ -123,6 +123,8 @@ class MCQ(Base):
     source_ref: Mapped[str | None] = mapped_column(Text, default=None)   # importer's external id
     access: Mapped[str] = mapped_column(Text, server_default="open")      # open | restricted (PAST_PAPERS_ACCESS)
     asked_years: Mapped[list | None] = mapped_column(JSONB, default=None)  # incl. reworded repeats (rank_past_papers.py)
+    recall_group: Mapped[int | None] = mapped_column(default=None)  # same recalled question across archives (link_recalls.py)
+    twist_of: Mapped[int | None] = mapped_column(ForeignKey("mcqs.id", ondelete="CASCADE"), default=None)  # app/twists.py
 
     book: Mapped["Book | None"] = relationship()
 

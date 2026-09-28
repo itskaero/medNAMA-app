@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, Eye, EyeOff, FileText, ListChecks, Loader2, RefreshCw, Zap } from "lucide-react";
+import { ArrowLeft, BookOpen, Eye, EyeOff, FileText, ListChecks, Loader2, RefreshCw, Shuffle, Zap } from "lucide-react";
 import { API } from "@/lib/constants";
 import { parseMarkdown } from "@/utils/markdown";
 import { PaperYears } from "@/components/QuestionMedia";
@@ -130,6 +130,12 @@ export default function RapidReviewView({
         num_questions: 10, prefer_unseen: true },
       `Rapid drill · ${scope.label}`
     );
+  const drillTwists = () =>
+    onDrill(
+      { past_paper_exam: scope.exam || undefined, years: scope.years || undefined, tags: scope.tags || undefined,
+        twists: true, num_questions: 10, prefer_unseen: true },
+      `Twists · ${scope.label}`
+    );
 
   const tabBtn = (id: "keys" | "summary", label: string, icon: React.ReactNode, disabled = false) => (
     <button key={id} type="button" role="tab" aria-selected={tab === id} disabled={disabled} onClick={() => setTab(id)} className="btn-workspace"
@@ -155,6 +161,12 @@ export default function RapidReviewView({
         <button type="button" className="btn-workspace" onClick={drill} style={{ marginLeft: "auto" }}>
           <Zap size={13} /> 10-question drill
         </button>
+        {scope.exam ? (
+          <button type="button" className="btn-workspace" onClick={drillTwists}
+            title="Questions written from this topic's past-paper questions that ask something different (next step, mechanism, a changed finding)">
+            <Shuffle size={13} /> Drill twists
+          </button>
+        ) : null}
       </div>
 
       {tab === "summary" ? (

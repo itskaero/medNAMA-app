@@ -6,16 +6,16 @@ import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { shareCard } from "@/lib/shareCard";
 
-type Verdict = "supported" | "contradicted" | "books_conflict" | "textbooks_silent";
+export type Verdict = "supported" | "contradicted" | "books_conflict" | "textbooks_silent";
 
-interface Evidence {
+export interface Evidence {
   chunk_id: number;
   book_title: string | null;
   page_number: number | null;
   quote: string;
 }
 
-interface RefereeResult {
+export interface RefereeResult {
   verdict: Verdict | null;
   textbook_answer: string | null;
   supported_option?: string | null;
@@ -46,7 +46,7 @@ const VERDICT_STYLE: Record<Verdict, { label: string; color: string; icon: React
   textbooks_silent: { label: "Textbooks silent", color: "var(--text-muted)", icon: <HelpCircle size={14} /> },
 };
 
-function VerdictBadge({ verdict }: { verdict: Verdict | null }) {
+export function VerdictBadge({ verdict }: { verdict: Verdict | null }) {
   if (!verdict) return <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Not refereed yet</span>;
   const v = VERDICT_STYLE[verdict];
   return (
@@ -56,7 +56,7 @@ function VerdictBadge({ verdict }: { verdict: Verdict | null }) {
   );
 }
 
-function EvidenceList({ evidence }: { evidence: Evidence[] }) {
+export function EvidenceList({ evidence }: { evidence: Evidence[] }) {
   if (!evidence.length) return null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
