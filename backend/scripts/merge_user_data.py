@@ -113,8 +113,16 @@ def main() -> None:
                 created += 1
         print(f"  {'users':20} {updated:5} matched (password kept from source), {created} created")
 
-        # MCQs: skip ones the target already has
+        # MCQs: skip ones the target already has. FK safety: the target may not
+        # carry the source's concept cards / figures / books (ids are per-DB), so
+        # dangling book_id/concept_id/figure_id are nulled instead of dropped;
+        # twist_of is kept when the seed already exists in the target or remapped
+        # through the copy, else nulled (a chain pointing at a not-yet-copied row).
         existing = {(q, t): i for i, q, t in dst.execute(text("SELECT id, quiz_set_id, question_text FROM mcqs"))}
+        dst_mcq_ids = set(existing.values())
+        target_books = {r[0] for r in dst.execute(text("SELECT id FROM books"))}
+        target_concepts = {r[0] for r in dst.execute(text("SELECT id FROM concept_cards"))}
+        target_figures = {r[0] for r in dst.execute(text("SELECT id FROM figures"))}
         mcq_cols = [c for c in columns(src, "mcqs") if c in set(columns(dst, "mcqs")) and c not in MCQ_SKIP_COLUMNS]
         new_count = dup_count = 0
         for row in src.execute(text(f"SELECT id, {', '.join(mcq_cols)} FROM mcqs ORDER BY id")).mappings():
@@ -124,6 +132,13 @@ def main() -> None:
                 dup_count += 1
                 continue
             values = {c: row[c] for c in mcq_cols}
+            for col, idset in (("book_id", target_books), ("concept_id", target_concepts), ("figure_id", target_figures)):
+                if values.get(col) is not None and values[col] not in idset:
+                    values[col] = None
+            twist = values.get("twist_of")
+            if twist is not None:
+                remapped = remap["mcqs"].get(twist)
+                values["twist_of"] = remapped if remapped in dst_mcq_ids else (twist if twist in dst_mcq_ids else None)
             if args.apply:
                 from sqlalchemy.dialects.postgresql import JSONB
                 from sqlalchemy import bindparam
@@ -136,6 +151,7 @@ def main() -> None:
             else:
                 new_id = -row["id"]
             remap["mcqs"][row["id"]] = new_id
+            dst_mcq_ids.add(new_id)
             existing[key] = new_id
             new_count += 1
         print(f"  {'mcqs':20} {new_count:5} copied, {dup_count} already present")
