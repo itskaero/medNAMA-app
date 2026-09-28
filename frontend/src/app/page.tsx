@@ -531,10 +531,13 @@ export default function Home() {
           token={token}
           notes={study.notes}
           flashcards={study.flashcards}
+          savedSheets={study.savedSheets}
           isLoadingNotes={study.isLoadingNotes}
           isLoadingFlashcards={study.isLoadingFlashcards}
+          isLoadingSheets={study.isLoadingSheets}
           fetchNotes={study.fetchNotes}
           fetchFlashcards={study.fetchFlashcards}
+          fetchSheets={study.fetchSheets}
           createNote={study.createNote}
           updateNote={study.updateNote}
           deleteNote={study.deleteNote}
@@ -542,6 +545,17 @@ export default function Home() {
           updateFlashcard={study.updateFlashcard}
           deleteFlashcard={study.deleteFlashcard}
           reviewFlashcard={study.reviewFlashcard}
+          deleteSheet={study.deleteSheet}
+          onOpenSheet={(scope) => {
+            try {
+              localStorage.setItem("mednama_revise_scope", JSON.stringify(scope));
+              localStorage.setItem("mednama_revise_open", "1");
+            } catch {
+              /* storage unavailable */
+            }
+            setActiveView("revise");
+          }}
+          onWriteSheet={() => setActiveView("revise")}
         />
       );
     }

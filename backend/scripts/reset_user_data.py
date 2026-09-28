@@ -43,6 +43,7 @@ STEPS = [
     ("concept_bookmarks", None),
     ("notes", None),
     ("flashcards", None),
+    ("saved_sheets", None),
     ("answer_reports", None),
 ]
 

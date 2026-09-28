@@ -9,6 +9,7 @@ import { API } from "@/lib/constants";
 import { parseMarkdown } from "@/utils/markdown";
 import { FiguresDrawer } from "@/components/FiguresDrawer";
 import { Figure } from "@/types";
+import { toast } from "sonner";
 
 /** A book a student can revise from, with how many section headings it has. */
 interface BookOption { id: number; title: string; total_pages: number; chapter_count: number }
@@ -79,6 +80,8 @@ export default function ReviseView({
 
   const searchSeq = useRef(0);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const openRef = useRef(false);        // a Study Corner "Open" asked us to show a saved sheet
+  const builtOnceRef = useRef(false);   // only the first auto-open builds
 
   // Load the books once; restore a previously saved scope so the page survives refresh.
   useEffect(() => {
@@ -96,6 +99,10 @@ export default function ReviseView({
             if (typeof saved.chapter === "string" && saved.chapter) setChapter(saved.chapter);
             if (typeof saved.topic === "string") setTopic(saved.topic);
             if (saved.length === "full") setLength("full");
+            if (localStorage.getItem("mednama_revise_open") === "1") {
+              openRef.current = true;                 // opened from Study Corner: build it once
+              localStorage.removeItem("mednama_revise_open");
+            }
           }
         } catch {
           /* storage unavailable */
@@ -186,11 +193,22 @@ export default function ReviseView({
       if (!r.ok) throw new Error(body.detail || `HTTP ${r.status}`);
       setSheet(body);
       setSheetState("idle");
+      if (!body.cached) toast.success("Sheet saved to your Study Corner → Sheets tab.");
     } catch (e) {
       setSheetError(e instanceof Error ? e.message : String(e));
       setSheetState("error");
     }
   };
+
+  // Opened from Study Corner: once the saved scope is restored (and buildable), show it.
+  useEffect(() => {
+    if (openRef.current && buildEnabled && !builtOnceRef.current) {
+      openRef.current = false;
+      builtOnceRef.current = true;
+      build(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildEnabled]);
 
   useEffect(() => {
     if (sheetState === "idle") return;
@@ -407,6 +425,7 @@ export default function ReviseView({
           <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginTop: "14px", fontSize: "0.72rem", color: "var(--text-muted)" }}>
             <span><FileText size={11} /> {sheet.citations.length} textbook reference{sheet.citations.length === 1 ? "" : "s"} checked against the passages</span>
             <span>· {coverageNote(sheet.coverage)}</span>
+            <span title="Every sheet you write is kept in Study Corner → Sheets">· saved to your Study Corner</span>
             {sheet.gap_count > 0 && <span>· {sheet.gap_count} of your missed question{sheet.gap_count === 1 ? "" : "s"} in these books below</span>}
             {isAdmin ? (
               <button className="btn-workspace" style={{ padding: "2px 8px", fontSize: "0.7rem", marginLeft: "auto" }}

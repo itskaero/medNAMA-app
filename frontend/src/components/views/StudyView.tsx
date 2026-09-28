@@ -13,9 +13,11 @@ import {
   Download,
   Loader2,
   RotateCw,
+  BookOpenCheck,
+  ArrowRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Note, Flashcard, StudyTab } from "@/types";
+import { Note, Flashcard, SavedSheet, StudyTab } from "@/types";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { downloadAuthenticatedCSV } from "@/lib/downloadCSV";
@@ -24,10 +26,13 @@ interface StudyViewProps {
   token: string | null;
   notes: Note[];
   flashcards: Flashcard[];
+  savedSheets: SavedSheet[];
   isLoadingNotes: boolean;
   isLoadingFlashcards: boolean;
+  isLoadingSheets: boolean;
   fetchNotes: () => void;
   fetchFlashcards: () => void;
+  fetchSheets: () => void;
   createNote: (p: any) => Promise<Note>;
   updateNote: (id: number, p: any) => Promise<void>;
   deleteNote: (id: number) => Promise<void>;
@@ -35,6 +40,11 @@ interface StudyViewProps {
   updateFlashcard: (id: number, p: any) => Promise<void>;
   deleteFlashcard: (id: number) => Promise<void>;
   reviewFlashcard: (id: number, rating: number) => Promise<void>;
+  deleteSheet: (id: number) => Promise<void>;
+  /** Reopen a saved sheet: switches to Revise from books with that scope. */
+  onOpenSheet: (scope: { book_ids: number[]; chapter: string | null; topic: string | null; length: "quick" | "full" }) => void;
+  /** Jump to the Revise from books builder to write a first sheet. */
+  onWriteSheet: () => void;
 }
 
 function formatShortDate(iso: string | null): string {
@@ -48,10 +58,13 @@ export default function StudyView({
   token,
   notes,
   flashcards,
+  savedSheets,
   isLoadingNotes,
   isLoadingFlashcards,
+  isLoadingSheets,
   fetchNotes,
   fetchFlashcards,
+  fetchSheets,
   createNote,
   updateNote,
   deleteNote,
@@ -59,6 +72,9 @@ export default function StudyView({
   updateFlashcard,
   deleteFlashcard,
   reviewFlashcard,
+  deleteSheet,
+  onOpenSheet,
+  onWriteSheet,
 }: StudyViewProps) {
   const [activeTab, setActiveTab] = useState<StudyTab>("notes");
   const [showNoteForm, setShowNoteForm] = useState(false);
@@ -77,8 +93,9 @@ export default function StudyView({
 
   useEffect(() => {
     if (activeTab === "notes") fetchNotes();
-    else fetchFlashcards();
-  }, [activeTab, fetchNotes, fetchFlashcards]);
+    else if (activeTab === "flashcards") fetchFlashcards();
+    else fetchSheets();
+  }, [activeTab, fetchNotes, fetchFlashcards, fetchSheets]);
 
   const startNewNote = () => {
     setEditingNoteId(null);
@@ -212,7 +229,7 @@ export default function StudyView({
         <div>
           <h1 className="dashboard-title">Study Corner</h1>
           <p className="practice-subtitle" style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "4px" }}>
-            Keep personal notes and review with flip cards — all private to your account.
+            Keep personal notes, review with flip cards and reopen the revision sheets you wrote from your books — all private to your account.
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
@@ -227,18 +244,19 @@ export default function StudyView({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
+          gridTemplateColumns: "repeat(3, 1fr)",
           gap: "6px",
           background: "var(--surface-2)",
           border: "1px solid var(--border-light)",
           borderRadius: "14px",
           padding: "5px",
           marginBottom: "20px",
-          width: "min(420px, 100%)",
+          width: "min(560px, 100%)",
         }}
       >
         {tabButton("notes", "Notes", NotebookPen)}
         {tabButton("flashcards", "Flashcards", Layers)}
+        {tabButton("sheets", "Sheets", BookOpenCheck)}
       </div>
 
       {/* ── Notes tab ── */}
@@ -484,6 +502,68 @@ export default function StudyView({
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Sheets tab ── */}
+      {activeTab === "sheets" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {isLoadingSheets ? (
+            <div className="chat-history-loading" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Loader2 size={14} className="spin" style={{ animation: "spin 1s linear infinite" }} />
+              Loading your revision sheets…
+            </div>
+          ) : savedSheets.length === 0 ? (
+            <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.82rem", border: "1px dashed var(--border)", borderRadius: "var(--r-xl)" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                <BookOpenCheck size={22} style={{ opacity: 0.6 }} />
+              </div>
+              <div>No revision sheets yet. Write a one-page sheet from your books and it is kept here automatically.</div>
+              <div style={{ marginTop: 12 }}>
+                <button className="btn-workspace" onClick={onWriteSheet} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: 700 }}>
+                  <ArrowRight size={13} /> Revise from books
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {savedSheets.map((s) => (
+                <div key={s.id} className="workspace-card" style={{ background: "var(--surface-2)", border: "1px solid var(--border-light)", borderRadius: "var(--r-xl)", padding: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text-primary)" }}>{s.label}</div>
+                      <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
+                        Saved {formatShortDate(s.created_at)} · {s.book_ids.length} book{s.book_ids.length === 1 ? "" : "s"} · {s.length === "quick" ? "quick" : "full"} sheet
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                      <button className="btn-workspace" onClick={() => onOpenSheet({ book_ids: s.book_ids, chapter: s.chapter, topic: s.topic, length: s.length })} title="Reopen this sheet" aria-label={`Open sheet ${s.label}`} style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", fontSize: "0.7rem" }}>
+                        <Eye size={10} /> Open
+                      </button>
+                      <button
+                        className="btn-workspace"
+                        onClick={async () => {
+                          if (!window.confirm(`Remove "${s.label}" from Study Corner?`)) return;
+                          try { await deleteSheet(s.id); toast.success("Sheet removed from Study Corner."); } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to remove sheet."); }
+                        }}
+                        title="Remove from Study Corner"
+                        aria-label={`Remove sheet ${s.label}`}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", fontSize: "0.7rem", color: "var(--danger, #ef4444)" }}
+                      >
+                        <Trash2 size={10} />
+                      </button>
+                    </div>
+                  </div>
+                  {(s.chapter || s.topic) && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", fontSize: "0.68rem" }}>
+                      {s.chapter && <span className="workspace-badge" style={{ background: "var(--surface-3)", padding: "2px 8px", borderRadius: "20px" }}>{s.chapter}</span>}
+                      {s.topic && <span className="workspace-badge" style={{ background: "var(--surface-3)", padding: "2px 8px", borderRadius: "20px" }}>{s.topic}</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

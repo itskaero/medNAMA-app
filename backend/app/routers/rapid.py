@@ -2,7 +2,7 @@
 
 Moved verbatim from app/main.py (routes keep their paths)."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.models import User
@@ -96,8 +96,10 @@ def study_revision_chapters(book_ids: str = Query(..., description="comma-separa
 def study_revision_sheet(req: SheetRequest, db: Session = Depends(get_db),
                          current_user: User = Depends(require_student_or_admin)):
     """A one-page revision sheet written only from the chosen books' pages, with their figures
-    and the questions the user got wrong in them. Cached: a second visit is instant."""
-    from app.revision import build, get_cached, scope_allowed, scope_key, serialize
+    and the questions the user got wrong in them. Cached: a second visit is instant. Every
+    sheet written is also remembered under the user's Study Corner so it can be reopened
+    later."""
+    from app.revision import build, get_cached, scope_allowed, scope_key, serialize, save_sheet
     from app.retention import restricted_allowed
     from app.models import TopicSummary
 
@@ -108,8 +110,31 @@ def study_revision_sheet(req: SheetRequest, db: Session = Depends(get_db),
     if cached is None and db.query(TopicSummary).filter_by(scope_key=scope_key(scope)).first() is not None:
         raise HTTPException(status_code=403, detail="This sheet is not available on this account.")
     if cached is not None and not (req.regenerate and current_user.role == "admin"):
+        save_sheet(db, current_user, scope, cached.label)
         return serialize(cached, True)
     try:
-        return serialize(build(db, current_user, scope), False)
+        row = build(db, current_user, scope)
+        save_sheet(db, current_user, scope, row.label)
+        return serialize(row, False)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/api/study/revision-sheets/saved")
+def study_revision_sheets_saved(db: Session = Depends(get_db),
+                                current_user: User = Depends(require_student_or_admin)):
+    """This user's saved revision sheets, newest first, for the Study Corner."""
+    from app.revision import saved_sheets
+
+    return saved_sheets(db, current_user)
+
+
+@router.delete("/api/study/revision-sheets/saved/{sheet_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_revision_sheet(sheet_id: int, db: Session = Depends(get_db),
+                          current_user: User = Depends(require_student_or_admin)):
+    """Remove one saved sheet from Study Corner (the shared cached sheet stays)."""
+    from app.revision import delete_saved_sheet
+
+    if not delete_saved_sheet(db, current_user, sheet_id):
+        raise HTTPException(status_code=404, detail="Saved sheet not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

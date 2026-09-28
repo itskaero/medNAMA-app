@@ -3,7 +3,7 @@
 from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import CheckConstraint, ForeignKey, LargeBinary, Text, func
+from sqlalchemy import CheckConstraint, ForeignKey, LargeBinary, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -535,3 +535,27 @@ class TopicSummary(Base):
     key_count: Mapped[int] = mapped_column(server_default="0")   # past-paper keys, or book-scope gaps
     access: Mapped[str] = mapped_column(Text, server_default="open")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class SavedSheet(Base):
+    """A revision sheet this user has written, so Study Corner can reopen it.
+
+    The cached content itself lives in topic_summaries (shared, keyed by scope); this
+    row is only the per-user reminder with the scope needed to reopen it. Deleting it
+    here never deletes the cached sheet.
+    """
+
+    __tablename__ = "saved_sheets"
+    __table_args__ = (UniqueConstraint("user_id", "scope_key", name="uq_saved_sheets_user_scope"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    scope_key: Mapped[str] = mapped_column(Text)
+    label: Mapped[str] = mapped_column(Text)
+    book_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    chapter: Mapped[str | None] = mapped_column(Text, default=None)
+    topic: Mapped[str | None] = mapped_column(Text, default=None)
+    length: Mapped[str] = mapped_column(Text, default="quick")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    user: Mapped["User"] = relationship()

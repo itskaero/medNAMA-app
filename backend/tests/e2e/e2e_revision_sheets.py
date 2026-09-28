@@ -29,7 +29,11 @@ def call(token, method, path, body=None, timeout=600):
                                  method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, json.load(r)
+            raw = r.read()
+            try:
+                return r.status, json.loads(raw) if raw else None
+            except ValueError:
+                return r.status, {"raw": raw[:200].decode(errors="replace")}
     except urllib.error.HTTPError as e:
         raw = e.read() or b"{}"
         try:
@@ -114,6 +118,27 @@ else:
         check("cached sheet renders", True, f"(cached={s1.get('cached')}, {len(s1.get('markdown', ''))} chars)")
     else:
         check("--no-llm mode: nothing pre-cached, skipped", True, "")
+
+print("\nSaved sheets (Study Corner)")
+st, saved = call(STUDENT, "GET", "/api/study/revision-sheets/saved")
+check("saved list is well-formed",
+      st == 200 and isinstance(saved, list)
+      and all({"id", "label", "book_ids", "chapter", "topic", "length", "created_at"} <= set(s) for s in saved))
+if LLM:
+    st_admin, saved_admin = call(ADMIN, "GET", "/api/study/revision-sheets/saved")
+    mine = lambda rows: [s for s in rows if s.get("book_ids") == [davidson["id"]] and s.get("topic") == "oxygen delivery"]  # noqa: E731
+    check("just-written sheet is saved for its author",
+          st_admin == 200 and len(mine(saved_admin)) >= 1 and any(s.get("length") == "quick" for s in mine(saved_admin)))
+    my = mine(saved_admin)[0]
+    st, _ = call(ADMIN, "DELETE", f"/api/study/revision-sheets/saved/{my['id']}")
+    check("saved sheet removed", st == 204, f"({st})")
+    st, after = call(ADMIN, "GET", "/api/study/revision-sheets/saved")
+    check("list drops the removed sheet", st == 200 and all(s["id"] != my["id"] for s in after))
+    st, _ = call(ADMIN, "POST", "/api/study/revision-sheet", scope)
+    st, again = call(ADMIN, "GET", "/api/study/revision-sheets/saved")
+    check("reopening a sheet re-adds it to Study Corner", st == 200 and len(mine(again)) >= 1)
+else:
+    check("--no-llm mode: saved-sheet membership checks skipped", True, "")
 
 print("\nALL PASS" if ok else "\nSOME CHECKS FAILED")
 sys.exit(0 if ok else 1)

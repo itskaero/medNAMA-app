@@ -42,7 +42,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.llm import chat_completion, llm_configured
-from app.models import AnswerEvent, Book, Chunk, Figure, MCQ, TopicSummary, User
+from app.models import AnswerEvent, Book, Chunk, Figure, MCQ, SavedSheet, TopicSummary, User
 from app.rapid_review import INLINE_REF
 from app.retention import _embed, restricted_allowed
 
@@ -523,3 +523,54 @@ def serialize(row: TopicSummary, cached: bool) -> dict[str, Any]:
         "gap_count": row.key_count, "cached": cached,
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
+
+
+# ─── the user's saved sheets (Study Corner) ─────────────────────────────────────────
+
+def save_sheet(db: Session, user: User, scope: dict[str, Any], label: str) -> SavedSheet:
+    """Remember a freshly written sheet under this user's Study Corner.
+
+    A row is only added when the (user, scope) pair is new, so revisiting a sheet
+    keeps its original "saved on" date. The cached content in topic_summaries is
+    shared, so this is a bookmark, not a copy.
+    """
+    existing = db.query(SavedSheet).filter_by(user_id=user.id, scope_key=scope_key(scope)).first()
+    if existing is not None:
+        return existing
+    row = SavedSheet(
+        user_id=user.id,
+        scope_key=scope_key(scope),
+        label=label or scope_label(scope),
+        book_ids=_book_ids(scope),
+        chapter=(scope.get("chapter") or "").strip() or None,
+        topic=" ".join((scope.get("topic") or "").split()).strip() or None,
+        length=scope.get("length") if scope.get("length") in LENGTHS else "full",
+    )
+    db.add(row)
+    db.commit()
+    return row
+
+
+def saved_sheets(db: Session, user: User) -> list[dict[str, Any]]:
+    """The user's saved revision sheets, newest first (Study Corner)."""
+    rows = (db.query(SavedSheet).filter_by(user_id=user.id)
+            .order_by(SavedSheet.created_at.desc(), SavedSheet.id.desc()).all())
+    return [{
+        "id": s.id,
+        "label": s.label,
+        "book_ids": [b for b in (s.book_ids or []) if isinstance(b, int) and b > 0],
+        "chapter": s.chapter,
+        "topic": s.topic,
+        "length": s.length if s.length in LENGTHS else "full",
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+    } for s in rows]
+
+
+def delete_saved_sheet(db: Session, user: User, sheet_id: int) -> bool:
+    """Remove one saved entry from Study Corner; the shared cached sheet stays."""
+    row = db.query(SavedSheet).filter_by(user_id=user.id, id=sheet_id).first()
+    if row is None:
+        return False
+    db.delete(row)
+    db.commit()
+    return True

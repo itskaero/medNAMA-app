@@ -92,7 +92,18 @@ export interface Flashcard {
   created_at: string | null;
 }
 
-export type StudyTab = "notes" | "flashcards";
+export type StudyTab = "notes" | "flashcards" | "sheets";
+
+/** A revision sheet this user wrote, listed in Study Corner (scope needed to reopen it). */
+export interface SavedSheet {
+  id: number;
+  label: string;
+  book_ids: number[];
+  chapter: string | null;
+  topic: string | null;
+  length: "quick" | "full";
+  created_at: string | null;
+}
 
 export type ActiveView =
   | "chat"
