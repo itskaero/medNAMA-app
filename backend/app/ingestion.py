@@ -609,7 +609,9 @@ def _run_slice_tasks(tasks: list[dict], workers: int, slice_timeout: int) -> dic
 
     executor = ProcessPoolExecutor(max_workers=workers)
     futures = {executor.submit(_process_slice_worker, t): t for t in tasks}
-    deadlines = {f: time.monotonic() + slice_timeout for f in futures}
+    # A slice's clock starts when it starts running, not when it is queued: with one GPU worker and
+    # 70 slices queued, a submit-time deadline timed out every slice still waiting after 10 minutes.
+    deadlines: dict = {}
     results: dict[tuple[int, int], dict] = {}
     timed_out: list[dict] = []
     pool_ok = True
@@ -629,7 +631,10 @@ def _run_slice_tasks(tasks: list[dict], workers: int, slice_timeout: int) -> dic
                 break
             _ = wait(list(futures), timeout=2.0, return_when=FIRST_COMPLETED)
             now = time.monotonic()
-            expired = [f for f in futures if deadlines[f] <= now]
+            for f in futures:
+                if f not in deadlines and f.running():
+                    deadlines[f] = now + slice_timeout
+            expired = [f for f in futures if f in deadlines and deadlines[f] <= now]
             if expired:
                 for f in expired:
                     timed_out.append(futures.pop(f))
