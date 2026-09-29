@@ -54,7 +54,7 @@ ALLOWED_COUNTS = (5, 10, 15, 20)
 MAX_BUCKETS = 6                # subjects/topics in one request: more is not a focused set
 SIMILAR_EXISTING_LIMIT = 40
 DROP_VERDICTS = {"contradicted", "books_conflict"}
-MINUTES_PER_SEED = (1.0, 1.5)  # observed on the NAS with 2 slots; shown as the estimate
+MINUTES_PER_SEED = (3.0, 4.0)  # per question per AI slot, measured on the NAS (5 questions, 2 slots: 8.6 min)
 
 # The two levels the builder offers. 1-3 are what the bank mostly already is; the whole
 # point of "harder" is to climb to reasoning the student has not sat yet.
