@@ -30,7 +30,7 @@ import numpy as np
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app.llm import chat_completion, llm_configured
+from app.llm import AI_JOB_SLOTS, chat_completion, llm_configured
 from app.models import MCQ, ConfusablePair, MCQTag
 from app.past_papers import answer_norm, answers_agree
 
@@ -48,11 +48,11 @@ TWIST_TYPES = {
                   "Keep the same patient or scenario and ask for the next best investigation or the first-line "
                   "management instead of the diagnosis or fact the original asked for."),
     "mechanism": ("Mechanism",
-                  "Ask for the mechanism, pathophysiology or drug action that explains the original answer."),
-    "reverse": ("Reverse",
-                "Put the original answer in the stem and ask for its classic feature, association or cause."),
+                  "Ask for the mechanism, pathophysiology or drug action behind the original answer. Describe the "
+                  "condition or drug by its presentation, findings or class, never by its name."),
     "complication": ("Complication",
-                     "Ask about a complication, prognosis or most common cause of death related to the original answer."),
+                     "Ask about a complication, prognosis or most common cause of death of the condition in the original "
+                     "question. Describe the condition by its presentation or findings, never by its name."),
     "numbers": ("Numbers",
                 "Ask for a value, dose, threshold or time interval that the TEXTBOOK PASSAGES state about the topic."),
 }
@@ -88,9 +88,22 @@ def _lookalike(db: Session, answer: str) -> ConfusablePair | None:
     return None
 
 
+def reveals_answer(stem: str, answer: str) -> bool:
+    """Does a twist's statement give away the original question's answer? True when every meaningful word of the
+    answer appears in the stem (plurals tolerated) and at least one of them is specific: "secondary active
+    transport" inside "...reabsorbed by secondary active transport..." counts; "Increased" alone never does."""
+    from app.past_papers import _ANSWER_STOP, _GENERIC_ANSWER
+
+    words = [w for w in answer_norm(answer).split() if w not in _ANSWER_STOP and len(w) >= 3]
+    if not words or not any(len(w) >= 5 and w not in _GENERIC_ANSWER for w in words):
+        return False
+    stem_words = {w.rstrip("s") for w in answer_norm(stem).split()}
+    return all(w.rstrip("s") in stem_words for w in words)
+
+
 def pick_types(stem: str, has_lookalike: bool) -> list[str]:
     order = (["discriminator"] if has_lookalike else []) + (["next-step"] if _looks_clinical(stem) else [])
-    order += [t for t in ("mechanism", "reverse", "complication", "numbers") if t not in order]
+    order += [t for t in ("mechanism", "complication", "numbers") if t not in order]
     return order[:TWISTS_PER_SEED]
 
 
@@ -124,6 +137,10 @@ def _prompt(seed: MCQ, answer: str, concept: str, types: list[str], pair: Confus
         f"{PROFILES['fcps']['style']}\n"
         "Each twist must stand alone (do not refer to 'the original question'). Options must be of one kind "
         "(all drugs, all investigations...). Exactly one best answer.\n"
+        f"NEVER give away the ORIGINAL question's answer (\"{answer}\"): it must not appear in any twist's statement, "
+        "not even as a given fact, because the student may meet the original question later. It may appear only as "
+        "one of the options of a changed-finding twist.\n"
+        "Write statements the way an exam does: never name a textbook, author or page in them.\n"
         "GROUNDING: base each twist on the TEXTBOOK PASSAGES and set \"source_chunk\" to the passage number that "
         "states the correct answer; if none does, set it to null. Never invent book names or page numbers.\n"
         "Return ONLY JSON: {\"twists\": [{\"type\": \"<one of the requested types>\", \"question_text\": \"...\", "
@@ -184,6 +201,7 @@ def generate_twists(db: Session, seed: MCQ) -> list[MCQ]:
     context = "\n\n".join(f"Chunk {i}: [{b.book.title if b.book else 'Textbook'}, Page {b.page_number}]\n{b.content}"
                           for i, b in enumerate(blocks, 1))
 
+    db.commit()   # end the transaction: the connection goes back to the pool while the AI writes
     raw = chat_completion(_prompt(seed, answer, concept, types, pair, context), json_mode=True,
                           temperature=0.5, max_tokens=4000, label=f"twists seed {seed.id}", role="chat")
     items = (json.loads(raw) or {}).get("twists") or []
@@ -209,6 +227,9 @@ def generate_twists(db: Session, seed: MCQ) -> list[MCQ]:
             kind = next((t for t in types if t not in {c[0] for c in candidates}), types[0])
         if answers_agree(answer_norm(q["options"][q["correct_option"]]), seed_answer):
             drop("same answer as the original")
+            continue
+        if reveals_answer(q["question_text"], answer):
+            drop("reveals the original answer")
             continue
         candidates.append((kind, q))
     vecs = _embed([q["question_text"] for _, q in candidates])
@@ -266,8 +287,8 @@ def generate_twists(db: Session, seed: MCQ) -> list[MCQ]:
                 explanation += f"\n\n**Source**: {source['title']}, Page {source['page'] or 'N/A'}"
             else:
                 explanation += "\n\n**Source**: AI clinical knowledge (not from the ingested textbooks)"
-            explanation += (f"\n\n**Twist of a past-paper question** ({TWIST_TYPES[kind][0].lower()}): "
-                            f"{' '.join(seed.question_text.split())[:160]} (answer: {answer})")
+            # Not the original's stem or answer: in Twists-only practice the student may not have met it yet.
+            explanation += f"\n\n**Twist of a past-paper question** ({TWIST_TYPES[kind][0].lower()})"
             mcq = MCQ(
                 question_text=q["question_text"], options=q["options"], correct_option=q["correct_option"],
                 main_category=CATEGORY, sub_category=seed.sub_category, topic=seed.topic,
@@ -331,8 +352,9 @@ def start(seed_id: int) -> dict[str, Any]:
     def run() -> None:
         db = SessionLocal()
         try:
-            seed = db.get(MCQ, seed_id)
-            generate_twists(db, seed)
+            with AI_JOB_SLOTS:   # retrieval + reranker + referee are CPU-bound: a few jobs at a time
+                seed = db.get(MCQ, seed_id)
+                generate_twists(db, seed)
             update = {"status": "done"}
         except TwistError as e:
             update = {"status": "failed", "detail": str(e)}

@@ -4,19 +4,11 @@ background ingest worker. Moved out of app/main.py when it was split into app/ro
 import logging
 import os
 from pydantic import BaseModel
-from app.database import SessionLocal
+from app.database import get_db  # noqa: F401  (the one session dependency; see app/database.py)
 from app.ingestion import ingest_book
 from app.models import MCQ
 
 logger = logging.getLogger("app.main")   # same logger name as before the split
-
-# Dependency to get db session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 # Pydantic schemas
 class QueryRequest(BaseModel):

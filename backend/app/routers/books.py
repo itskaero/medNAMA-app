@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import Book, Chunk, User
@@ -14,6 +15,8 @@ from app.auth import require_admin, require_student_or_admin, rate_limiter
 from app.deps import bg_ingest_worker, get_db
 
 router = APIRouter()
+
+STALLED_AFTER_MIN = 60   # 'processing' with no progress this long = the ingest stopped
 
 # ======================== TEXTBOOK MANAGEMENT ========================
 
@@ -24,12 +27,25 @@ def list_books(
 ):
     """List all textbooks stored in the database."""
     books = db.query(Book).order_by(Book.id.desc()).all()
+    # A book still "processing" with nothing written for an hour is stalled (its ingest was interrupted): the
+    # library shows that instead of a spinner and stops polling it.
+    # Compared in SQL, against the database clock the timestamps were written with.
+    stalled_ids = {i for (i,) in db.execute(text(
+        "SELECT b.id FROM books b WHERE b.status IN ('processing', 'pending') AND greatest(b.updated_at, b.created_at, "
+        "coalesce((SELECT max(c.created_at) FROM chunks c WHERE c.book_id = b.id), b.created_at)) "
+        "< now() - make_interval(mins => :m)"), {"m": STALLED_AFTER_MIN})} if any(
+        b.status in ("processing", "pending") for b in books) else set()
+
+    def stalled(b: Book) -> bool:
+        return b.id in stalled_ids
+
     return [
         {
             "id": b.id,
             "title": b.title,
             "filename": b.filename,
             "status": b.status,
+            "stalled": stalled(b),
             "total_pages": b.total_pages,
             "error_message": b.error_message,
             "created_at": b.created_at,

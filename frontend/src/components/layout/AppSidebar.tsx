@@ -41,6 +41,8 @@ interface AppSidebarProps {
   isAdmin: boolean;
   books: Book[];
   isLoadingBooks: boolean;
+  booksError?: string | null;
+  onRetryBooks?: () => void;
   uploading: boolean;
   uploadError: string | null;
   theme: "dark" | "light" | "balanced" | "warm";
@@ -102,6 +104,8 @@ export default function AppSidebar({
   isAdmin,
   books,
   isLoadingBooks,
+  booksError,
+  onRetryBooks,
   uploading,
   uploadError,
   theme,
@@ -220,7 +224,16 @@ export default function AppSidebar({
         Reference Library
       </div>
       <div className="book-list" role="list" aria-label="Uploaded textbooks">
-        {isLoadingBooks ? (
+        {booksError && books.length === 0 && !isLoadingBooks ? (
+          <div style={{ padding: "16px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem" }}>
+            <p style={{ margin: "0 0 8px" }}>Couldn&apos;t load the library. {booksError}</p>
+            {onRetryBooks ? (
+              <button type="button" className="btn-workspace" style={{ padding: "4px 10px", fontSize: "0.74rem" }} onClick={onRetryBooks}>
+                Retry
+              </button>
+            ) : null}
+          </div>
+        ) : isLoadingBooks ? (
           <div style={{ padding: "24px 12px", textAlign: "center", color: "var(--text-muted)" }}>
             <Loader2
               size={20}

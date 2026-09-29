@@ -73,6 +73,10 @@ def main() -> None:
             failed += 1
             state = f"FAILED {status} {body.get('status')} {body.get('detail', '')}"[:160]
         print(f"[{n}/{len(todo)}] seed {seed}: {state} ({time.time() - t0:.0f}s)", flush=True)
+        if "not configured" in str(body.get("detail", "")):
+            # Every later seed would fail the same way (this burned 142 seeds once): stop and say why.
+            raise SystemExit("The backend has no AI key. Rebuild the local stack with the root .env "
+                             "(docker compose --env-file .env ...) and run this again; finished seeds are skipped.")
     print(f"done: {written} seeds written, {failed} failed")
 
 

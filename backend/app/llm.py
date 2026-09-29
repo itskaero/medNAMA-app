@@ -10,6 +10,7 @@ without touching the code. Every client has a bounded timeout and retry count.
 
 import logging
 import random
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -19,6 +20,11 @@ from openai import OpenAI
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Heavy background AI work (a hardening seed, a twist job) takes one slot while it runs: textbook retrieval,
+# the reranker and the embedding model are CPU-bound, so more at once only slows every job (and, before the pool
+# fix, starved the rest of the app of DB connections). Size with AI_JOB_WORKERS (default 2; the PC can take 4).
+AI_JOB_SLOTS = threading.BoundedSemaphore(max(1, settings.ai_job_workers))
 
 
 class LLMNotConfigured(RuntimeError):

@@ -14,23 +14,42 @@ interface UseLibraryParams {
 export function useLibrary({ token, getHeaders, handleLogout }: UseLibraryParams) {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoadingBooks, setIsLoadingBooks] = useState(true);
+  const [booksError, setBooksError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // A busy server (e.g. a long AI job) can fail one request: retry with backoff, and keep the list already on
+  // screen instead of emptying it. Only after every retry fails does the sidebar show "Couldn't load".
   const fetchBooks = useCallback(
     async (showLoader = false) => {
       if (!token) return;
       if (showLoader) setIsLoadingBooks(true);
+      const delays = [1000, 3000, 8000];
       try {
-        const res = await fetch(`${API}/api/books`, {
-          headers: getHeaders(),
-          credentials: "include",
-        });
-        if (res.ok) setBooks(await res.json());
-        else if (res.status === 401) handleLogout();
-      } catch {
-        /* ignore */
+        for (let attempt = 0; ; attempt++) {
+          let status = 0;
+          try {
+            const res = await fetch(`${API}/api/books`, { headers: getHeaders(), credentials: "include" });
+            status = res.status;
+            if (res.ok) {
+              setBooks(await res.json());
+              setBooksError(null);
+              return;
+            }
+            if (res.status === 401) {
+              handleLogout();
+              return;
+            }
+          } catch {
+            /* network error: retried below */
+          }
+          if (attempt >= delays.length || (status >= 400 && status < 500)) {
+            setBooksError(status ? `The server answered ${status}.` : "Couldn't reach the server.");
+            return;
+          }
+          await new Promise((r) => setTimeout(r, delays[attempt]));
+        }
       } finally {
         setIsLoadingBooks(false);
       }
@@ -116,10 +135,10 @@ export function useLibrary({ token, getHeaders, handleLogout }: UseLibraryParams
     [token, fetchBooks]
   );
 
-  // Poll processing books every 4s
+  // Poll books that are being ingested every 4s (a stalled ingest is not: nothing is changing).
   useEffect(() => {
     if (!token || books.length === 0) return;
-    const hasActive = books.some((b) => b.status === "processing" || b.status === "pending");
+    const hasActive = books.some((b) => (b.status === "processing" || b.status === "pending") && !b.stalled);
     if (!hasActive) return;
     const t = setInterval(() => fetchBooks(false), 4000);
     return () => clearInterval(t);
@@ -130,6 +149,7 @@ export function useLibrary({ token, getHeaders, handleLogout }: UseLibraryParams
     setBooks,
     isLoadingBooks,
     setIsLoadingBooks,
+    booksError,
     uploading,
     uploadError,
     fileRef,

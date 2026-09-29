@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.models import AnswerEvent, Book, MCQ, User
 from app.retention import (NON_FCPS_CATEGORIES, NOT_A_SUBJECT, PART1_SUBJECTS, PASS_LINE,
-                           _now, streak, subject_for)
+                           _now, access_scope, streak, subject_for)
 
 # The mock join uses CASE, not AND: Postgres may evaluate either side first, and a practice session_ref
 # ('practice:<date>') is not an int.
@@ -169,10 +169,12 @@ def mastery(db: Session, user: User) -> dict[str, Any]:
     exists to show *which topics inside a subject* are weak or still untouched."""
     books = dict(db.query(Book.id, Book.title).all())
 
-    # Bank: ready questions of real practice sets, bucketed by derived subject -> topic.
+    # Bank: ready questions of real practice sets this student can open, bucketed by derived subject -> topic.
+    # Counted in SQL per (book, category, sub-category, topic): a few thousand groups, not ~74k rows.
     bank: dict[str, dict[str, Any]] = {}
-    for book_id, main, sub, topic in db.query(
-            MCQ.book_id, MCQ.main_category, MCQ.sub_category, MCQ.topic).filter(*_bank_scope()):
+    groups = access_scope(db.query(MCQ.book_id, MCQ.main_category, MCQ.sub_category, MCQ.topic, func.count(MCQ.id))
+                          .filter(*_bank_scope()), user)         .group_by(MCQ.book_id, MCQ.main_category, MCQ.sub_category, MCQ.topic)
+    for book_id, main, sub, topic, count in groups:
         subject = subject_for(books.get(book_id), main, sub)
         if not subject:
             continue
@@ -180,8 +182,8 @@ def mastery(db: Session, user: User) -> dict[str, Any]:
         if not t:
             continue
         s = bank.setdefault(subject, {"bank": 0, "topics": {}})
-        s["bank"] += 1
-        s["topics"][t] = s["topics"].get(t, 0) + 1
+        s["bank"] += int(count)
+        s["topics"][t] = s["topics"].get(t, 0) + int(count)
 
     # Answers: use the subject recorded at answer time (matches subject_for) and the
     # question's current topic, so bank and answered rows line up by (subject, topic).
@@ -201,6 +203,7 @@ def mastery(db: Session, user: User) -> dict[str, Any]:
                 "topic": topic,
                 "bank": int(count),
                 "answered": answered,
+                "correct": correct,
                 "accuracy": _pct(correct, answered),
             })
         topics.sort(key=lambda t: (
@@ -208,7 +211,7 @@ def mastery(db: Session, user: User) -> dict[str, Any]:
             else 2 if t["answered"] == 0 else 3,
             -(t["answered"] or 0), -(t["bank"] or 0)))
         answered = sum(t["answered"] for t in topics)
-        correct = sum(int((t["accuracy"] or 0) / 100 * t["answered"]) for t in topics if t["answered"])
+        correct = sum(t["correct"] for t in topics)   # exact counts, not rebuilt from rounded percentages
         subjects.append({
             "subject": subject,
             "bank": s["bank"],
@@ -224,9 +227,9 @@ def mastery(db: Session, user: User) -> dict[str, Any]:
 
     # How much of the whole bank (across every subject) has been touched.
     bank_total = sum(s["bank"] for s in bank.values())
-    bank_answered = (db.query(func.count(func.distinct(MCQ.id)))
-                     .join(AnswerEvent, AnswerEvent.mcq_id == MCQ.id)
-                     .filter(AnswerEvent.user_id == user.id, *_bank_scope()).scalar() or 0)
+    bank_answered = (access_scope(db.query(func.count(func.distinct(MCQ.id)))
+                                  .join(AnswerEvent, AnswerEvent.mcq_id == MCQ.id)
+                                  .filter(AnswerEvent.user_id == user.id, *_bank_scope()), user).scalar() or 0)
 
     def subject_risk(s: dict[str, Any]) -> int:
         """0 = studied and needs attention, 1 = studied and healthy, 2 = not touched yet."""

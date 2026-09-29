@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import engine
 from app.generation import generate_answer, generate_mcq_explanation
 from app.models import Book, Figure, User, MCQ, QuizAttempt, AttemptAnswer
-from app.auth import require_student_or_admin, rate_limiter
+from app.auth import rate_limiter, require_admin, require_student_or_admin
 from app.deps import QueryRequest, get_db, logger
 
 router = APIRouter()
@@ -295,15 +295,17 @@ def get_ai_quizzes_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student_or_admin),
 ):
-    """Returns list of distinct AI-generated quiz sets for user history."""
+    """Returns list of distinct AI-generated quiz sets for user history (only what this user can open)."""
+    from app.retention import access_scope
+
     results = (
-        db.query(
+        access_scope(db.query(
             MCQ.quiz_set_id,
             MCQ.quiz_set_title,
             func.count(MCQ.id).label("question_count"),
             func.max(MCQ.topic).label("topic"),
             func.max(MCQ.difficulty).label("difficulty"),
-        )
+        ), current_user)
         .filter(MCQ.quiz_set_id != None)
         .group_by(MCQ.quiz_set_id, MCQ.quiz_set_title)
         .order_by(func.max(MCQ.id).desc())
@@ -325,9 +327,10 @@ def get_ai_quizzes_history(
 def delete_ai_quiz_set(
     quiz_set_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_student_or_admin),
+    current_user: User = Depends(require_admin),
 ):
-    """Deletes all MCQs in a specific AI quiz set."""
+    """Deletes all MCQs in a specific AI quiz set. Admin only: sets are shared (no owner is recorded), so a
+    student deleting one would remove it, and its questions' answer links, for everyone."""
     db.query(MCQ).filter(MCQ.quiz_set_id == quiz_set_id).delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -344,6 +347,20 @@ class HardenMcqsRequest(BaseModel):
     difficulty: int = 4           # 4 = multi-step reasoning, 5 = deep integration
     request_id: str | None = None # idempotency key; a retry returns the same set
     label: str | None = None      # shows in the set's title ("Hardened · <label>")
+
+@router.post("/api/chat/harden/preview")
+def harden_preview_route(
+    req: HardenMcqsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """How a harden request would split across the picked subjects/topics, and roughly how long it takes."""
+    from app.hardening import HardenError, preview
+
+    try:
+        return preview(db, current_user, req.model_dump(exclude_none=True))
+    except HardenError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/api/chat/harden/jobs", status_code=status.HTTP_202_ACCEPTED)
 def start_harden_job_route(
@@ -364,10 +381,10 @@ def get_harden_job_route(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student_or_admin),
 ):
-    """Poll a harden job: {status: running|done|failed, result?, detail?}."""
+    """Poll a harden job: {status: running|done|failed, progress, result?, detail?}."""
     from app.hardening import get_harden_job
 
-    job = get_harden_job(db, job_id)
+    job = get_harden_job(db, job_id, current_user)   # only its owner; progress while running
     if job is None:
         raise HTTPException(status_code=404, detail="Harden job not found.")
     return job

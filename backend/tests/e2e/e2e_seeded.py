@@ -49,7 +49,7 @@ mains = lambda ids: {m for (m,) in db.execute(text("SELECT DISTINCT main_categor
 print("Seeded bank")
 st, stats = call(STUDENT, "GET", "/api/dashboard/stats")
 cats = stats.get("categories") or stats.get("categories_map") or {}
-check("categories list the seeded parts", st == 200 and PAPER1 in json.dumps(cats) and PAPER2 in json.dumps(cats),
+check("categories list the seeded parts", st == 200 and PAPER1 in json.dumps(cats, ensure_ascii=False) and PAPER2 in json.dumps(cats, ensure_ascii=False),
       f"({[k for k in cats][:8] if isinstance(cats, dict) else type(cats)})")
 check("private categories hidden", "High-yield" not in json.dumps(cats))
 st, quiz = call(STUDENT, "POST", "/api/quizzes/start", {"categories": [PAPER2], "sub_categories": ["Radiology"], "num_questions": 10})

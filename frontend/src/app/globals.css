@@ -437,6 +437,13 @@ body {
   flex-shrink: 0;
   z-index: var(--z-sidebar);
   position: relative;
+  /* The whole sidebar scrolls. The book list used to be the only scroll area (flex: 1), and once the grouped
+     navigation filled the screen it shrank to 0 px: the library "disappeared" on shorter screens. */
+  overflow-y: auto;
+}
+
+.sidebar > * {
+  flex-shrink: 0;
 }
 
 .sidebar-brand {
@@ -565,8 +572,7 @@ body {
 }
 
 .book-list {
-  flex: 1;
-  overflow-y: auto;
+  flex: none;   /* natural height; the sidebar scrolls (see .sidebar) */
   padding: var(--sp-1) var(--sp-3) var(--sp-3);
   display: flex;
   flex-direction: column;

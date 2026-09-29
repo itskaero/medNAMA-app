@@ -153,11 +153,15 @@ if LLM:
     check("asking again returns the stored twists at once", again.get("status") == "done"
           and [t["id"] for t in again["twists"]] == [t["id"] for t in twists] and time.time() - t1 < 5)
     pp = q1("SELECT paper_id FROM past_paper_questions WHERE mcq_id = :m LIMIT 1", m=seed)
+    # Enough room for every twist of the sitting (a batch run may already have written many).
     st, tq = call(ADMIN, "POST", "/api/quizzes/start", {"past_paper_exam": None, "tags": {"paper": [str(pp)]}, "twists": True,
-                                                        "num_questions": 20})
+                                                        "num_questions": 500})
     check("Twists practice serves the scope's twists", st == 200 and {t["id"] for t in twists} <= {q["id"] for q in tq["mcqs"]}
           and all(q["main_category"] == "Past-paper twists" for q in tq["mcqs"]), f"({st})")
-    st, none = call(ADMIN, "POST", "/api/quizzes/start", {"past_paper_exam": "FCPS Part 1 (Dentistry)", "twists": True, "num_questions": 5})
+    bare = db.execute(text("SELECT p.id, p.exam FROM past_papers p WHERE NOT EXISTS (SELECT 1 FROM past_paper_questions q "
+                           "JOIN mcqs t ON t.twist_of = q.mcq_id WHERE q.paper_id = p.id) ORDER BY p.id LIMIT 1")).first()
+    st, none = call(ADMIN, "POST", "/api/quizzes/start", {"past_paper_exam": bare[1], "tags": {"paper": [str(bare[0])]},
+                                                          "twists": True, "num_questions": 5})
     check("no twists yet -> a clear message", st == 400 and "Twist it" in none.get("detail", ""), f"({st})")
 
 print("\nALL PASS" if ok else "\nSOME CHECKS FAILED")

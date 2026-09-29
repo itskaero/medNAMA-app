@@ -149,6 +149,7 @@ export default function Home() {
     books,
     setBooks,
     isLoadingBooks,
+    booksError,
     uploading,
     uploadError,
     fileRef,
@@ -387,6 +388,7 @@ export default function Home() {
           stats={stats}
           bookmarkedMcqs={bookmarkedMcqs}
           token={token}
+          isAdmin={isAdmin}
           toggleBookmarkMCQ={toggleBookmarkMCQ}
           setActiveView={setActiveView}
           onFigureClick={setLightboxFig}
@@ -647,6 +649,8 @@ export default function Home() {
         isAdmin={isAdmin}
         books={books}
         isLoadingBooks={isLoadingBooks}
+        booksError={booksError}
+        onRetryBooks={() => fetchBooks(true)}
         uploading={uploading}
         uploadError={uploadError}
         theme={theme}

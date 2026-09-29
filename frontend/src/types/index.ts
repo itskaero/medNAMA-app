@@ -6,6 +6,7 @@ export interface Book {
   total_pages: number | null;
   error_message: string | null;
   created_at: string;
+  stalled?: boolean;   // still "processing" but nothing written for over an hour (GET /api/books)
 }
 
 export interface Citation {

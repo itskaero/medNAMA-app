@@ -20,13 +20,21 @@ export function BookItem({
         <div className="book-details">
           <div className="book-title" title={book.title}>{book.title}</div>
           <div className="book-footer">
-            <span className={`status-pill ${book.status}`}>
-              <span
-                className={`status-dot ${book.status === "processing" || book.status === "pending" ? "pulsing" : ""}`}
-                aria-hidden
-              />
-              {book.status}
-            </span>
+            {book.stalled ? (
+              <span className="status-pill" style={{ color: "#b45309", background: "rgba(245,158,11,0.12)" }}
+                title="Ingestion stopped partway and nothing has been added for over an hour. The pages read so far are searchable; upload the PDF again to finish it.">
+                <span className="status-dot" aria-hidden style={{ background: "#b45309" }} />
+                stalled
+              </span>
+            ) : (
+              <span className={`status-pill ${book.status}`}>
+                <span
+                  className={`status-dot ${book.status === "processing" || book.status === "pending" ? "pulsing" : ""}`}
+                  aria-hidden
+                />
+                {book.status}
+              </span>
+            )}
             {book.total_pages ? (
               <span className="book-pages">{book.total_pages}p</span>
             ) : null}

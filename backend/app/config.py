@@ -16,6 +16,14 @@ def find_env_file() -> str:
 class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://medrag:medrag@localhost:5433/medrag"
+    # Connection pool (one uvicorn process; Postgres allows 100). The old default (5 + 10) ran out when two
+    # background AI jobs overlapped, and every other request - the library, stats - timed out with a 500.
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout_s: int = 20
+    # Heavy background AI work (hardening, twists) running at once, across all users. Retrieval and the reranker
+    # are CPU-bound: more than 2 at a time on the NAS only slows every job down. The PC can take 4.
+    ai_job_workers: int = 2
 
     # DeepSeek (Phase 4)
     deepseek_api_key: str = ""
