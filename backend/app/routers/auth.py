@@ -82,4 +82,6 @@ def get_user_profile(request: Request, response: Response, current_user: User = 
     header = request.headers.get("Authorization", "")
     if "access_token" not in request.cookies and header.startswith("Bearer ") and header.count(".") == 2:
         _set_session_cookie(response, header.split(" ", 1)[1])
-    return {"username": current_user.username, "role": current_user.role}
+    from app.routers.pages import viewer_allowed
+    return {"username": current_user.username, "role": current_user.role,
+            "can_view_pages": viewer_allowed(current_user)}

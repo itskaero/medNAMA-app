@@ -5,6 +5,7 @@ import { BookOpen, Lightbulb, Loader2, MessageSquareText, Quote, Sparkles } from
 import { API } from "@/lib/constants";
 import { Figure } from "@/types";
 import { FiguresDrawer } from "./FiguresDrawer";
+import { CiteLink } from "@/components/CiteLink";
 
 export interface ConceptCardData {
   id: number;
@@ -140,7 +141,7 @@ export function ConceptCard({
           <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px", fontSize: "0.7rem", color: "var(--text-muted)" }}>
             <BookOpen size={11} />
             {card.book_title}
-            {card.page_number ? `, p.${card.page_number}` : ""}
+            {card.page_number ? <>, <CiteLink bookTitle={card.book_title} page={card.page_number} excerpt={card.quote}>p.{card.page_number}</CiteLink></> : ""}
             {card.chunk_id ? (
               <button
                 type="button"

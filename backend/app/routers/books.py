@@ -49,6 +49,11 @@ def list_books(
             "total_pages": b.total_pages,
             "error_message": b.error_message,
             "created_at": b.created_at,
+            "full_title": b.full_title,
+            "authors": b.authors,
+            "edition": b.edition,
+            "year": b.year,
+            "subject": b.subject,
         }
         for b in books
     ]

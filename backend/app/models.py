@@ -23,6 +23,18 @@ class Book(Base):
     total_pages: Mapped[int | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    # What the title and copyright pages say (app/book_meta.py); `title` is the short display name.
+    full_title: Mapped[str | None] = mapped_column(Text, default=None)
+    authors: Mapped[list | None] = mapped_column(JSONB, default=None)
+    edition: Mapped[int | None] = mapped_column(default=None)
+    year: Mapped[int | None] = mapped_column(default=None)
+    publisher: Mapped[str | None] = mapped_column(Text, default=None)
+    isbn: Mapped[str | None] = mapped_column(Text, default=None)
+    subject: Mapped[str | None] = mapped_column(Text, default=None)
+    # Printed page label per PDF page (index 0 = PDF page 1); null where unknown.
+    page_labels: Mapped[list | None] = mapped_column(JSONB, default=None)
+    aliases: Mapped[list] = mapped_column(JSONB, server_default="[]", default=list)
+    meta_source: Mapped[str | None] = mapped_column(Text, default=None)
 
     chunks: Mapped[list["Chunk"]] = relationship(
         back_populates="book", cascade="all, delete-orphan", passive_deletes=True

@@ -9,6 +9,7 @@ import { parseMarkdown } from "../utils/markdown";
 import { CHAT_STAGE_TEXT } from "../hooks/useChat";
 import { API } from "@/lib/constants";
 import { toast } from "sonner";
+import { CiteLink } from "@/components/CiteLink";
 
 const GROUNDING_LABELS: Record<Exclude<Grounding, "none">, { text: string; title: string; color: string }> = {
   textbook: {
@@ -212,7 +213,7 @@ export function AIMessage({
                 {msg.answer.also_in.map((b) => (
                   <span key={`${b.book_title}-${b.page_number}`} className="model-chip-pill" style={{ fontSize: "0.7rem" }}>
                     {b.book_title}
-                    {b.page_number ? `, p.${b.page_number}` : ""}
+                    {b.page_number ? <>, <CiteLink bookTitle={b.book_title} page={b.page_number}>p.{b.page_number}</CiteLink></> : ""}
                   </span>
                 ))}
               </div>

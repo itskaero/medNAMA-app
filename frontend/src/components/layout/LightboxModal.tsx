@@ -4,6 +4,7 @@ import React from "react";
 import { X } from "lucide-react";
 import { Figure } from "@/types";
 import { API } from "@/lib/constants";
+import { CiteLink } from "@/components/CiteLink";
 
 interface LightboxModalProps {
   lightboxFig: Figure | null;
@@ -28,9 +29,13 @@ export default function LightboxModal({ lightboxFig, setLightboxFig, token }: Li
             {lightboxFig.figure_label}
             {lightboxFig.book_title || lightboxFig.page_number ? (
               <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
-                · {[lightboxFig.book_title, lightboxFig.page_number ? `p. ${lightboxFig.page_number}` : null]
-                  .filter(Boolean)
-                  .join(", ")}
+                · {lightboxFig.book_title}
+                {lightboxFig.page_number ? (
+                  <>
+                    {lightboxFig.book_title ? ", " : ""}
+                    <CiteLink bookTitle={lightboxFig.book_title} page={lightboxFig.page_number}>p. {lightboxFig.page_number}</CiteLink>
+                  </>
+                ) : null}
               </span>
             ) : null}
           </span>

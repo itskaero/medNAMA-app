@@ -4297,3 +4297,40 @@ svg.lucide {
 .cn-toast-container[data-type="info"] .cn-toast-icon {
   color: var(--sky) !important;
 }
+/* ── Book page viewer (components/PageViewer.tsx) ── */
+.modal-panel.page-viewer { max-width: 920px; height: 92dvh; max-height: 92dvh; }
+.page-viewer-tools { display: flex; gap: 6px; }
+.page-viewer-tools .modal-close-btn:disabled { opacity: 0.4; cursor: default; }
+.page-viewer-body { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #0d0f13; }
+.page-viewer-scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--sp-3); }
+.page-viewer-sheet { position: relative; margin: 0 auto; max-width: none; min-height: 200px; background: #fff; }
+.page-viewer-sheet img { width: 100%; height: auto; }
+.page-viewer-mark {
+  position: absolute; pointer-events: none; border-radius: 2px;
+  background: rgba(255, 213, 79, 0.38); box-shadow: 0 0 0 1px rgba(255, 193, 7, 0.55);
+  mix-blend-mode: multiply;
+}
+.page-viewer-status {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: var(--sp-6); color: var(--text-muted); font-size: 0.85rem; text-align: center;
+}
+.page-viewer-overlay { position: absolute; inset: 0; background: rgba(13, 15, 19, 0.6); color: #cfd3da; }
+.page-viewer-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border);
+}
+.page-viewer-footer .btn-workspace { display: inline-flex; align-items: center; gap: 4px; }
+.page-viewer-footer .btn-workspace:disabled { opacity: 0.4; cursor: default; }
+.page-viewer-caption { flex: 1; min-width: 0; text-align: center; font-size: 0.75rem; color: var(--text-muted); }
+@media (max-width: 640px) {
+  .modal-panel.page-viewer { height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .page-viewer-caption { display: none; }
+}
+
+/* A citation's page number that opens the page viewer */
+.cite-link {
+  background: none; border: 0; padding: 0; font: inherit; color: var(--sky); cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 2px;
+}
+.cite-link:hover, .cite-link:focus-visible { text-decoration-style: solid; }
+.page-viewer .spin { animation: spin 1s linear infinite; }

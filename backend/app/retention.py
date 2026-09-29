@@ -95,7 +95,13 @@ def subject_for(book_title: str | None, main_category: str | None, sub_category:
 def subject_for_mcq(db: Session, mcq: MCQ) -> str | None:
     title = None
     if mcq.book_id:
-        title = db.query(Book.title).filter(Book.id == mcq.book_id).scalar()
+        row = db.query(Book.title, Book.subject).filter(Book.id == mcq.book_id).first()
+        if row:
+            title = row.title
+            # The book's own subject (scripts/book_meta.py) beats guessing from its title.
+            if row.subject and not (mcq.sub_category and mcq.sub_category not in NOT_A_SUBJECT and (
+                    mcq.main_category in SEEDED_SUBJECT_CATEGORIES or (mcq.main_category or "").startswith("Past papers"))):
+                return row.subject
     return subject_for(title, mcq.main_category, mcq.sub_category)
 
 
@@ -504,7 +510,8 @@ def _weakest_subject(db: Session, user_id: int) -> str | None:
 def _books_for_subject(db: Session, subject: str | None) -> list[int]:
     if not subject:
         return []
-    return [b.id for b in db.query(Book.id, Book.title).all() if subject_for_title(b.title) == subject]
+    return [b.id for b in db.query(Book.id, Book.title, Book.subject).all()
+            if (b.subject or subject_for_title(b.title)) == subject]
 
 
 def _new_questions(db: Session, user_id: int, seen: set[int], n: int) -> list[MCQ]:

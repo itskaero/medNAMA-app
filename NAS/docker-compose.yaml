@@ -41,6 +41,7 @@ services:
       - /DATA/mednama/huggingface:/models/huggingface
       - /DATA/mednama/tmp:/tmp
       - /DATA/mednama/mcqs:/app/mcqs    
+      - /DATA/mednama/pdfs:/app/pdfs:ro
     expose: ["8000"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=5)"]

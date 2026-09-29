@@ -126,8 +126,8 @@ def warmup_models():
 # ======================== ROUTES (app/routers/, one module per area) ========================
 # Included in the order they were written: overlapping paths (e.g. /api/mocks/weekly/start vs
 # /api/mocks/{mock_id}/start) must keep that order.
-from app.routers import auth, books, query, chat, bank, stats, notes, export, reports, study, referee, duels, modes, pastpapers, rapid  # noqa: E402
+from app.routers import auth, books, query, chat, bank, stats, notes, export, reports, study, referee, duels, modes, pastpapers, rapid, pages  # noqa: E402
 from app.deps import get_db  # noqa: E402,F401  (kept importable from app.main)
 
-for _module in (auth, books, query, chat, bank, stats, notes, export, reports, study, referee, duels, modes, pastpapers, rapid):
+for _module in (auth, books, query, chat, bank, stats, notes, export, reports, study, referee, duels, modes, pastpapers, rapid, pages):
     app.include_router(_module.router)

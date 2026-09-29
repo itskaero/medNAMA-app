@@ -60,7 +60,6 @@ def _setup_logging() -> None:
 _setup_logging()
 PAGE_CHUNK_SIZE = 50  # Slice size to avoid memory bloat
 _embedding_model = None
-_document_converter = None
 
 try:  # pragma: no cover - psutil is a dev dependency but must not break prod
     import psutil
@@ -144,42 +143,72 @@ def get_embedding_model():
         return _load_embedding_model()
 
 
+def cuda_available() -> bool:
+    """True when this Python has a CUDA build of torch and a GPU (the ingestion venv, .venv-gpu)."""
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:
+        return False
+
+
 def _load_embedding_model():
     global _embedding_model
     if _embedding_model is None:
         import torch
         from sentence_transformers import SentenceTransformer
 
-        logger.info("Loading embedding model (bge-large-en-v1.5) with dynamic INT8 CPU quantization...")
-        model = SentenceTransformer("BAAI/bge-large-en-v1.5")
-        
-        # Quantize CPU linear operations to INT8 to accelerate inference by 2x-3x
-        _embedding_model = torch.quantization.quantize_dynamic(
-            model, {torch.nn.Linear}, dtype=torch.qint8
-        )
+        if cuda_available():
+            # Half precision on the GPU: ~12x faster than INT8 on the CPU, same vectors to 3 decimals.
+            logger.info("Loading embedding model (bge-large-en-v1.5) on the GPU (fp16)...")
+            _embedding_model = SentenceTransformer("BAAI/bge-large-en-v1.5", device="cuda").half()
+        else:
+            logger.info("Loading embedding model (bge-large-en-v1.5) with dynamic INT8 CPU quantization...")
+            model = SentenceTransformer("BAAI/bge-large-en-v1.5")
+            # Quantize CPU linear operations to INT8 to accelerate inference by 2x-3x
+            _embedding_model = torch.quantization.quantize_dynamic(
+                model, {torch.nn.Linear}, dtype=torch.qint8
+            )
     return _embedding_model
 
 
-def get_document_converter():
-    """Lazy load and cache DocumentConverter singleton to avoid reinitialization overhead."""
-    global _document_converter
-    if _document_converter is None:
+_document_converters: dict[bool, Any] = {}
+
+
+def get_document_converter(ocr: bool = False):
+    """Cached DocumentConverter (one without OCR, one with it for scanned books).
+
+    Layout and table models run on the GPU when there is one (~3x faster per page than 8 CPU threads),
+    with larger batches so the GPU is not waiting on one page at a time.
+    """
+    if ocr not in _document_converters:
+        from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.datamodel.settings import settings as docling_settings
         from docling.document_converter import DocumentConverter, PdfFormatOption
 
-        logger.info("Initializing DocumentConverter singleton (OCR = False)...")
+        gpu = cuda_available()
+        logger.info(f"Initializing DocumentConverter (OCR={ocr}, device={'cuda' if gpu else 'cpu'})...")
         pipeline_options = PdfPipelineOptions()
-        pipeline_options.do_ocr = False
+        pipeline_options.do_ocr = ocr
         pipeline_options.generate_picture_images = True
         pipeline_options.images_scale = 2.0
+        pipeline_options.accelerator_options = AcceleratorOptions(
+            num_threads=max(4, (os.cpu_count() or 4) - 2),
+            device=AcceleratorDevice.CUDA if gpu else AcceleratorDevice.CPU)
+        if gpu:
+            pipeline_options.layout_batch_size = 16
+            pipeline_options.table_batch_size = 8
+            pipeline_options.ocr_batch_size = 8
+            docling_settings.perf.page_batch_size = 16
 
-        _document_converter = DocumentConverter(
+        _document_converters[ocr] = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options),
             }
         )
-    return _document_converter
+    return _document_converters[ocr]
 
 
 def validate_pdf(path: Path) -> None:
@@ -196,10 +225,38 @@ def validate_pdf(path: Path) -> None:
         raise ValueError(f"Not a valid PDF (magic bytes: {magic!r})")
 
 
-def _parse_pdf(pdf_path: Path):
-    """Parse PDF with cached DocumentConverter singleton."""
-    converter = get_document_converter()
+def _parse_pdf(pdf_path: Path, page_range: tuple[int, int] | None = None, ocr: bool = False):
+    """Parse a PDF (or 1-based inclusive page_range of it) with the cached converter.
+
+    Converting a range of the original file keeps Docling's page numbers absolute and avoids copying
+    each slice into a temporary PDF (pypdf re-reads the whole 300 MB file for every slice).
+    """
+    converter = get_document_converter(ocr)
+    if page_range:
+        return converter.convert(str(pdf_path), page_range=page_range)
     return converter.convert(str(pdf_path))
+
+
+def _chunker():
+    """Docling's hierarchical chunker, writing tables as Markdown tables.
+
+    The default serialiser flattened tables into "row, col = value" triplets
+    ("1 = Clinical Notes ... 1 = Absent Pectoralis Major"), unreadable to both the search and the AI.
+    """
+    from docling.chunking import HierarchicalChunker
+    try:
+        from docling_core.transforms.chunker.hierarchical_chunker import (
+            ChunkingDocSerializer, ChunkingSerializerProvider)
+        from docling_core.transforms.serializer.markdown import MarkdownTableSerializer
+
+        class _MarkdownTables(ChunkingSerializerProvider):
+            def get_serializer(self, doc):
+                return ChunkingDocSerializer(doc=doc, table_serializer=MarkdownTableSerializer())
+
+        return HierarchicalChunker(serializer_provider=_MarkdownTables())
+    except Exception as e:   # older docling-core: triplet tables, as before
+        logger.warning(f"Markdown table serializer unavailable ({e}); tables stay as triplets")
+        return HierarchicalChunker()
 
 
 def split_into_children(text: str, max_words: int = 150) -> list[str]:
@@ -241,25 +298,13 @@ def _process_slice_worker(args: dict) -> dict:
     # Open isolated database session for this worker process
     session = SessionLocal()
     try:
-        from pypdf import PdfReader, PdfWriter
-        import tempfile
         import gc
-
-        # 1. Slice PDF
-        reader = PdfReader(pdf_path)
-        writer = PdfWriter()
-        for i in range(start_idx, end_idx):
-            writer.add_page(reader.pages[i])
-
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
-            temp_pdf_path = Path(temp_pdf.name)
+        skip = set(args.get("skip_pages") or [])     # 0-based pages left out (contents, index, front matter)
+        chapters = args.get("chapters") or {}          # "page" (1-based) -> chapter name from the bookmarks
 
         try:
-            with open(temp_pdf_path, "wb") as f:
-                writer.write(f)
-
-            # 2. Parse slice with Docling
-            result = _parse_pdf(temp_pdf_path)
+            # 1-2. Parse this slice's pages of the original PDF (Docling's page numbers stay absolute)
+            result = _parse_pdf(pdf_path, page_range=(start_idx + 1, end_idx), ocr=bool(args.get("ocr")))
 
             # 3. Extract Figures (Labels use page-specific names to prevent sync conflicts)
             figures_data = []
@@ -304,7 +349,9 @@ def _process_slice_worker(args: dict) -> dict:
 
                 page_num = None
                 if hasattr(element, "prov") and element.prov:
-                    page_num = element.prov[0].page_no + start_idx
+                    page_num = element.prov[0].page_no
+                if page_num and page_num - 1 in skip:
+                    continue
 
                 figures_data.append({
                     "book_id": book_id,
@@ -326,11 +373,10 @@ def _process_slice_worker(args: dict) -> dict:
                 session.add(Figure(**fig))
 
             # 4. Chunk & Map Parents (Proposals 1 & 10)
-            from docling.chunking import HierarchicalChunker
-            chunker = HierarchicalChunker(max_tokens=512)
-            doc_chunks = list(chunker.chunk(result.document))
+            doc_chunks = list(_chunker().chunk(result.document))
 
             parents_to_add = []
+            kept_chunks = []
             for dc in doc_chunks:
                 page_num = None
                 if hasattr(dc, "meta") and dc.meta:
@@ -338,8 +384,10 @@ def _process_slice_worker(args: dict) -> dict:
                     if prov:
                         for item in prov:
                             if hasattr(item, "prov") and item.prov:
-                                page_num = item.prov[0].page_no + start_idx
+                                page_num = item.prov[0].page_no
                                 break
+                if page_num and page_num - 1 in skip:
+                    continue
 
                 chapter = None
                 headings_list = []
@@ -348,6 +396,12 @@ def _process_slice_worker(args: dict) -> dict:
                     if headings:
                         headings_list = list(headings)
                         chapter = " > ".join(headings_list)
+                # The bookmarks name the chapter exactly; Docling's nearest heading adds the section.
+                outline = chapters.get(str(page_num)) if page_num else None
+                if outline:
+                    section = headings_list[-1] if headings_list else None
+                    chapter = (outline if not section or section.lower() in outline.lower()
+                               else f"{outline} > {section}")
 
                 is_table = bool(re.search(r"\|.*\|.*?\n\|[-:| ]+\|", dc.text) or "table" in (chapter or "").lower())
 
@@ -370,13 +424,14 @@ def _process_slice_worker(args: dict) -> dict:
                 )
                 session.add(parent_chunk)
                 parents_to_add.append(parent_chunk)
+                kept_chunks.append(dc)
 
             # Single Database Flush to assign primary keys in one transaction (Proposal 1)
             session.flush()
 
             # 5. Map Children
             chunks_to_embed = []
-            for parent_chunk, dc in zip(parents_to_add, doc_chunks):
+            for parent_chunk, dc in zip(parents_to_add, kept_chunks):
                 child_texts = split_into_children(dc.text, max_words=150)
                 for child_text in child_texts:
                     context_prefix = f"Textbook: {title} | Chapter: {parent_chunk.chapter or 'N/A'} | Page: {parent_chunk.page_number or 'N/A'}"
@@ -432,8 +487,6 @@ def _process_slice_worker(args: dict) -> dict:
             }
 
         finally:
-            if temp_pdf_path.exists():
-                temp_pdf_path.unlink()
             gc.collect()
 
     except Exception as e:
@@ -615,12 +668,52 @@ def embed_figure_captions(session, book_id: int | None = None, batch: int = 128)
     return len(rows)
 
 
+def _new_book(path: Path, title: str | None, fallback_title: str) -> Book:
+    """A books row for a new PDF, named from its title pages when the AI is configured."""
+    book = Book(title=title or fallback_title, filename=path.name, status="processing")
+    if title:
+        return book
+    try:
+        from app.book_meta import extract_metadata
+        meta = extract_metadata(path)
+    except Exception as e:
+        logger.warning(f"Metadata for {path.name} not read: {e}")
+        return book
+    if meta.get("short_title"):
+        book.title = meta["short_title"]
+        for k in ("full_title", "authors", "edition", "year", "publisher", "isbn", "subject"):
+            setattr(book, k, meta.get(k))
+        book.meta_source = "ingest (unconfirmed: check with scripts/book_meta.py)"
+        logger.info(f"Named from its title pages: '{book.title}' ({book.full_title}, {book.edition}e, {book.year})")
+    return book
+
+
+def read_structure(path: Path, num_pages: int) -> dict:
+    """Chapters, pages to skip, OCR need and printed page labels, read once per book."""
+    from app.book_meta import page_labels
+    from app.book_structure import OCR_BOOK_SHARE, chapters_by_page, scanned_pages, skip_pages
+
+    t0 = time.monotonic()
+    chapters = chapters_by_page(path, num_pages)
+    skip = skip_pages(path, num_pages)
+    scanned = scanned_pages(path, num_pages)
+    ocr = len(scanned) >= OCR_BOOK_SHARE * num_pages
+    labels, label_source = page_labels(path)
+    logger.info(
+        f"Structure of '{path.name}' ({time.monotonic() - t0:.0f}s): chapters from bookmarks on "
+        f"{sum(1 for c in chapters if c)}/{num_pages} pages; skipping {len(skip)} pages (front matter, "
+        f"contents, index); {len(scanned)} image-only pages{' -> OCR on' if ocr else ''}; printed page "
+        f"numbers: {label_source}")
+    return {"chapters": chapters, "skip": skip, "ocr": ocr, "page_labels": labels}
+
+
 def ingest_book(pdf_path: str | Path,
                 title: str | None = None,
                 workers: int | None = None,
                 slice_size: int | None = None,
                 slice_timeout: int = 600,
-                ram_budget_mb: int | None = None) -> int:
+                ram_budget_mb: int | None = None,
+                replace: bool = False) -> int:
     """Ingest a PDF book.
 
     Splits the conversion work into parallel page slices using a ProcessPoolExecutor
@@ -645,24 +738,44 @@ def ingest_book(pdf_path: str | Path,
     The pool created for a book is fully reaped (shutdown wait=True) before
     ingest_book returns, freeing the workers' Docling + embedding models, so
     the next book starts from a clean slate instead of accumulating memory.
+
+    Before the slices run, the book is read once for its structure (read_structure): chapter names
+    from the PDF's bookmarks, pages to leave out (cover, contents, index), whether it is a scanned
+    book that needs OCR, and its printed page numbers. A new book also gets its title, authors,
+    edition and subject from its title pages when the AI is configured (_new_book).
+
+      * replace: re-ingest a "ready" book in place. Its id stays; its passages and figures are
+        rebuilt, and concept cards / MCQs that cited them are pointed at the new ones (app/reingest.py).
     """
     path = Path(pdf_path)
     validate_pdf(path)
-
-    if title is None:
-        title = path.stem.replace("-", " ").replace("_", " ").title()
+    fallback_title = path.stem.replace("-", " ").replace("_", " ").title()
+    snap = None
 
     session = SessionLocal()
     try:
         # Check if book already exists
         existing: Book | None = session.query(Book).filter(Book.filename == path.name).first()
-        if existing and existing.status == "ready":
+        if existing and existing.status == "ready" and not replace:
             logger.info(f"Book '{path.name}' already ingested successfully (id={existing.id}). Skipping.")
             return existing.id
 
         has_partial = False
         resume_slices: set[str] = set()
-        if existing:
+        if existing and existing.status == "ready":
+            # Re-ingest in place: remember what cites this book, then rebuild its passages and figures.
+            from app.reingest import clear_book, save_snapshot, snapshot
+            snap = snapshot(session, existing.id)
+            save_snapshot(snap)
+            clear_book(session, existing.id)
+            existing.status = "processing"
+            existing.error_message = None
+            existing.total_pages = None
+            session.commit()
+            book_id = existing.id
+            title = title or existing.title
+            logger.info(f"Book '{path.name}' (id={book_id}) cleared for re-ingestion.")
+        elif existing:
             has_partial = session.query(Chunk.id).filter(Chunk.book_id == existing.id).limit(1).first()
             if has_partial:
                 # Reuse the record + already-committed slices; don't wipe progress.
@@ -675,23 +788,24 @@ def ingest_book(pdf_path: str | Path,
                 existing.total_pages = None
                 session.commit()
                 book_id = existing.id
-                if title is None:
-                    title = existing.title
+                title = title or existing.title
+                from app.reingest import load_snapshot
+                snap = load_snapshot(book_id)      # an interrupted re-ingest: remap when it finishes
             else:
                 # Empty leftover record - cleanly reset it.
                 logger.info(f"Book '{path.name}' has status '{existing.status}' with no data. Re-ingesting from scratch.")
                 session.delete(existing)
                 session.commit()
-                book = Book(title=title, filename=path.name, status="processing")
+                book = _new_book(path, title, fallback_title)
                 session.add(book)
                 session.commit()
-                book_id = book.id
+                book_id, title = book.id, book.title
         else:
             # Brand-new book
-            book = Book(title=title, filename=path.name, status="processing")
+            book = _new_book(path, title, fallback_title)
             session.add(book)
             session.commit()
-            book_id = book.id
+            book_id, title = book.id, book.title
             logger.info(f"Book record created: id={book_id}, title='{title}'")
 
         logger.info(f"Book '{path.name}' (id={book_id}, title='{title}') ready for ingestion.")
@@ -704,10 +818,13 @@ def ingest_book(pdf_path: str | Path,
         free_mb = _available_ram_mb()
         total_mb = _total_ram_mb()
         if workers is None or workers <= 0:
-            workers = auto_workers(free_mb, ram_budget_mb=ram_budget_mb)
+            # One GPU: a single worker keeps it busy (its batches are 16 pages); more only fight over it.
+            workers = 1 if cuda_available() else auto_workers(free_mb, ram_budget_mb=ram_budget_mb)
         workers = max(1, int(workers))
         if slice_size is None:
-            slice_size = auto_slice_size(free_mb)
+            # On the GPU a slice should fill its 16-page batches; its models live in video memory, so
+            # the CPU-RAM tiers (sized for CPU model copies) would pick needlessly small slices.
+            slice_size = (32 if free_mb >= 3000 else 16) if cuda_available() else auto_slice_size(free_mb)
         slice_size = max(1, int(slice_size))
         if free_mb < MIN_FREE_RAM_MB:
             workers = 1
@@ -729,8 +846,15 @@ def ingest_book(pdf_path: str | Path,
             num_pages = len(reader.pages)
             logger.info(f"Book '{path.name}' has {num_pages} pages. Processing in parallel slices of {slice_size}...")
 
+            structure = read_structure(path, num_pages)
+            book = session.get(Book, book_id)
+            if book is not None and structure["page_labels"] is not None:
+                book.page_labels = structure["page_labels"]
+                session.commit()
+
             # Prepare all slice tasks, then drop the ones already committed.
             all_tasks = []
+            chapters, skip = structure["chapters"], structure["skip"]
             for start_idx in range(0, num_pages, slice_size):
                 end_idx = min(start_idx + slice_size, num_pages)
                 all_tasks.append({
@@ -738,7 +862,11 @@ def ingest_book(pdf_path: str | Path,
                     "book_id": book_id,
                     "title": title,
                     "start_idx": start_idx,
-                    "end_idx": end_idx
+                    "end_idx": end_idx,
+                    "chapters": {str(p + 1): chapters[p] for p in range(start_idx, end_idx)
+                                 if chapters and chapters[p]},
+                    "skip_pages": [p for p in range(start_idx, end_idx) if p in skip],
+                    "ocr": structure["ocr"],
                 })
 
             # Only compute resume set when we reused a record with partial data.
@@ -792,6 +920,10 @@ def ingest_book(pdf_path: str | Path,
                 book.status = "ready"
                 book.total_pages = num_pages
                 session.commit()
+
+            if snap is not None:
+                from app.reingest import remap
+                logger.info(f"Re-ingest references for book {book_id}: {remap(session, book_id, snap)}")
 
             logger.info(
                 f"Ingestion complete: book_id={book_id}. "

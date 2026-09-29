@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, BookOpen } from "lucide-react";
 import { Citation } from "../types";
+import { CiteLink } from "@/components/CiteLink";
 
 export const CitationsDrawer = React.memo(({ citations, token }: { citations: Citation[]; token: string | null }) => {
   const [open, setOpen] = useState(false);
@@ -25,7 +26,7 @@ export const CitationsDrawer = React.memo(({ citations, token }: { citations: Ci
               <div className="citation-body">
                 <div className="citation-source">
                   {c.book_title}
-                  <span className="citation-page">p. {c.page_number}</span>
+                  <span className="citation-page"><CiteLink bookTitle={c.book_title} page={c.page_number} excerpt={c.excerpt}>p. {c.page_number}</CiteLink></span>
                 </div>
                 <div className="citation-excerpt">"{c.excerpt}"</div>
               </div>

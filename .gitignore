@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 venv/
 .venv/
+.venv-gpu/
 
 # Env / secrets
 .env
@@ -49,6 +50,9 @@ mednama-nas-deploy/app/.env
 rafiullah-*.pdf
 /*.pdf
 data/private/
+data/reingest/
+data/transfer/
+data/coverage-*.json
 mednama-nas-deploy/db/
 
 # The MCQ banks and the imported past-paper archives are local only (~200 MB, never tracked):

@@ -1,0 +1,192 @@
+"""Copy re-ingested (or new) books from the PC to the NAS: passages, embeddings, figures, metadata.
+
+The NAS never ingests books itself (not enough memory), so its books, passages and figures carry the
+PC's ids. After a book is re-ingested on the PC, its new rows are copied over with the same ids, the old
+ones are removed, and concept cards / MCQs on the NAS that cited the old passages are pointed at the new
+ones by page and text (app/reingest.py). Embeddings travel with the passages, so the NAS needs no model.
+
+    # PC: write data/transfer/<name>/ (binary COPY files + manifest.json)
+    python scripts/books_transfer.py export --book-id 2 --book-id 3
+    python scripts/books_transfer.py export --all
+
+    # NAS, inside the backend container (the folder copied to /app/mcqs/transfer/<name>):
+    python scripts/books_transfer.py import --dir /app/mcqs/transfer/<name>            # dry run
+    python scripts/books_transfer.py import --dir /app/mcqs/transfer/<name> --apply
+
+Each book is replaced in one transaction: if anything fails, the NAS keeps the old version.
+"""
+
+import argparse
+import json
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BACKEND_DIR))
+
+from sqlalchemy import text  # noqa: E402
+
+from app.database import SessionLocal, engine  # noqa: E402
+from app.models import Book  # noqa: E402
+
+BOOK_FIELDS = ("title", "filename", "status", "total_pages", "full_title", "authors", "edition", "year",
+               "publisher", "isbn", "subject", "page_labels", "aliases", "meta_source")
+JSON_FIELDS = {"authors", "page_labels", "aliases"}
+
+
+def _columns(conn, table: str) -> list[str]:
+    return [r[0] for r in conn.execute(text(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = :t AND table_schema = 'public' "
+        "ORDER BY ordinal_position"), {"t": table})]
+
+
+def _raw(conn):
+    """The psycopg connection under a SQLAlchemy connection (for COPY)."""
+    return conn.connection.driver_connection
+
+
+def export(args) -> None:
+    db = SessionLocal()
+    try:
+        q = db.query(Book).filter(Book.status == "ready")
+        if not args.all:
+            q = q.filter(Book.id.in_(args.book_id or [-1]))
+        books = q.order_by(Book.id).all()
+        if not books:
+            sys.exit("No ready books matched.")
+        name = args.name or f"books-{datetime.now():%Y%m%d-%H%M}"
+        out = Path(args.out) / name
+        out.mkdir(parents=True, exist_ok=True)
+        conn = db.connection()
+        cols = {t: _columns(conn, t) for t in ("chunks", "figures")}
+        manifest = {"created": datetime.now().isoformat(timespec="seconds"), "columns": cols, "books": []}
+        raw = _raw(conn)
+        for b in books:
+            entry = {"id": b.id, **{f: getattr(b, f) for f in BOOK_FIELDS}}
+            for table in ("chunks", "figures"):
+                path = out / f"{table}-{b.id}.bin"
+                col_list = ", ".join(cols[table])
+                n = 0
+                with raw.cursor() as cur, open(path, "wb") as f:
+                    with cur.copy(f"COPY (SELECT {col_list} FROM {table} WHERE book_id = {int(b.id)} ORDER BY id) "
+                                  f"TO STDOUT (FORMAT binary)") as cp:
+                        for block in cp:
+                            f.write(block)
+                n = db.execute(text(f"SELECT count(*) FROM {table} WHERE book_id = :b"), {"b": b.id}).scalar()
+                entry[f"{table}_rows"] = n
+                entry[f"{table}_bytes"] = path.stat().st_size
+            manifest["books"].append(entry)
+            print(f"- {b.title} (id {b.id}): {entry['chunks_rows']} passages "
+                  f"({entry['chunks_bytes'] / 1e6:.0f} MB), {entry['figures_rows']} figures "
+                  f"({entry['figures_bytes'] / 1e6:.0f} MB)")
+        (out / "manifest.json").write_text(json.dumps(manifest, default=str, ensure_ascii=False, indent=1),
+                                           encoding="utf-8")
+        print(f"\nWrote {out}. Copy the folder to the NAS (/DATA/mednama/mcqs/transfer/{name}) and run import there.")
+    finally:
+        db.close()
+
+
+def _import_book(entry: dict, folder: Path, cols: dict, apply: bool) -> None:
+    from app.reingest import remap, save_snapshot, snapshot
+
+    bid = entry["id"]
+    t0 = time.monotonic()
+    with engine.connect() as conn:
+        trans = conn.begin()
+        try:
+            raw = _raw(conn)
+            for table in ("chunks", "figures"):
+                conn.execute(text(f"CREATE TEMP TABLE t_{table} (LIKE {table} INCLUDING DEFAULTS) ON COMMIT DROP"))
+                col_list = ", ".join(cols[table])
+                with raw.cursor() as cur, open(folder / f"{table}-{bid}.bin", "rb") as f:
+                    with cur.copy(f"COPY t_{table} ({col_list}) FROM STDIN (FORMAT binary)") as cp:
+                        while block := f.read(1 << 20):
+                            cp.write(block)
+                clash = conn.execute(text(
+                    f"SELECT count(*) FROM {table} x JOIN t_{table} t USING (id) WHERE x.book_id <> :b"),
+                    {"b": bid}).scalar()
+                if clash:
+                    raise RuntimeError(f"{clash} {table} ids already belong to other books here; not importing")
+            n_new = {t: conn.execute(text(f"SELECT count(*) FROM t_{t}")).scalar() for t in ("chunks", "figures")}
+            n_old = {t: conn.execute(text(f"SELECT count(*) FROM {t} WHERE book_id = :b"), {"b": bid}).scalar()
+                     for t in ("chunks", "figures")}
+            exists = conn.execute(text("SELECT 1 FROM books WHERE id = :b"), {"b": bid}).scalar()
+            print(f"- {entry['title']} (id {bid}): passages {n_old['chunks']} -> {n_new['chunks']}, "
+                  f"figures {n_old['figures']} -> {n_new['figures']}{'' if exists else ' (new book)'}")
+            if not apply:
+                trans.rollback()
+                return
+
+            from sqlalchemy.orm import Session
+            sess = Session(bind=conn)
+            snap = snapshot(sess, bid) if exists else None
+            if snap:
+                save_snapshot(snap)
+            fields = {f: (json.dumps(entry[f]) if f in JSON_FIELDS and entry[f] is not None else entry[f])
+                      for f in BOOK_FIELDS}
+            sets = ", ".join(f"{f} = " + (f"CAST(:{f} AS jsonb)" if f in JSON_FIELDS else f":{f}") for f in BOOK_FIELDS)
+            if exists:
+                conn.execute(text(f"UPDATE books SET {sets}, status = 'processing' WHERE id = :id"), {**fields, "id": bid})
+            else:
+                names = ", ".join(("id",) + BOOK_FIELDS)
+                vals = ", ".join([":id"] + [f"CAST(:{f} AS jsonb)" if f in JSON_FIELDS else f":{f}" for f in BOOK_FIELDS])
+                conn.execute(text(f"INSERT INTO books ({names}) VALUES ({vals})"), {**fields, "id": bid})
+            conn.execute(text("DELETE FROM figures WHERE book_id = :b"), {"b": bid})
+            conn.execute(text("DELETE FROM chunks WHERE book_id = :b AND parent_id IS NOT NULL"), {"b": bid})
+            conn.execute(text("DELETE FROM chunks WHERE book_id = :b"), {"b": bid})
+            for table in ("chunks", "figures"):
+                col_list = ", ".join(cols[table])
+                # Parents before children (parent_id references chunks.id).
+                order = "ORDER BY (parent_id IS NOT NULL), id" if table == "chunks" else "ORDER BY id"
+                conn.execute(text(f"INSERT INTO {table} ({col_list}) SELECT {col_list} FROM t_{table} {order}"))
+                conn.execute(text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
+                                  f"GREATEST((SELECT max(id) FROM {table}), 1))"))
+            conn.execute(text("UPDATE books SET status = :s WHERE id = :b"), {"s": entry["status"], "b": bid})
+            trans.commit()
+        except Exception:
+            trans.rollback()
+            raise
+    if apply and snap:
+        db = SessionLocal()
+        try:
+            result = remap(db, bid, snap)
+            print(f"    references: {result}")
+        finally:
+            db.close()
+    print(f"    done in {time.monotonic() - t0:.0f}s")
+
+
+def import_(args) -> None:
+    folder = Path(args.dir)
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    with engine.connect() as conn:
+        here = {t: _columns(conn, t) for t in ("chunks", "figures")}
+    for t, cols in manifest["columns"].items():
+        missing = [c for c in cols if c not in here[t]]
+        if missing:
+            sys.exit(f"This database's {t} table lacks {missing}: deploy the matching backend first.")
+    for entry in manifest["books"]:
+        if args.book_id and entry["id"] not in args.book_id:
+            continue
+        _import_book(entry, folder, manifest["columns"], args.apply)
+    if not args.apply:
+        print("\nDry run (the files were loaded and checked, nothing changed). Re-run with --apply.")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("command", choices=["export", "import"])
+    ap.add_argument("--book-id", type=int, action="append")
+    ap.add_argument("--all", action="store_true", help="export every ready book")
+    ap.add_argument("--out", default=str(BACKEND_DIR.parent / "data" / "transfer"))
+    ap.add_argument("--name", help="folder name (default books-<date>)")
+    ap.add_argument("--dir", help="import: the exported folder")
+    ap.add_argument("--apply", action="store_true", help="import: write the changes")
+    args = ap.parse_args()
+    export(args) if args.command == "export" else import_(args)
+
+
+if __name__ == "__main__":
+    main()

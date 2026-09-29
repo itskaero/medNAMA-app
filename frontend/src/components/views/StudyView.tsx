@@ -21,6 +21,7 @@ import { Note, Flashcard, SavedSheet, StudyTab } from "@/types";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { downloadAuthenticatedCSV } from "@/lib/downloadCSV";
+import { CiteLink } from "@/components/CiteLink";
 
 interface StudyViewProps {
   token: string | null;
@@ -322,7 +323,7 @@ export default function StudyView({
                       <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
                         Updated {formatShortDate(n.updated_at)}
                         {n.book_title ? ` · ${n.book_title}` : ""}
-                        {n.page_number ? ` · p.${n.page_number}` : ""}
+                        {n.page_number ? <> · <CiteLink bookTitle={n.book_title} page={n.page_number}>p.{n.page_number}</CiteLink></> : ""}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>

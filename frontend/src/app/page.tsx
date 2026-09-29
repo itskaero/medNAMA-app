@@ -42,6 +42,7 @@ import LookalikesView from "@/components/views/LookalikesView";
 import PastPapersView from "@/components/views/PastPapersView";
 import RapidReviewView, { ReviewScope } from "@/components/views/RapidReviewView";
 import ReviseView from "@/components/views/ReviseView";
+import PageViewer from "@/components/PageViewer";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
@@ -685,6 +686,9 @@ export default function Home() {
 
       {/* ── Figure lightbox ── */}
       <LightboxModal lightboxFig={lightboxFig} setLightboxFig={setLightboxFig} token={token} />
+
+      {/* ── Book page viewer (opened from any citation's page number) ── */}
+      <PageViewer getHeaders={getHeaders} />
 
       {/* ── Minimized Chat Widget ── */}
       {isChatMinimized && activeView !== "chat" && (

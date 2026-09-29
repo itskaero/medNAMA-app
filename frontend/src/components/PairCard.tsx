@@ -2,6 +2,7 @@
 
 import React from "react";
 import { GitCompareArrows } from "lucide-react";
+import { CiteLink } from "@/components/CiteLink";
 
 export interface PairData {
   id: number;
@@ -70,7 +71,7 @@ export function PairCard({ pair }: { pair: PairData }) {
             <blockquote key={i} style={{ margin: 0, padding: "6px 10px", borderLeft: "3px solid var(--sky)", fontSize: "0.78rem", color: "var(--text-secondary)" }}>
               &ldquo;{q.quote}&rdquo;{" "}
               <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.7rem" }}>
-                {q.book_title}{q.page_number ? `, p.${q.page_number}` : ""}
+                {q.book_title}{q.page_number ? <>, <CiteLink bookTitle={q.book_title} page={q.page_number} excerpt={q.quote}>p.{q.page_number}</CiteLink></> : ""}
               </span>
             </blockquote>
           ))}

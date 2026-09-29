@@ -24,6 +24,15 @@ class Settings(BaseSettings):
     # Heavy background AI work (hardening, twists) running at once, across all users. Retrieval and the reranker
     # are CPU-bound: more than 2 at a time on the NAS only slows every job down. The PC can take 4.
     ai_job_workers: int = 2
+    # Book PDFs, for the page viewer (books.filename is looked up here). "" = /app/pdfs in Docker,
+    # else <repo>/pdfs. Rendered pages are cached under page_cache_dir ("" = <tmp>/mednama-pages).
+    pdfs_dir: str = ""
+    page_cache_dir: str = ""
+    # Page images one user may open per hour (the viewer shows a few pages around a citation).
+    page_views_per_hour: int = 300
+    # Who may open book page images: "admin" (the library's owner) or "all". The books are copyrighted;
+    # showing their pages to other people is distribution, so it is owner-only unless switched on.
+    page_viewer_access: str = "admin"
 
     # DeepSeek (Phase 4)
     deepseek_api_key: str = ""

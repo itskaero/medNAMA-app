@@ -5,6 +5,7 @@ import { AlertTriangle, BookOpen, CheckCircle2, HelpCircle, ImageDown, Loader2, 
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { shareCard } from "@/lib/shareCard";
+import { CiteLink } from "@/components/CiteLink";
 
 export type Verdict = "supported" | "contradicted" | "books_conflict" | "textbooks_silent";
 
@@ -64,7 +65,7 @@ export function EvidenceList({ evidence }: { evidence: Evidence[] }) {
         <blockquote key={i} style={{ margin: 0, padding: "6px 10px", borderRadius: "8px", background: "var(--surface-3)", fontSize: "0.8rem", lineHeight: 1.5 }}>
           “{e.quote}”
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "3px", display: "flex", gap: "4px", alignItems: "center" }}>
-            <BookOpen size={11} /> {e.book_title}{e.page_number ? `, p.${e.page_number}` : ""}
+            <BookOpen size={11} /> {e.book_title}{e.page_number ? <>, <CiteLink bookTitle={e.book_title} page={e.page_number} excerpt={e.quote}>p.{e.page_number}</CiteLink></> : ""}
           </div>
         </blockquote>
       ))}
