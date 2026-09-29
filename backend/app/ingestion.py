@@ -259,6 +259,18 @@ def _chunker():
         return HierarchicalChunker()
 
 
+_WATERMARK_LINE = re.compile(
+    r"^[\s#>*\-\[]*(?:https?://)?(?:www\.)?[a-z0-9-]+\.(?:com|net|org|pk|in|info|xyz|me)(?:/\S*)?"
+    r"(?:\s*\]\([^)]*\))?(?:\s+(?:https?://)?(?:www\.)?[a-z0-9-]+\.(?:com|net|org|pk|in|info|xyz|me)\S*)*\s*$",
+    re.I)
+
+
+def strip_watermarks(text: str) -> str:
+    """Drop lines that are only a web address: download-site stamps on every page of some PDFs
+    ("Www.Medicalstudyzone.com", "mebooksfree.com") that otherwise end up inside passages."""
+    return "\n".join(ln for ln in (text or "").splitlines() if not _WATERMARK_LINE.match(ln)).strip()
+
+
 def split_into_children(text: str, max_words: int = 150) -> list[str]:
     """Split a larger text chunk into smaller sentences-grouped child segments."""
     sentences = re.split(r'(?<=[.!?])\s+', text.strip())
@@ -388,6 +400,9 @@ def _process_slice_worker(args: dict) -> dict:
                                 break
                 if page_num and page_num - 1 in skip:
                     continue
+                clean_text = strip_watermarks(dc.text)
+                if not clean_text:
+                    continue
 
                 chapter = None
                 headings_list = []
@@ -403,13 +418,13 @@ def _process_slice_worker(args: dict) -> dict:
                     chapter = (outline if not section or section.lower() in outline.lower()
                                else f"{outline} > {section}")
 
-                is_table = bool(re.search(r"\|.*\|.*?\n\|[-:| ]+\|", dc.text) or "table" in (chapter or "").lower())
+                is_table = bool(re.search(r"\|.*\|.*?\n\|[-:| ]+\|", clean_text) or "table" in (chapter or "").lower())
 
                 parent_chunk = Chunk(
                     book_id=book_id,
                     chapter=chapter,
                     page_number=page_num,
-                    content=dc.text,
+                    content=clean_text,
                     parent_id=None,
                     embedding=None,
                     extra_metadata={
@@ -432,7 +447,7 @@ def _process_slice_worker(args: dict) -> dict:
             # 5. Map Children
             chunks_to_embed = []
             for parent_chunk, dc in zip(parents_to_add, kept_chunks):
-                child_texts = split_into_children(dc.text, max_words=150)
+                child_texts = split_into_children(parent_chunk.content, max_words=150)
                 for child_text in child_texts:
                     context_prefix = f"Textbook: {title} | Chapter: {parent_chunk.chapter or 'N/A'} | Page: {parent_chunk.page_number or 'N/A'}"
                     enriched_content = f"{context_prefix}\n{child_text}"
