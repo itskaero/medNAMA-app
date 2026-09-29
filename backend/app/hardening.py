@@ -50,8 +50,8 @@ logger = logging.getLogger(__name__)
 
 CATEGORY = "Hardened MCQs"
 CONTEXT_CHAR_BUDGET = 9000
-ALLOWED_COUNTS = (5, 10, 15, 20)
-MAX_BUCKETS = 6                # subjects/topics in one request: more is not a focused set
+MAX_COUNT = 50                 # Mock Builder offers hardening for sessions of up to 50 questions
+MAX_BUCKETS = 20               # subjects/topics in one request (a whole category ticks all its subtopics)
 SIMILAR_EXISTING_LIMIT = 40
 DROP_VERDICTS = {"contradicted", "books_conflict"}
 MINUTES_PER_SEED = (3.0, 4.0)  # per question per AI slot, measured on the NAS (5 questions, 2 slots: 8.6 min)
@@ -82,15 +82,15 @@ def _buckets(req: dict) -> list[tuple[str, str]]:
 def validate(req: dict) -> None:
     """Raise HardenError on a malformed harden request (shared by preview, sync and job paths)."""
     count = int(req.get("num_questions") or 0)
-    if count not in ALLOWED_COUNTS:
-        raise HardenError(f"num_questions must be a multiple of 5 between 5 and 20 (got {count}).")
+    if not 1 <= count <= MAX_COUNT:
+        raise HardenError(f"Hardening works on 1 to {MAX_COUNT} questions (got {count}).")
     difficulty = int(req.get("difficulty") or 0)
     if difficulty not in DIFFICULTY_LINES:
         raise HardenError(f"difficulty must be 4 or 5 (got {difficulty}).")
     if not req.get("seed_ids"):
         buckets = _buckets(req)
         if not buckets:
-            raise HardenError("Hardening needs a focus: pick 1-6 subjects or topics (not All).")
+            raise HardenError("Hardening needs a focus: pick a category, subjects or topics (not Mixed Practice / All).")
         if len(buckets) > MAX_BUCKETS:
             raise HardenError(f"Pick at most {MAX_BUCKETS} subjects or topics to harden (got {len(buckets)}).")
     if not llm_configured("chat"):
@@ -474,7 +474,7 @@ def start_harden_job(user: User, req: dict) -> dict[str, Any]:
     if req.get("seed_ids"):
         from app.database import SessionLocal
 
-        wanted = [int(i) for i in req["seed_ids"]][:20]
+        wanted = [int(i) for i in req["seed_ids"]][:MAX_COUNT]
         s = SessionLocal()
         try:
             visible = [r[0] for r in _base_query(s, user).with_entities(MCQ.id).filter(MCQ.id.in_(wanted)).all()]

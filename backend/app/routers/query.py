@@ -343,7 +343,7 @@ class HardenMcqsRequest(BaseModel):
     categories: list[str] | None = None
     sub_categories: list[str] | None = None
     topics: list[str] | None = None
-    num_questions: int = 5        # multiples of 5, 5..20 (one harder rewrite per seed)
+    num_questions: int = 5        # 1..50 (one harder rewrite per seed)
     difficulty: int = 4           # 4 = multi-step reasoning, 5 = deep integration
     request_id: str | None = None # idempotency key; a retry returns the same set
     label: str | None = None      # shows in the set's title ("Hardened · <label>")

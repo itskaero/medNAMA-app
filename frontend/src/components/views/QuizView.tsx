@@ -43,7 +43,7 @@ import ExplanationPanel from "@/components/ExplanationPanel";
 import BasicDropdown from "@/components/ui/basic-dropdown";
 import { PaperYears, QuestionMedia } from "@/components/QuestionMedia";
 import { ArchiveBadges, PastPaperExtras } from "@/components/PastPaperExtras";
-import HardenPanel from "@/components/HardenPanel";
+import HardenPanel, { HARDEN_STORAGE_KEY, HardenLevel, hardenBlockReason, previewLine, useHardenPreview } from "@/components/HardenPanel";
 
 // Quiz generation runs as a background job: the start request returns at once
 // and the page polls its status, so no proxy/browser timeout can cut it off.
@@ -257,6 +257,27 @@ export default function QuizView({
 }: QuizViewProps) {
   // Segmented control and generation states inside QuizView
   const [showSmallCategories, setShowSmallCategories] = React.useState(false);
+  // Rules step: the questions as written, or AI-hardened versions (difficulty 4 or 5) prepared before the session.
+  const [hardenLevel, setHardenLevel] = React.useState<HardenLevel>(0);
+  const hardenBlocked = hardenBlockReason(quizConfigCategories, quizConfigSubCategories, quizConfigNumQuestions);
+  React.useEffect(() => { if (hardenBlocked && hardenLevel) setHardenLevel(0); }, [hardenBlocked, hardenLevel]);
+  // A harden job still running from before a reload: offer to reopen its progress on the Review step.
+  const [pendingHarden, setPendingHarden] = React.useState<4 | 5 | null>(null);
+  React.useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HARDEN_STORAGE_KEY) || "null");
+      if (saved?.jobId) setPendingHarden(saved.difficulty === 5 ? 5 : 4);
+    } catch {}
+  }, []);
+  const { preview: hardenPreview } = useHardenPreview(getHeaders ?? (() => ({})), getHeaders && hardenLevel && !hardenBlocked ? {
+    categories: quizConfigCategories.length ? quizConfigCategories : undefined,
+    sub_categories: quizConfigSubCategories.length ? quizConfigSubCategories : undefined,
+    num_questions: quizConfigNumQuestions, difficulty: hardenLevel,
+  } : null);
+  const startHardened = (quizSetId: string) => startQuizWith?.({
+    quiz_set_id: quizSetId, num_questions: quizConfigNumQuestions, prefer_unseen: false, exclude_mastered: false,
+    timer_mode: quizConfigTimerMode, timer_value: quizConfigTimerValue, feedback_mode: quizConfigFeedbackMode,
+  }, `Harder (${hardenLevel}/5) · ${(quizConfigSubCategories.length ? quizConfigSubCategories : quizConfigCategories).join(", ")}`);
   const [builderMode, setBuilderMode] = React.useState<"manual" | "ai_assistant" | "saved_history">("manual");
   const [promptInput, setPromptInput] = React.useState("");
   const [selectedBookId, setSelectedBookId] = React.useState<number | "all">("all");
@@ -810,6 +831,18 @@ export default function QuizView({
           ))}
         </div>
 
+        {pendingHarden && quizConfigStep !== 3 ? (
+          <div role="status" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", margin: "0 0 var(--sp-4)",
+            padding: "10px 14px", borderRadius: "12px", border: "1px solid var(--teal)", background: "rgba(76, 217, 100, 0.06)", fontSize: "0.8rem" }}>
+            <Loader2 size={14} className="animate-spin" style={{ color: "var(--teal)" }} />
+            <span style={{ flex: 1 }}>Harder versions are being prepared in the background.</span>
+            <button type="button" className="btn-workspace" style={{ padding: "4px 12px", fontSize: "0.76rem" }}
+              onClick={() => { setHardenLevel(pendingHarden); setPendingHarden(null); setQuizConfigStep(3); }}>
+              Show progress
+            </button>
+          </div>
+        ) : null}
+
         {/* Step 1: Topics */}
         {quizConfigStep === 1 && (
           <div key="step-1" className="step-transition-wrapper quiz-config-form-col">
@@ -1068,16 +1101,6 @@ export default function QuizView({
                         </div>
                       </div>
 
-                      {getHeaders ? (
-                        <HardenPanel
-                          getHeaders={getHeaders}
-                          categories={quizConfigCategories}
-                          subCategories={quizConfigSubCategories}
-                          numQuestions={quizConfigNumQuestions}
-                          onPractice={(setId) => startAiCustomQuiz?.(setId)}
-                          onSaved={fetchQuizHistory}
-                        />
-                      ) : null}
 
                       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "auto", paddingTop: "var(--sp-4)" }}>
                         <button className="btn-primary" onClick={handleNextStep}>
@@ -1528,6 +1551,44 @@ export default function QuizView({
               </div>
             </div>
 
+            {/* Difficulty: as written, or AI-hardened versions prepared before the session */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+              <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Difficulty
+              </label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {([{ level: 0, label: "As written" }, { level: 4, label: "Harder · 4/5 (AI)" }, { level: 5, label: "Brutal · 5/5 (AI)" }] as const).map((d) => {
+                  const off = d.level > 0 && !!hardenBlocked;
+                  return (
+                    <button
+                      key={d.level}
+                      type="button"
+                      disabled={off}
+                      title={off ? hardenBlocked ?? "" : d.level ? "The AI rewrites the questions with harder statements and options (same fact, same answer) before the session starts" : "The questions exactly as in the bank"}
+                      style={{
+                        flex: 1, padding: "10px", borderRadius: "var(--r-md)", border: "1px solid",
+                        borderColor: hardenLevel === d.level ? "var(--teal)" : "var(--border-light)",
+                        background: hardenLevel === d.level ? "rgba(48, 197, 255, 0.08)" : "var(--surface-3)",
+                        color: hardenLevel === d.level ? "var(--teal)" : "var(--text-secondary)",
+                        cursor: off ? "not-allowed" : "pointer", opacity: off ? 0.5 : 1, fontWeight: 600, fontSize: "0.8rem",
+                      }}
+                      onClick={() => setHardenLevel(d.level)}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {hardenBlocked ? (
+                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>{hardenBlocked}</span>
+              ) : hardenLevel ? (
+                <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>
+                  {hardenPreview ? `${previewLine(hardenPreview, quizConfigNumQuestions)}.` : "Working out which questions to rewrite…"}
+                  {" "}They are prepared on the next step, before the session starts.
+                </span>
+              ) : null}
+            </div>
+
             {/* Timer */}
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
               <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -1629,6 +1690,7 @@ export default function QuizView({
                   ["Active Subjects", quizConfigCategories.length === 0 ? "Mixed Practice (All)" : quizConfigCategories.join(", ")],
                   ["Subtopics Checked", quizConfigSubCategories.length === 0 ? "All Available Topics" : `${quizConfigSubCategories.length} Topics`],
                   ["Question Count", `${quizConfigNumQuestions} questions`],
+                  ["Difficulty", hardenLevel ? `Harder versions (AI), ${hardenLevel}/5` : "As written"],
                   ["Timer Mode", quizConfigTimerMode === "none" ? "Un-timed (Stopwatch)" : quizConfigTimerMode === "session" ? `Session Countdown (${quizConfigTimerValue}m)` : `Per-Question Limit (${quizConfigTimerValue}s)`],
                   ["Feedback Style", quizConfigFeedbackMode === "tutor" ? "Tutor Mode (Instant Explanations)" : "Board Exam Mode (Delayed Feedback)"],
                   ["Skip Mastered Qs", quizConfigExcludeMastered ? "Enabled" : "Disabled"],
@@ -1645,7 +1707,7 @@ export default function QuizView({
                   <ArrowLeft size={16} />
                   <span>Back to Rules</span>
                 </button>
-                <button className="btn-primary" disabled={quizIsLoading} onClick={handleStartQuiz} style={{ padding: "10px 28px" }}>
+                {hardenLevel ? null : <button className="btn-primary" disabled={quizIsLoading} onClick={handleStartQuiz} style={{ padding: "10px 28px" }}>
                   {quizIsLoading ? (
                     <Loader2 size={16} className="spinner" style={{ animation: "spin 1s linear infinite" }} />
                   ) : (
@@ -1654,8 +1716,21 @@ export default function QuizView({
                       <ArrowRight size={16} style={{ marginLeft: "4px" }} />
                     </>
                   )}
-                </button>
+                </button>}
               </div>
+              {hardenLevel && getHeaders ? (
+                <div style={{ marginTop: "var(--sp-3)" }}>
+                  <HardenPanel
+                    getHeaders={getHeaders}
+                    categories={quizConfigCategories}
+                    subCategories={quizConfigSubCategories}
+                    numQuestions={quizConfigNumQuestions}
+                    difficulty={hardenLevel}
+                    onStart={startHardened}
+                    onSaved={fetchQuizHistory}
+                  />
+                </div>
+              ) : null}
             </div>
 
             {/* Diagnostics */}

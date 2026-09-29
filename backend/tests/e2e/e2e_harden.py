@@ -102,8 +102,8 @@ def poll(job_id, timeout_s=1800):
 # ── Validation first (no LLM money burned on bad input) ───────────────────────
 st, body = call("POST", "/api/chat/harden/jobs", {"seed_ids": seed_ids, "num_questions": 5, "difficulty": 3})
 check("difficulty 3 rejected with 400", st == 400, f"({st}: {body})")
-st, body = call("POST", "/api/chat/harden/jobs", {"seed_ids": seed_ids, "num_questions": 7, "difficulty": 4})
-check("count 7 rejected with 400", st == 400, f"({st})")
+st, body = call("POST", "/api/chat/harden/jobs", {"seed_ids": seed_ids, "num_questions": 51, "difficulty": 4})
+check("more than 50 rejected with 400", st == 400, f"({st})")
 st, body = call("POST", "/api/chat/harden/jobs", {"num_questions": 5, "difficulty": 4})
 check("no focus (All) rejected with 400", st == 400 and "focus" in str(body), f"({st}: {body})")
 st, body = call("POST", "/api/chat/harden/preview", {"num_questions": 5, "difficulty": 4})
