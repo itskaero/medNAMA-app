@@ -167,8 +167,23 @@ export function useQuiz({
         credentials: "include",
         body: JSON.stringify({ answers: formattedAnswers }),
       });
+      if (res.status === 404) {
+        // The attempt no longer exists on the server (e.g. data was reset); retrying can't help.
+        toast.error("This practice session no longer exists on the server, so its answers can't be saved.", {
+          description: "Start a new session from Mock Builder.",
+          duration: Infinity,
+        });
+        setQuizAttemptId(null);
+        setQuizStep("config");
+        return;
+      }
       if (!res.ok) {
-        throw new Error("Failed to finalize results on server.");
+        const detail = await res.json().then((d) => d?.detail).catch(() => null);
+        throw new Error(
+          typeof detail === "string" && detail
+            ? `Couldn't save results: ${detail}`
+            : `Couldn't save results (server error ${res.status}). Your answers are kept; try Submit again.`
+        );
       }
       setQuizStep("summary");
       setSummaryReviewIdx(0);
