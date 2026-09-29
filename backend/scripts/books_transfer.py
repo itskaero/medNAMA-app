@@ -14,6 +14,11 @@ ones by page and text (app/reingest.py). Embeddings travel with the passages, so
     python scripts/books_transfer.py import --dir /app/mcqs/transfer/<name> --apply
 
 Each book is replaced in one transaction: if anything fails, the NAS keeps the old version.
+
+Inserting passages keeps the vector search index (HNSW, ~850 MB) up to date row by row, which is slow
+on the NAS: about 10k passages took 15 minutes on the PC. For many books at once add --rebuild-index:
+the index is dropped, everything is loaded, and the index is built once at the end (searches are
+slower, not broken, meanwhile). Run it when nobody is studying.
 """
 
 import argparse
@@ -31,6 +36,7 @@ from sqlalchemy import text  # noqa: E402
 from app.database import SessionLocal, engine  # noqa: E402
 from app.models import Book  # noqa: E402
 
+HNSW_INDEX = "idx_chunks_child_embedding_hnsw"
 BOOK_FIELDS = ("title", "filename", "status", "total_pages", "full_title", "authors", "edition", "year",
                "publisher", "isbn", "subject", "page_labels", "aliases", "meta_source")
 JSON_FIELDS = {"authors", "page_labels", "aliases"}
@@ -128,7 +134,7 @@ def _import_book(entry: dict, folder: Path, cols: dict, apply: bool) -> None:
                       for f in BOOK_FIELDS}
             sets = ", ".join(f"{f} = " + (f"CAST(:{f} AS jsonb)" if f in JSON_FIELDS else f":{f}") for f in BOOK_FIELDS)
             if exists:
-                conn.execute(text(f"UPDATE books SET {sets}, status = 'processing' WHERE id = :id"), {**fields, "id": bid})
+                conn.execute(text(f"UPDATE books SET {sets} WHERE id = :id"), {**fields, "id": bid})
             else:
                 names = ", ".join(("id",) + BOOK_FIELDS)
                 vals = ", ".join([":id"] + [f"CAST(:{f} AS jsonb)" if f in JSON_FIELDS else f":{f}" for f in BOOK_FIELDS])
@@ -167,10 +173,27 @@ def import_(args) -> None:
         missing = [c for c in cols if c not in here[t]]
         if missing:
             sys.exit(f"This database's {t} table lacks {missing}: deploy the matching backend first.")
-    for entry in manifest["books"]:
-        if args.book_id and entry["id"] not in args.book_id:
-            continue
-        _import_book(entry, folder, manifest["columns"], args.apply)
+    hnsw = None
+    if args.apply and args.rebuild_index:
+        with engine.begin() as conn:
+            hnsw = conn.execute(text("SELECT indexdef FROM pg_indexes WHERE indexname = :n"),
+                                {"n": HNSW_INDEX}).scalar()
+            if hnsw:
+                conn.execute(text(f"DROP INDEX IF EXISTS {HNSW_INDEX}"))
+                print(f"Dropped {HNSW_INDEX}; it is rebuilt after the import.")
+    try:
+        for entry in manifest["books"]:
+            if args.book_id and entry["id"] not in args.book_id:
+                continue
+            _import_book(entry, folder, manifest["columns"], args.apply)
+    finally:
+        if hnsw:
+            t0 = time.monotonic()
+            print("Rebuilding the vector search index (can take a while on the NAS)...")
+            with engine.begin() as conn:
+                conn.execute(text(f"SET maintenance_work_mem = '{args.index_mem}'"))
+                conn.execute(text(hnsw))
+            print(f"Index rebuilt in {time.monotonic() - t0:.0f}s")
     if not args.apply:
         print("\nDry run (the files were loaded and checked, nothing changed). Re-run with --apply.")
 
@@ -184,6 +207,9 @@ def main() -> None:
     ap.add_argument("--name", help="folder name (default books-<date>)")
     ap.add_argument("--dir", help="import: the exported folder")
     ap.add_argument("--apply", action="store_true", help="import: write the changes")
+    ap.add_argument("--rebuild-index", action="store_true",
+                    help="import: drop the vector index first and build it once at the end (many books)")
+    ap.add_argument("--index-mem", default="256MB", help="maintenance_work_mem for the rebuild (NAS: 256MB)")
     args = ap.parse_args()
     export(args) if args.command == "export" else import_(args)
 
