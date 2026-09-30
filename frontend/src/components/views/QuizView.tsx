@@ -1955,7 +1955,7 @@ export default function QuizView({
             </div>
           </div>
 
-          <ExplanationPanel explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
+          <ExplanationPanel forMCQId={currentMCQ?.id} explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
         </div>
 
         {/* Custom Quit Confirmation Modal */}
@@ -2183,7 +2183,7 @@ export default function QuizView({
                     </div>
                   </div>
                 </div>
-                <ExplanationPanel explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
+                <ExplanationPanel forMCQId={reviewMCQ?.id} explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
               </div>
             )}
           </div>

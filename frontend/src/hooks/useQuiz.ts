@@ -117,8 +117,11 @@ export function useQuiz({
     return () => clearInterval(interval);
   }, [quizTimerActive]);
 
-  // On-demand explanation fetcher
+  // On-demand explanation fetcher. Only the latest request may fill the panel: a slow answer for an earlier
+  // question must not appear under the one now on screen.
+  const latestExplainId = useRef<number | null>(null);
   const fetchExplanation = async (mcqId: number) => {
+    latestExplainId.current = mcqId;
     setExplanationMCQId(mcqId);
     setExplanationLoading(true);
     setExplanationError(null);
@@ -133,15 +136,16 @@ export function useQuiz({
         throw new Error("Failed to generate clinical explanation from textbook library.");
       }
       const data = await res.json();
+      if (latestExplainId.current !== mcqId) return;
       setExplanationData({
         answer_markdown: data.answer_markdown,
         citations: data.citations || [],
         figures: data.figures || [],
       });
     } catch (err: any) {
-      setExplanationError(err.message || "Failed to load explanation.");
+      if (latestExplainId.current === mcqId) setExplanationError(err.message || "Failed to load explanation.");
     } finally {
-      setExplanationLoading(false);
+      if (latestExplainId.current === mcqId) setExplanationLoading(false);
     }
   };
 

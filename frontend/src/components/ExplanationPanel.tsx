@@ -8,6 +8,8 @@ import { CitationsDrawer, FiguresDrawer } from "@/components";
 import { ReportButton } from "@/components/ReportButton";
 
 interface ExplanationPanelProps {
+  /** The question on screen: the panel stays hidden while it holds another question's explanation. */
+  forMCQId?: number | null;
   explanationMCQId: number | null;
   setExplanationMCQId: (id: number | null) => void;
   explanationLoading: boolean;
@@ -18,6 +20,7 @@ interface ExplanationPanelProps {
 }
 
 export default function ExplanationPanel({
+  forMCQId,
   explanationMCQId,
   setExplanationMCQId,
   explanationLoading,
@@ -26,7 +29,7 @@ export default function ExplanationPanel({
   token,
   onFigureClick,
 }: ExplanationPanelProps) {
-  if (explanationMCQId === null) return null;
+  if (explanationMCQId === null || (forMCQId != null && explanationMCQId !== forMCQId)) return null;
 
   return (
     <div className="explanation-inline-panel">

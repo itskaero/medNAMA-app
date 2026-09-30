@@ -44,9 +44,14 @@ TWIST_TYPES = {
                       "Keep the scenario but change ONE key finding so that the correct answer becomes the "
                       "look-alike instead of the original answer. The explanation must name the finding that "
                       "changed and why it moves the answer."),
-    "next-step": ("Next step",
-                  "Keep the same patient or scenario and ask for the next best investigation or the first-line "
-                  "management instead of the diagnosis or fact the original asked for."),
+    # Key kept for existing tags. FCPS Part 1 is basic science: "next step in management" questions
+    # (tourniquet, surgery, first-line treatment) are clinical-exam material and were labelled with the
+    # seed's basic-science subject, so this type now stays in the seed's subject.
+    "next-step": ("Same case",
+                  "Keep the same patient or scenario but ask a DIFFERENT basic-science question about it, in the "
+                  "same subject as the original: the structure, nerve or vessel involved, the finding expected on "
+                  "examination or in the investigations, or the effect that follows. Never ask for a management, "
+                  "treatment, surgical or 'next step' decision."),
     "mechanism": ("Mechanism",
                   "Ask for the mechanism, pathophysiology or drug action behind the original answer. Describe the "
                   "condition or drug by its presentation, findings or class, never by its name."),
