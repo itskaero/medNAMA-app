@@ -315,7 +315,7 @@ RETRY_HINT = {
 }
 
 
-def _flag_disputed_key(s: Session, seed: dict, verdict: dict) -> None:
+def _flag_disputed_key(s: Session, seed: dict, verdict: dict, source: str = "Harder versions") -> None:
     """The textbooks contradict a rewrite whose key is the original's answer: the original's key is suspect.
     Tag it and put it in the admin's Reports queue (once)."""
     from app.models import AnswerReport
@@ -323,13 +323,13 @@ def _flag_disputed_key(s: Session, seed: dict, verdict: dict) -> None:
     if not s.query(MCQTag).filter_by(mcq_id=seed["id"], axis="flag", label="key-conflict").first():
         s.add(MCQTag(mcq_id=seed["id"], axis="flag", label="key-conflict"))
     if not s.query(AnswerReport).filter(AnswerReport.mcq_id == seed["id"], AnswerReport.status == "open",
-                                        AnswerReport.reason.like("Harder versions:%")).first():
+                                        AnswerReport.reason.like(f"{source}:%")).first():
         admin = s.query(User).filter(User.role == "admin").order_by(User.id).first()
         if admin is not None:
             why = (verdict.get("explanation") or "").strip()[:600]
             s.add(AnswerReport(user_id=admin.id, kind="mcq", mcq_id=seed["id"],
                                question=seed["question_text"][:2000], answer_excerpt=seed["answer"][:500],
-                               reason=f"Harder versions: the textbooks {verdict.get('verdict')} this key "
+                               reason=f"{source}: the textbooks {verdict.get('verdict')} this key "
                                       f"({seed['answer']}). {why}"))
     s.commit()
 
