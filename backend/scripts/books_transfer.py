@@ -119,11 +119,25 @@ def _import_book(entry: dict, folder: Path, cols: dict, apply: bool) -> None:
             n_old = {t: conn.execute(text(f"SELECT count(*) FROM {t} WHERE book_id = :b"), {"b": bid}).scalar()
                      for t in ("chunks", "figures")}
             exists = conn.execute(text("SELECT 1 FROM books WHERE id = :b"), {"b": bid}).scalar()
+            # An unfinished record of the same PDF under another id (an ingest that stopped, later redone
+            # from scratch on the PC) would block this one: file names are unique.
+            dup = conn.execute(text("SELECT id, status FROM books WHERE filename = :f AND id <> :b"),
+                               {"f": entry["filename"], "b": bid}).first()
+            if dup:
+                refs = conn.execute(text(
+                    "SELECT (SELECT count(*) FROM mcqs WHERE book_id = :d) + (SELECT count(*) FROM concept_cards cc "
+                    "JOIN chunks c ON c.id = cc.chunk_id WHERE c.book_id = :d)"), {"d": dup.id}).scalar()
+                if dup.status == "ready" or refs:
+                    raise RuntimeError(f"book {dup.id} here already holds {entry['filename']} "
+                                       f"({dup.status}, {refs} references); not replacing it")
             print(f"- {entry['title']} (id {bid}): passages {n_old['chunks']} -> {n_new['chunks']}, "
-                  f"figures {n_old['figures']} -> {n_new['figures']}{'' if exists else ' (new book)'}")
+                  f"figures {n_old['figures']} -> {n_new['figures']}{'' if exists else ' (new book)'}"
+                  + (f"; removes unfinished record {dup.id} of the same file" if dup else ""))
             if not apply:
                 trans.rollback()
                 return
+            if dup:
+                conn.execute(text("DELETE FROM books WHERE id = :d"), {"d": dup.id})
 
             from sqlalchemy.orm import Session
             sess = Session(bind=conn)
@@ -139,6 +153,8 @@ def _import_book(entry: dict, folder: Path, cols: dict, apply: bool) -> None:
                 names = ", ".join(("id",) + BOOK_FIELDS)
                 vals = ", ".join([":id"] + [f"CAST(:{f} AS jsonb)" if f in JSON_FIELDS else f":{f}" for f in BOOK_FIELDS])
                 conn.execute(text(f"INSERT INTO books ({names}) VALUES ({vals})"), {**fields, "id": bid})
+                conn.execute(text("SELECT setval(pg_get_serial_sequence('books', 'id'), "
+                                  "GREATEST((SELECT max(id) FROM books), 1))"))
             conn.execute(text("DELETE FROM figures WHERE book_id = :b"), {"b": bid})
             conn.execute(text("DELETE FROM chunks WHERE book_id = :b AND parent_id IS NOT NULL"), {"b": bid})
             conn.execute(text("DELETE FROM chunks WHERE book_id = :b"), {"b": bid})
