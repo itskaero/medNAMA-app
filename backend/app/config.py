@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     # Who may open book page images: "admin" (the library's owner) or "all". The books are copyrighted;
     # showing their pages to other people is distribution, so it is owner-only unless switched on.
     page_viewer_access: str = "admin"
+    # Who can create an account: "invite" (a code from the admin's Users page), "open" or "closed" (the admin
+    # creates accounts).
+    registration_mode: str = "invite"
 
     # DeepSeek (Phase 4)
     deepseek_api_key: str = ""

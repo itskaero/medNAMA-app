@@ -96,6 +96,9 @@ class User(Base):
     # Daily loop (migration f2b4d6e8a0c1)
     exam_date: Mapped[date | None] = mapped_column(default=None)
     streak_freezes: Mapped[int] = mapped_column(server_default="2")
+    # Accounts (migration f1a3c5e7b9d2): the admin can disable one; sign-up records the invite code used.
+    is_active: Mapped[bool] = mapped_column(server_default="true", default=True)
+    invited_with: Mapped[str | None] = mapped_column(Text, default=None)
 
     attempts: Mapped[list["QuizAttempt"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     conversations: Mapped[list["ChatConversation"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -159,6 +162,7 @@ class QuizAttempt(Base):
     timer_value: Mapped[int | None] = mapped_column(default=None)
     feedback_mode: Mapped[str] = mapped_column(Text, server_default="tutor")
     label: Mapped[str | None] = mapped_column(Text, default=None)   # what the session was started as (Stats)
+    mcq_ids: Mapped[list | None] = mapped_column(JSONB, default=None)   # the questions it served (migration f1a3c5e7b9d2)
 
     user: Mapped["User"] = relationship(back_populates="attempts")
     answers: Mapped[list["AttemptAnswer"]] = relationship(back_populates="attempt", cascade="all, delete-orphan")
@@ -571,3 +575,18 @@ class SavedSheet(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     user: Mapped["User"] = relationship()
+
+
+class InviteCode(Base):
+    """A sign-up code the admin hands out (REGISTRATION_MODE=invite). Migration f1a3c5e7b9d2."""
+
+    __tablename__ = "invite_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(Text, unique=True)
+    label: Mapped[str | None] = mapped_column(Text, default=None)
+    max_uses: Mapped[int] = mapped_column(server_default="1", default=1)
+    uses: Mapped[int] = mapped_column(server_default="0", default=0)
+    expires_at: Mapped[datetime | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), default=None)

@@ -33,6 +33,7 @@ class UserRegister(BaseModel):
     username: str
     password: str
     role: str = "student"
+    invite_code: str | None = None   # needed when REGISTRATION_MODE=invite
 
 # Ingestion background task worker
 def bg_ingest_worker(temp_pdf_path: str, filename: str, book_title: str):

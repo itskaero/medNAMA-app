@@ -36,6 +36,8 @@ import ChatView from "@/components/views/ChatView";
 import StudyView from "@/components/views/StudyView";
 import DailyDoseView from "@/components/views/DailyDoseView";
 import RefereeView from "@/components/views/RefereeView";
+import UsersView from "@/components/views/UsersView";
+import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import DuelView from "@/components/views/DuelView";
 import WeeklyMockView from "@/components/views/WeeklyMockView";
 import LookalikesView from "@/components/views/LookalikesView";
@@ -48,7 +50,7 @@ import PageViewer from "@/components/PageViewer";
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review" | "revise"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "users" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review" | "revise"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [timedMockId, setTimedMockId] = useState<number | null>(null);
@@ -122,6 +124,9 @@ export default function Home() {
     setAuthRole,
     isRegisterMode,
     setIsRegisterMode,
+    authInvite,
+    setAuthInvite,
+    registrationMode,
     mounted,
     handleAuthSubmit,
     handleLogout,
@@ -136,6 +141,8 @@ export default function Home() {
     setIsSidebarLocked,
     startResizing,
   } = useSidebar();
+
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   // getHeaders — needed by multiple hooks
   const getHeaders = useCallback((): HeadersInit => {
@@ -351,6 +358,9 @@ export default function Home() {
         setAuthRole={setAuthRole}
         isAuthLoading={isAuthLoading}
         handleAuthSubmit={handleAuthSubmit}
+        authInvite={authInvite}
+        setAuthInvite={setAuthInvite}
+        registrationMode={registrationMode}
       />
     );
   }
@@ -469,6 +479,10 @@ export default function Home() {
       return <RefereeView token={token} />;
     }
 
+    if (activeView === "users" && isAdmin) {
+      return <UsersView getHeaders={getHeaders} username={username} />;
+    }
+
     if (activeView === "daily") {
       return <DailyDoseView key="dose" token={token} onFigureClick={setLightboxFig} />;
     }
@@ -487,6 +501,10 @@ export default function Home() {
           token={token}
           onPractice={(filters, label) => quiz.startQuizWith(filters, label, "pastpapers")}
           onRapidReview={(scope) => openRapidReview({ ...scope, returnTo: "pastpapers" })}
+          onOpenPractice={(years) => {
+            quiz.setPracticeScope({ sources: ["past"], subjects: [], topics: [], years });
+            setActiveView("quiz");
+          }}
           onTimedPaper={(id) => {
             setTimedMockId(id);
             setActiveView("paper");
@@ -666,7 +684,9 @@ export default function Home() {
         fetchDetailedStats={fetchDetailedStats}
         mcqFilterCategory={mcqFilterCategory}
         mcqSearchText={mcqSearchText}
+        onChangePassword={() => setShowPasswordDialog(true)}
       />
+      {showPasswordDialog ? <ChangePasswordDialog getHeaders={getHeaders} onClose={() => setShowPasswordDialog(false)} /> : null}
 
       {/* ── Main content ── */}
       <main className="main" aria-label="Medical knowledge assistant">

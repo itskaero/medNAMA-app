@@ -257,6 +257,17 @@ export function useQuiz({
     setLastSelectedChoice(key);
     setIsCorrectSelection(isCorrect);
 
+    // Save it now, not only at Finish: a session left halfway still counts (Stats, "seen", re-tests).
+    if (quizAttemptId) {
+      fetch(`${API}/api/quizzes/${quizAttemptId}/answer`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ mcq_id: currentMCQ.id, selected_option: key,
+                               confidence: quizConfidence[currentMCQ.id] ?? "sure" }),
+      }).catch(() => {});   // Finish sends every answer again, so a lost request is recovered there
+    }
+
     if (quizConfigFeedbackMode !== "board" && !isCorrect) {
       fetchExplanation(currentMCQ.id);
     }

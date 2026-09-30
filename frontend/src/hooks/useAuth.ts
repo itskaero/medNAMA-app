@@ -69,6 +69,15 @@ export function useAuth() {
     }
   }, []);
 
+  // Sign-up needs an invite code on this server ("invite"), is open, or is closed (the admin creates accounts).
+  const [authInvite, setAuthInvite] = useState("");
+  const [registrationMode, setRegistrationMode] = useState<"invite" | "open" | "closed">("invite");
+  useEffect(() => {
+    fetch(`${API}/api/auth/registration`).then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.mode === "open" || d?.mode === "closed" || d?.mode === "invite") setRegistrationMode(d.mode); })
+      .catch(() => {});
+  }, []);
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!authUsername.trim() || !authPassword.trim()) {
@@ -83,7 +92,8 @@ export function useAuth() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ username: authUsername, password: authPassword, role: authRole }),
+          body: JSON.stringify({ username: authUsername, password: authPassword, role: authRole,
+                                 invite_code: authInvite.trim() || undefined }),
         });
         if (!res.ok) {
           const d = await res.json();
@@ -142,6 +152,9 @@ export function useAuth() {
     setAuthRole,
     isRegisterMode,
     setIsRegisterMode,
+    authInvite,
+    setAuthInvite,
+    registrationMode,
     mounted,
     handleAuthSubmit,
     handleLogout,

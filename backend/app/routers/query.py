@@ -510,9 +510,12 @@ def start_quiz_endpoint(
     # Over-fetch, then keep one version of each recalled question.
     fetch = req.num_questions * 2 + 10
     if req.prefer_unseen and not req.drill_wrong:
-        from sqlalchemy import case
+        from sqlalchemy import Integer, case, cast
 
-        seen_rank = case((MCQ.id.in_(seen_ids), 1), else_=0)
+        # Questions an earlier session showed but that weren't answered (left mid-session) come after new ones.
+        served = db.query(cast(func.jsonb_array_elements_text(QuizAttempt.mcq_ids), Integer)).filter(
+            QuizAttempt.user_id == current_user.id, QuizAttempt.mcq_ids.isnot(None))
+        seen_rank = case((MCQ.id.in_(seen_ids), 2), (MCQ.id.in_(served), 1), else_=0)
         mcqs = query.order_by(seen_rank, func.random()).limit(fetch).all()
     else:
         mcqs = query.order_by(func.random()).limit(fetch).all()
@@ -534,7 +537,8 @@ def start_quiz_endpoint(
         total_questions=len(mcqs),
         timer_mode=req.timer_mode,
         timer_value=req.timer_value,
-        feedback_mode=req.feedback_mode
+        feedback_mode=req.feedback_mode,
+        mcq_ids=[m.id for m in mcqs],
     )
     db.add(attempt)
     db.commit()
@@ -570,6 +574,44 @@ def start_quiz_endpoint(
         "feedback_mode": attempt.feedback_mode
     }
 
+@router.post("/api/quizzes/{attempt_id}/answer")
+def save_answer_endpoint(
+    attempt_id: int,
+    ans: SelectedAnswer,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin)
+):
+    """Save one answer the moment it is given: a session left before Finish still counts toward Stats,
+    "seen" and the mistake re-tests. Idempotent per session and question (the first answer stands)."""
+    attempt = db.query(QuizAttempt).filter(QuizAttempt.id == attempt_id,
+                                           QuizAttempt.user_id == current_user.id).first()
+    if not attempt:
+        raise HTTPException(status_code=404, detail="Quiz attempt session not found.")
+    if attempt.completed_at is not None:
+        raise HTTPException(status_code=400, detail="This session is already finished.")
+    if attempt.mcq_ids and ans.mcq_id not in attempt.mcq_ids:
+        raise HTTPException(status_code=400, detail="That question is not part of this session.")
+    existing = db.query(AttemptAnswer).filter(AttemptAnswer.quiz_attempt_id == attempt.id,
+                                              AttemptAnswer.mcq_id == ans.mcq_id).first()
+    if existing:
+        return {"saved": False, "is_correct": existing.is_correct}
+    mcq = db.get(MCQ, ans.mcq_id)
+    if mcq is None:
+        raise HTTPException(status_code=400, detail=f"Question with ID {ans.mcq_id} is invalid or not found.")
+    is_correct = ans.selected_option.upper().strip() == (mcq.correct_option or "").upper().strip()
+    db.add(AttemptAnswer(quiz_attempt_id=attempt.id, mcq_id=mcq.id, selected_option=ans.selected_option,
+                         is_correct=is_correct))
+    db.commit()
+    from app.retention import record_answer
+    try:
+        record_answer(db, current_user.id, mcq, ans.selected_option, ans.confidence or "sure", source="quiz",
+                      session_ref=f"quiz:{attempt.id}")
+    except Exception:
+        logger.exception("Retention logging failed for MCQ %s", mcq.id)
+        db.rollback()
+    return {"saved": True, "is_correct": is_correct}
+
+
 @router.post("/api/quizzes/{attempt_id}/submit")
 def submit_quiz_endpoint(
     attempt_id: int,
@@ -597,6 +639,10 @@ def submit_quiz_endpoint(
             detail="This quiz attempt has already been submitted and completed."
         )
         
+    # Answers are saved as they are given (POST .../answer); Finish records only the rest.
+    already = {mid for (mid,) in db.query(AttemptAnswer.mcq_id).filter(AttemptAnswer.quiz_attempt_id == attempt.id)}
+    req.answers = [a for a in req.answers if a.mcq_id not in already]
+
     # Build a lookup dictionary of MCQs involved in the attempt to minimize DB queries
     mcq_ids = [ans.mcq_id for ans in req.answers]
     mcqs = db.query(MCQ).filter(MCQ.id.in_(mcq_ids)).all()
@@ -629,7 +675,9 @@ def submit_quiz_endpoint(
         db.add(ans_record)
         attempt_answers.append(ans_record)
         
-    attempt.score = correct_count
+    db.flush()
+    attempt.score = db.query(func.count(AttemptAnswer.id)).filter(
+        AttemptAnswer.quiz_attempt_id == attempt.id, AttemptAnswer.is_correct.is_(True)).scalar() or 0
     attempt.completed_at = datetime.utcnow()
     db.commit()
     db.refresh(attempt)

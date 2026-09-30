@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { History, Loader2, Lock, PlayCircle, RotateCcw, Shuffle, Timer, X, Zap } from "lucide-react";
+import { ArrowRight, History, Loader2, Lock, PlayCircle, RotateCcw, Timer, X, Zap } from "lucide-react";
 import type { ReviewScope } from "@/components/views/RapidReviewView";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
@@ -15,6 +15,9 @@ const AXES: { axis: Axis; label: string; hint: string }[] = [
   { axis: "source", label: "Archive", hint: "Which archive recalled it. A question both archives recalled counts once and is shown once." },
 ];
 const EMPTY_TAGS: Record<Axis, string[]> = { subject: [], topic: [], specialty: [], system: [], source: [] };
+// This screen is the archive (years, sittings, faculty papers). Practising by subject or topic happens in
+// Practice, which uses the shared subject -> topic list for past papers and the bank alike.
+const SHOWN_AXES: Axis[] = ["specialty"];
 
 interface Stats { total: number; answered: number; correct: number }
 interface Paper extends Stats { id: number; year: number | null; title: string; source?: string }
@@ -38,9 +41,12 @@ export default function PastPapersView({
   onPractice,
   onTimedPaper,
   onRapidReview,
+  onOpenPractice,
 }: {
   token: string | null;
   onPractice: (filters: Record<string, unknown>, label: string) => void;
+  /** Open Practice with past papers only (and these years) to pick subjects and topics there. */
+  onOpenPractice?: (years: number[]) => void;
   onTimedPaper: (mockId: number) => void;
   onRapidReview?: (scope: ReviewScope) => void;
 }) {
@@ -293,7 +299,7 @@ export default function PastPapersView({
         ) : null}
       </section>
 
-      {AXES.map(({ axis, label, hint }) => {
+      {AXES.filter((a) => SHOWN_AXES.includes(a.axis)).map(({ axis, label, hint }) => {
         const all = scope?.facets?.[axis] || [];
         const selected = tags[axis];
         const shown = showAll[axis] ? all : all.slice(0, 14);
@@ -351,12 +357,13 @@ export default function PastPapersView({
               <PlayCircle size={13} /> Practise
             </button>
           </div>
-          <button className="btn-workspace" disabled={!scope?.twists} onClick={() => practice(true)}
-            title={scope?.twists
-              ? `Practise the ${scope.twists.toLocaleString()} twists written from these past-paper questions: each asks something different (next step, mechanism, a changed finding...), checked against your textbooks. Uses the count chosen on the left.`
-              : "No twists written for this selection yet. Answer a past-paper question and tap 'Twist it' to write some."}>
-            <Shuffle size={13} /> Twists ({(scope?.twists ?? 0).toLocaleString()})
-          </button>
+          {onOpenPractice ? (
+            <button className="btn-workspace"
+              title="Pick subjects and topics (e.g. Anatomy > Upper Limb), with new-angle twists and harder versions, in Practice"
+              onClick={() => onOpenPractice(years)}>
+              Practise by subject or topic <ArrowRight size={13} />
+            </button>
+          ) : null}
           {onRapidReview ? (
             <button className="btn-workspace" disabled={!scope?.count}
               title="Answer keys at a glance, a one-page summary (pick a subject or topic) and a 10-question drill"

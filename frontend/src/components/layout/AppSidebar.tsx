@@ -21,6 +21,8 @@ import {
   NotebookPen,
   Flame,
   Scale,
+  Users,
+  KeyRound,
   Swords,
   Trophy,
   GitCompareArrows,
@@ -57,6 +59,7 @@ interface AppSidebarProps {
   fetchDetailedStats: () => void;
   mcqFilterCategory: string;
   mcqSearchText: string;
+  onChangePassword?: () => void;
 }
 
 interface NavItem { view: string; label: string; icon: React.ReactNode; active: string[]; title?: string }
@@ -88,6 +91,8 @@ function navGroups(isAdmin: boolean): { title: string; items: NavItem[] }[] {
     { title: "Progress & tools", items: [
       item("stats", "Stats", <TrendingUp size={14} />),
       item("mcq-bank", "MCQ Bank", <BookMarked size={14} />),
+      ...(isAdmin ? [item("users", "Users", <Users size={14} />,
+        { title: "Admin: accounts, invite codes and password resets" })] : []),
       ...(isAdmin ? [item("referee", "Answer-Key Referee", <Scale size={14} />,
         { title: "Admin: check recall answers and MCQ keys against the textbooks" })] : []),
     ] },
@@ -120,6 +125,7 @@ export default function AppSidebar({
   fetchDetailedStats,
   mcqFilterCategory,
   mcqSearchText,
+  onChangePassword,
 }: AppSidebarProps) {
   const initials = username ? username.slice(0, 2).toUpperCase() : "DR";
 
@@ -187,6 +193,11 @@ export default function AppSidebar({
             {username}
           </span>
         </div>
+        {onChangePassword ? (
+          <button className="btn-logout" onClick={onChangePassword} aria-label="Change password" title="Change password">
+            <KeyRound size={12} style={{ display: "inline" }} />
+          </button>
+        ) : null}
         <button className="btn-logout" onClick={handleLogout} aria-label="Sign out">
           <LogOut size={12} style={{ display: "inline", marginRight: 4 }} />
           Sign out
