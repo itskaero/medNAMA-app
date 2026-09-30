@@ -37,6 +37,8 @@ from app.database import SessionLocal, engine  # noqa: E402
 from app.models import Book  # noqa: E402
 
 HNSW_INDEX = "idx_chunks_child_embedding_hnsw"
+HNSW_DEF = (f"CREATE INDEX {HNSW_INDEX} ON public.chunks USING hnsw (embedding vector_cosine_ops) "
+            "WHERE (parent_id IS NOT NULL)")
 BOOK_FIELDS = ("title", "filename", "status", "total_pages", "full_title", "authors", "edition", "year",
                "publisher", "isbn", "subject", "page_labels", "aliases", "meta_source")
 JSON_FIELDS = {"authors", "page_labels", "aliases"}
@@ -211,10 +213,9 @@ def import_(args) -> None:
     if args.apply and args.rebuild_index:
         with engine.begin() as conn:
             hnsw = conn.execute(text("SELECT indexdef FROM pg_indexes WHERE indexname = :n"),
-                                {"n": HNSW_INDEX}).scalar()
-            if hnsw:
-                conn.execute(text(f"DROP INDEX IF EXISTS {HNSW_INDEX}"))
-                print(f"Dropped {HNSW_INDEX}; it is rebuilt after the import.")
+                                {"n": HNSW_INDEX}).scalar() or HNSW_DEF
+            conn.execute(text(f"DROP INDEX IF EXISTS {HNSW_INDEX}"))
+            print(f"Dropped {HNSW_INDEX} (if it existed); it is built once after the import.")
     try:
         for entry in manifest["books"]:
             if args.book_id and entry["id"] not in args.book_id:
@@ -226,6 +227,8 @@ def import_(args) -> None:
             print("Rebuilding the vector search index (can take a while on the NAS)...")
             with engine.begin() as conn:
                 conn.execute(text(f"SET maintenance_work_mem = '{args.index_mem}'"))
+                # One process: a parallel build needs more /dev/shm than the Docker default (64 MB) gives.
+                conn.execute(text("SET max_parallel_maintenance_workers = 0"))
                 conn.execute(text(hnsw))
             print(f"Index rebuilt in {time.monotonic() - t0:.0f}s")
     if not args.apply:

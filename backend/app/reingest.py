@@ -48,8 +48,9 @@ def snapshot(db, book_id: int) -> dict[str, Any]:
         "SELECT m.id, m.figure_id FROM mcqs m JOIN figures f ON f.id = m.figure_id WHERE f.book_id = :b"),
         {"b": book_id}).fetchall()
     src_rows = db.execute(text(
-        "SELECT id, source_chunk_ids FROM mcqs WHERE jsonb_typeof(source_chunk_ids) = 'array' "
-        "AND jsonb_array_length(source_chunk_ids) > 0")).fetchall()
+        # CASE, not AND: Postgres may evaluate jsonb_array_length first, and it fails on a scalar value.
+        "SELECT id, source_chunk_ids FROM mcqs WHERE CASE WHEN jsonb_typeof(source_chunk_ids) = 'array' "
+        "THEN jsonb_array_length(source_chunk_ids) > 0 ELSE false END")).fetchall()
     book_chunk_ids = {i for (i,) in db.execute(text("SELECT id FROM chunks WHERE book_id = :b"), {"b": book_id})}
     src = [(mid, [int(x) for x in ids if isinstance(x, (int, float)) or str(x).isdigit()])
            for mid, ids in src_rows]
