@@ -54,7 +54,8 @@ MAX_COUNT = 50                 # Mock Builder offers hardening for sessions of u
 MAX_BUCKETS = 20               # subjects/topics in one request (a whole category ticks all its subtopics)
 SIMILAR_EXISTING_LIMIT = 40
 DROP_VERDICTS = {"contradicted", "books_conflict"}
-MINUTES_PER_SEED = (3.0, 4.0)  # per question per AI slot, measured on the NAS (5 questions, 2 slots: 8.6 min)
+MINUTES_PER_SEED = (1.0, 2.0)  # per question per AI slot on the NAS since one fast search per question
+                               # (was 3-4 min with three searches, AI query rewrites and the MedCPT reranker)
 
 # The two levels the builder offers. 1-3 are what the bank mostly already is; the whole
 # point of "harder" is to climb to reasoning the student has not sat yet.
@@ -139,10 +140,11 @@ def _bucket_query(db: Session, user: User, req: dict, axis: str, label: str):
     return q
 
 
-def _pick_seeds(db: Session, user: User, req: dict) -> list[MCQ]:
+def _pick_seeds(db: Session, user: User, req: dict, limit: int | None = None) -> list[MCQ]:
     """The questions to harden: round-robin across the selection's buckets; inside a bucket, questions this
-    student answered correctly first, then unseen ones, then the rest. One version per recalled question."""
-    n = int(req["num_questions"])
+    student answered correctly first, then unseen ones, then the rest. One version per recalled question.
+    limit > num_questions returns replacements too, in the same order (harden_set's reserve)."""
+    n = int(limit or req["num_questions"])
     if req.get("seed_ids"):
         return _base_query(db, user).filter(MCQ.id.in_(req["seed_ids"])).limit(n).all()
 
@@ -240,54 +242,110 @@ def _seed_values(seed: MCQ) -> dict[str, Any]:
 
 
 def _passages(db: Session, seed: dict) -> list[dict]:
-    """Textbook passages for the seed, as plain dicts (title, page, content, chunk ids, book id)."""
+    """Textbook passages for the seed, as plain dicts. One search (no AI query rewrite, fast reranker only):
+    the same passages serve the rewrite and the Referee, which used to search twice more per question."""
     from app.retrieval import retrieval_service
 
-    blocks, seen, size = [], set(), 0
-    for q in (f"{seed['concept']} {seed['answer']}", f"{' '.join(seed['question_text'].split())[:300]} {seed['answer']}"):
-        for c in retrieval_service.search(db, q[:600], limit=6).context:
-            if c.id in seen or size + len(c.content or "") > CONTEXT_CHAR_BUDGET:
-                continue
-            seen.add(c.id)
-            size += len(c.content or "")
-            blocks.append({"title": c.book.title if c.book else "Textbook", "page": c.page_number,
-                           "content": c.content or "", "chunk_ids": c.chunk_ids, "book_id": c.book_id})
+    q = f"{seed['concept']} {seed['answer']} {' '.join(seed['question_text'].split())[:300]}"
+    blocks, size = [], 0
+    for c in retrieval_service.search(db, q[:600], limit=8, rewrite=False, deep_rerank=False).context:
+        if size + len(c.content or "") > CONTEXT_CHAR_BUDGET:
+            continue
+        size += len(c.content or "")
+        blocks.append({"id": c.id, "title": c.book.title if c.book else "Textbook", "page": c.page_number,
+                       "content": c.content or "", "chunk_ids": c.chunk_ids, "book_id": c.book_id})
     return blocks
 
 
-def _runner(seed: dict, req: dict, set_id: str, title: str, ctx: dict, stage: Callable[[int, str, str | None], None]):
-    """One worker: write + check + persist ONE harder rewrite of ONE seed. Holds an AI slot throughout and a DB
-    connection only while reading or writing."""
+def _is_harder_duplicate(q: dict, v: np.ndarray, ctx: dict) -> bool:
+    """A harder version keeps its original's answer on purpose, so against the original, its other archive's
+    version and the bank only a near-copy counts (statement cosine or text); "similar statement + same answer"
+    still applies between the rewrites of one run."""
+    from app.quiz_generation import STEM_DUP_COSINE, _is_duplicate, _is_text_duplicate
+
+    if len(ctx["pool_vecs"]):
+        if (np.asarray(ctx["pool_vecs"]) @ v > STEM_DUP_COSINE).any():
+            return True
+    if _is_text_duplicate(q["question_text"], ctx["pool_stems"]):
+        return True
+    return bool(ctx["kept"]) and _is_duplicate(q, v, np.zeros((0, len(v)), dtype=np.float32), [], [], ctx["kept"])
+
+
+RETRY_HINT = {
+    "shape": "Your last answer was not valid JSON with five options A-E and one correct_option. Follow the format exactly.",
+    "answer changed": "Your last version changed the correct answer. The correct option text must be exactly: \"{answer}\".",
+    "duplicate": ("Your last version was too close to the original question. Change the scenario, the presentation "
+                  "and the wording much more (keep the fact and the exact answer text \"{answer}\")."),
+}
+
+
+def _flag_disputed_key(s: Session, seed: dict, verdict: dict) -> None:
+    """The textbooks contradict a rewrite whose key is the original's answer: the original's key is suspect.
+    Tag it and put it in the admin's Reports queue (once)."""
+    from app.models import AnswerReport
+
+    if not s.query(MCQTag).filter_by(mcq_id=seed["id"], axis="flag", label="key-conflict").first():
+        s.add(MCQTag(mcq_id=seed["id"], axis="flag", label="key-conflict"))
+    if not s.query(AnswerReport).filter(AnswerReport.mcq_id == seed["id"], AnswerReport.status == "open",
+                                        AnswerReport.reason.like("Harder versions:%")).first():
+        admin = s.query(User).filter(User.role == "admin").order_by(User.id).first()
+        if admin is not None:
+            why = (verdict.get("explanation") or "").strip()[:600]
+            s.add(AnswerReport(user_id=admin.id, kind="mcq", mcq_id=seed["id"],
+                               question=seed["question_text"][:2000], answer_excerpt=seed["answer"][:500],
+                               reason=f"Harder versions: the textbooks {verdict.get('verdict')} this key "
+                                      f"({seed['answer']}). {why}"))
+    s.commit()
+
+
+def _runner(seed: dict, req: dict, set_id: str, title: str, ctx: dict, stage: Callable[[str, str | None], None]):
+    """One question: search once, write (one retry with feedback on a fixable failure), check, Referee on the same
+    passages, save. Holds an AI slot throughout and a DB connection only while reading or writing.
+    Returns (mcq_id, None) or (None, reason)."""
     from app.database import SessionLocal
-    from app.quiz_generation import _answer_supported, _embed, _is_duplicate, _normalise_question
+    from app.quiz_generation import _answer_supported, _embed, _normalise_question
     from app.referee import judge
 
     sid = seed["id"]
     with AI_JOB_SLOTS:
         s = SessionLocal()
         try:
-            stage(sid, "searching", None)
+            stage("searching", None)
             blocks = _passages(s, seed)
             s.commit()   # end the transaction: the connection goes back to the pool while the AI writes
             context = "\n\n".join(f"Chunk {i}: [{b['title']}, Page {b['page']}]\n{b['content']}"
                                   for i, b in enumerate(blocks, 1))
 
-            stage(sid, "writing", None)
-            raw = chat_completion(_prompt(seed, req["difficulty"], context), json_mode=True,
-                                  temperature=0.5, max_tokens=2400, label=f"harden seed {sid}", role="chat")
-            q = _normalise_question(json.loads(raw) or {}, list("ABCDE"))
-            if q is None or sorted(q["options"]) != list("ABCDE"):
-                return None, "shape"
-            # The rewrite must keep the tested answer (that is the whole point).
-            if not answers_agree(answer_norm(q["options"][q["correct_option"]]), answer_norm(seed["answer"])):
-                return None, "answer changed"
-
-            # Not a reworded copy of the seed, the nearest bank questions or this run's other rewrites.
-            v = _embed([q["question_text"]])[0]
-            with ctx["lock"]:
-                if _is_duplicate(q, v, ctx["pool_vecs"], ctx["pool_answers"], ctx["pool_stems"], ctx["kept"]):
-                    return None, "duplicate"
-                ctx["kept"].append((q, v))
+            q = v = None
+            why = None
+            for attempt in (1, 2):
+                stage("writing" if attempt == 1 else "retrying", why)
+                messages = _prompt(seed, req["difficulty"], context)
+                if why in RETRY_HINT:
+                    messages.append({"role": "user", "content": RETRY_HINT[why].format(answer=seed["answer"])})
+                raw = chat_completion(messages, json_mode=True, temperature=0.5 if attempt == 1 else 0.7,
+                                      max_tokens=2400, label=f"harden seed {sid}", role="chat")
+                try:
+                    q = _normalise_question(json.loads(raw) or {}, list("ABCDE"))
+                except json.JSONDecodeError:
+                    q = None
+                if q is None or sorted(q["options"]) != list("ABCDE"):
+                    why = "shape"
+                    continue
+                # The rewrite must keep the tested answer (that is the whole point).
+                if not answers_agree(answer_norm(q["options"][q["correct_option"]]), answer_norm(seed["answer"])):
+                    why = "answer changed"
+                    continue
+                v = _embed([q["question_text"]])[0]
+                with ctx["lock"]:
+                    if _is_harder_duplicate(q, v, ctx):
+                        why = "duplicate"
+                        continue
+                    ctx["kept"].append((q, v))
+                why = None
+                break
+            if why:
+                return None, why
 
             # Grounding: the cited passage must state the answer, else the question is AI knowledge.
             source = None
@@ -297,18 +355,25 @@ def _runner(seed: dict, req: dict, set_id: str, title: str, ctx: dict, stage: Ca
             except (TypeError, ValueError):
                 source = None
             if source is not None and not _answer_supported(q["options"][q["correct_option"]], source["content"]):
-                logger.info("Dropping unsupported source on hardened rewrite of %s", sid)
                 source = None
 
-            stage(sid, "refereeing", None)
+            stage("refereeing", None)
             try:
-                verdict = judge(s, q["question_text"], options=q["options"], key=q["correct_option"])
+                verdict = judge(s, q["question_text"], options=q["options"], key=q["correct_option"],
+                                passages=[{"id": b["id"], "title": b["title"], "page": b["page"],
+                                           "content": b["content"]} for b in blocks])
             except Exception as e:
                 logger.warning("Referee failed for hardened rewrite of %s: %s", sid, e)
                 verdict = {"verdict": None}
             s.commit()
             v_name = verdict.get("verdict")
             if v_name in DROP_VERDICTS or (v_name == "supported" and verdict.get("agrees_with_key") is False):
+                # Same answer as the original: the textbooks dispute the original's key too.
+                try:
+                    _flag_disputed_key(s, seed, verdict)
+                except Exception:
+                    logger.exception("Could not flag disputed key of %s", sid)
+                    s.rollback()
                 return None, f"referee {v_name}"
             if v_name is None and source is None:
                 return None, "unverified"
@@ -347,11 +412,16 @@ def _runner(seed: dict, req: dict, set_id: str, title: str, ctx: dict, stage: Ca
 def harden_set(db: Session, user: User, req: dict,
                progress: Callable[[dict], None] | None = None) -> dict[str, Any]:
     """Write, gate and store harder rewrites of the requested questions. Idempotent per request_id.
-    progress(state) is called whenever a seed changes stage."""
+    progress(state) is called whenever a question changes stage.
+
+    Fail-safe: the job fills N slots. A question that fails its checks is replaced by the next one from the
+    selection (at most 2N+5 tried in all); a slot still empty at the end gets one of the original questions,
+    as written, so the session always has N questions. Result: the set plus fill_ids (the originals)."""
     from app.quiz_generation import _similar_existing, serialize_quiz_set
 
     validate(req)
     req = {**req, "num_questions": int(req["num_questions"]), "difficulty": int(req["difficulty"])}
+    n = req["num_questions"]
     set_id = harden_set_id(req.get("request_id"))
 
     existing = db.query(MCQ).filter(MCQ.quiz_set_id == set_id).order_by(MCQ.id).all()
@@ -359,80 +429,106 @@ def harden_set(db: Session, user: User, req: dict,
         logger.info("Harden request %s already completed; returning stored set", req.get("request_id"))
         return serialize_quiz_set(existing, set_id, 0, 0, req["difficulty"])
 
-    seeds = _pick_seeds(db, user, req)
+    seeds = _pick_seeds(db, user, req, limit=2 * n + 5)
     if not seeds:
         raise HardenError("No questions match these filters to harden.")
 
-    # One shared duplication pool: the nearest bank questions to the first seeds plus every seed,
-    # so rewrites never repeat a seed or the bank.
+    # One shared duplication pool: the nearest bank questions to the first seeds plus every seed.
     ctx: dict = {"lock": threading.Lock(), "kept": [], "pool_vecs": [], "pool_answers": [], "pool_stems": []}
-    for seed in seeds:
+    for seed in seeds[:n]:
         vec = np.asarray(seed.stem_embedding, dtype=np.float32) if seed.stem_embedding is not None else None
         if vec is not None and len(ctx["pool_vecs"]) < SIMILAR_EXISTING_LIMIT * 4:
             try:
                 near = _similar_existing(db, vec, limit=SIMILAR_EXISTING_LIMIT)
-                ctx["pool_vecs"].extend(n["vec"] for n in near)
-                ctx["pool_answers"].extend(n["answer"].strip().lower() for n in near)
-                ctx["pool_stems"].extend(n["stem"] for n in near)
+                ctx["pool_vecs"].extend(n_["vec"] for n_ in near)
+                ctx["pool_stems"].extend(n_["stem"] for n_ in near)
             except Exception:
                 logger.warning("Similarity lookup failed for seed %s; dedup pool kept small", seed.id)
-        ctx["pool_answers"].append(str((seed.options or {}).get(seed.correct_option, "")).strip().lower())
+    for seed in seeds:
         ctx["pool_stems"].append(seed.question_text or "")
-        if vec is not None:
-            ctx["pool_vecs"].append(vec)
-    ctx["pool_vecs"] = np.stack(ctx["pool_vecs"]) if ctx["pool_vecs"] else np.zeros((0, 1024), dtype=np.float32)
     values = [_seed_values(s) for s in seeds]
     db.commit()   # nothing more to read here: release this connection for the length of the job
 
     label = (req.get("label") or ", ".join(req.get("sub_categories") or req.get("categories") or []) or "practice")
     title = f"Hardened · {label[:40].title()}"
 
-    # Progress names each question by its number, subject and topic only: showing the original statement would
+    def tag(v: dict) -> str:
+        return " · ".join(dict.fromkeys(x for x in (v["sub_category"], v["topic"]) if x))
+
+    # Progress names each slot by its number, subject and topic only: showing the original statement would
     # spoil the harder version, which keeps the same correct answer.
-    state = {"total": len(values), "done": 0, "kept": 0, "dropped": {}, "items": [
-        {"seed_id": v["id"], "n": i,
-         "label": " · ".join(dict.fromkeys(x for x in (v["sub_category"], v["topic"]) if x)),
-         "stage": "queued", "reason": None}
-        for i, v in enumerate(values, 1)]}
+    slots = min(n, len(values))
+    state = {"total": slots, "done": 0, "kept": 0, "as_written": 0, "tried": 0, "dropped": {}, "items": [
+        {"n": i, "label": tag(values[i - 1]), "stage": "queued", "reason": None, "attempt": 1}
+        for i in range(1, slots + 1)]}
     lock = threading.Lock()
-    by_id = {it["seed_id"]: it for it in state["items"]}
+    reserve = list(values[slots:])      # replacements, in the selection's round-robin order
+    failed: list[dict] = []             # originals whose rewrite failed (not for disputed keys)
+    fill_ids: list[int] = []
 
     def publish() -> None:
         if progress:
             progress(json.loads(json.dumps(state)))
 
-    def stage(seed_id: int, name: str, reason: str | None) -> None:
-        with lock:
-            by_id[seed_id]["stage"], by_id[seed_id]["reason"] = name, reason
-            publish()
-
-    publish()
-    with ThreadPoolExecutor(max_workers=max(1, min(settings.ai_job_workers, len(values)))) as pool:
-        futures = {pool.submit(_runner, v, req, set_id, title, ctx, stage): v["id"] for v in values}
-        for fut in as_completed(futures):
-            sid = futures[fut]
+    def work(slot: int) -> None:
+        item = state["items"][slot - 1]
+        seed = values[slot - 1]
+        while True:
+            def stage(name: str, reason: str | None, _it=item) -> None:
+                with lock:
+                    _it["stage"], _it["reason"] = name, reason
+                    publish()
             try:
-                mcq_id, why = fut.result()
+                mcq_id, why = _runner(seed, req, set_id, title, ctx, stage)
             except Exception as e:
                 logger.warning("Harden worker crashed: %s", e)
                 mcq_id, why = None, "error"
             with lock:
-                state["done"] += 1
-                if mcq_id is None:
-                    state["dropped"][why or "error"] = state["dropped"].get(why or "error", 0) + 1
-                    by_id[sid]["stage"], by_id[sid]["reason"] = "dropped", why or "error"
-                else:
+                state["tried"] += 1
+                if mcq_id is not None:
                     state["kept"] += 1
-                    by_id[sid]["stage"], by_id[sid]["reason"] = "kept", None
+                    state["done"] += 1
+                    item["stage"], item["reason"] = "kept", None
+                    publish()
+                    return
+                state["dropped"][why or "error"] = state["dropped"].get(why or "error", 0) + 1
+                if not (why or "").startswith("referee"):
+                    failed.append(seed)
+                nxt = reserve.pop(0) if reserve else None
+                if nxt is not None:
+                    seed = nxt
+                    item["attempt"] += 1
+                    item["label"] = tag(seed)
+                    item["stage"], item["reason"] = "replacing", why
+                    publish()
+                    continue
+                # Out of replacements: the original question, as written.
+                spare = next((f for f in failed if f["id"] not in fill_ids), None)
+                if spare is not None:
+                    fill_ids.append(spare["id"])
+                    state["as_written"] += 1
+                    item["stage"], item["reason"] = "as written", why
+                else:
+                    item["stage"], item["reason"] = "dropped", why
+                state["done"] += 1
                 publish()
+                return
+
+    publish()
+    with ThreadPoolExecutor(max_workers=max(1, min(settings.ai_job_workers, slots))) as pool:
+        list(pool.map(work, range(1, slots + 1)))
 
     created = db.query(MCQ).filter(MCQ.quiz_set_id == set_id).order_by(MCQ.id).all()
-    logger.info("Harden %s (%s): %d kept of %d seeds (dropped %s)", set_id, title,
-                state["kept"], len(values), state["dropped"] or "none")
-    if not created:
+    logger.info("Harden %s (%s): %d harder + %d as written of %d slots; %d tried (dropped %s)", set_id, title,
+                state["kept"], state["as_written"], slots, state["tried"], state["dropped"] or "none")
+    if not created and not fill_ids:
         raise HardenError("None of the rewrites passed the checks" + (
             f" ({', '.join(f'{k}: {v}' for k, v in state['dropped'].items())})" if state["dropped"] else "") + ".")
-    return serialize_quiz_set(created, set_id, sum(state["dropped"].values()), 0, req["difficulty"])
+    out = serialize_quiz_set(created, set_id, sum(state["dropped"].values()), 0, req["difficulty"])
+    out["fill_ids"] = fill_ids
+    out["harder"] = state["kept"]
+    out["as_written"] = len(fill_ids)
+    return out
 
 
 # ─── Background jobs (same pattern as app/quiz_generation.py) ─────────────────

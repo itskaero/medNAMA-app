@@ -117,7 +117,7 @@ def _passages(db: Session, seed: MCQ, concept: str, answer: str) -> list:
 
     blocks, seen, size = [], set(), 0
     for q in (f"{concept} {answer}", f"{' '.join(seed.question_text.split())[:300]} {answer}"):
-        for c in retrieval_service.search(db, q[:600], limit=6).context:
+        for c in retrieval_service.search(db, q[:600], limit=6, deep_rerank=False).context:
             if c.id in seen or size + len(c.content or "") > CONTEXT_CHAR_BUDGET:
                 continue
             seen.add(c.id)
@@ -267,7 +267,7 @@ def generate_twists(db: Session, seed: MCQ) -> list[MCQ]:
 
         s = SessionLocal()
         try:
-            return judge(s, q["question_text"], options=q["options"], key=q["correct_option"])
+            return judge(s, q["question_text"], options=q["options"], key=q["correct_option"], deep_rerank=False)
         except Exception as e:
             logger.warning("Referee failed for a twist of %s: %s", seed.id, e)
             return {"verdict": None}

@@ -139,7 +139,10 @@ def subject_filter(db: Session, subject: str | None):
 def _embed(texts: list[str]) -> np.ndarray:
     from app.ingestion import get_embedding_model
 
-    return np.asarray(get_embedding_model().encode(texts, normalize_embeddings=True), dtype=np.float32)
+    from app.ingestion import EMBED_LOCK
+    model = get_embedding_model()
+    with EMBED_LOCK:
+        return np.asarray(model.encode(texts, normalize_embeddings=True), dtype=np.float32)
 
 
 def _norm_ws(s: str) -> str:

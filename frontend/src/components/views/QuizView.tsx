@@ -294,8 +294,9 @@ export default function QuizView({
       sub_categories: quizConfigSubCategories.length ? quizConfigSubCategories : undefined,
       num_questions: quizConfigNumQuestions, difficulty: hardenLevel,
     }) : null);
-  const startHardened = (quizSetId: string) => startQuizWith?.({
-    quiz_set_id: quizSetId, num_questions: quizConfigNumQuestions, prefer_unseen: false, exclude_mastered: false,
+  const startHardened = (quizSetId: string, fillIds?: number[]) => startQuizWith?.({
+    quiz_set_id: quizSetId, include_ids: fillIds?.length ? fillIds : undefined,
+    num_questions: quizConfigNumQuestions, prefer_unseen: false, exclude_mastered: false,
     timer_mode: quizConfigTimerMode, timer_value: quizConfigTimerValue, feedback_mode: quizConfigFeedbackMode,
   }, `Harder (${hardenLevel}/5) · ${scopeOn ? describeScope(practiceScope) : (quizConfigSubCategories.length ? quizConfigSubCategories : quizConfigCategories).join(", ")}`);
   // New angle: the twists written from the selection's past-paper questions.

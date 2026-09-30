@@ -92,7 +92,10 @@ def _embed(texts: list[str]) -> np.ndarray:
 
     if not texts:
         return np.zeros((0, 1024), dtype=np.float32)
-    return np.asarray(get_embedding_model().encode(texts, normalize_embeddings=True), dtype=np.float32)
+    from app.ingestion import EMBED_LOCK
+    model = get_embedding_model()
+    with EMBED_LOCK:
+        return np.asarray(model.encode(texts, normalize_embeddings=True), dtype=np.float32)
 
 
 def quiz_set_id_for(request_id: str | None) -> str:

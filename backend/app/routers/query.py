@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from app.database import engine
 from app.generation import generate_answer, generate_mcq_explanation
@@ -408,6 +408,7 @@ class StartQuizRequest(BaseModel):
     years: list[int] | None = None                # past-paper years
     tags: dict[str, list[str]] | None = None      # {"subject": [...], "topic": [...], "specialty": [...]}
     twists: bool = False                          # with past-paper filters: their twists instead (app/twists.py)
+    include_ids: list[int] | None = None         # with quiz_set_id: also these questions (a harder set's fill)
     scope: dict | None = None                     # a Practice selection (app/practice_scope.py): sources, subjects,
                                                   # subject|topic pairs, years; with twists=True, their twists
     label: str | None = None                      # the session's name in Stats ("Past papers · FCPS Part 1 · 2024")
@@ -468,7 +469,9 @@ def start_quiz_endpoint(
 
     # Topic filters
     if req.quiz_set_id:
-        query = query.filter(MCQ.quiz_set_id == req.quiz_set_id)
+        # A harder set plus the originals that filled its empty slots ("as written").
+        query = query.filter(or_(MCQ.quiz_set_id == req.quiz_set_id, MCQ.id.in_(req.include_ids))
+                             if req.include_ids else MCQ.quiz_set_id == req.quiz_set_id)
     elif req.sub_categories:
         query = query.filter(MCQ.sub_category.in_(req.sub_categories))
     elif req.categories:

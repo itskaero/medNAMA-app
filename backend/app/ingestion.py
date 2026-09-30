@@ -128,6 +128,11 @@ def auto_slice_size(free_mb: int) -> int:
 
 
 _embedding_model_lock = __import__("threading").Lock()
+# Hugging Face fast tokenizers are not thread-safe: two threads encoding with one model at once fail with
+# "RuntimeError: Already borrowed" (seen when harder-version workers searched in parallel). Every encode /
+# predict on a shared model goes through its lock; the calls are short, and they are CPU-bound anyway.
+EMBED_LOCK = __import__("threading").Lock()
+RERANK_LOCK = __import__("threading").Lock()
 
 
 def get_embedding_model():

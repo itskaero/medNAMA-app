@@ -350,8 +350,11 @@ class RetrievalService:
 
     def _embed_query(self, query: str) -> list[float]:
         """Embed search query with BGE-specific prefix."""
+        from app.ingestion import EMBED_LOCK
         prefixed_query = BGE_QUERY_PREFIX + query
-        embedding = self.model.encode(prefixed_query, normalize_embeddings=True)
+        model = self.model
+        with EMBED_LOCK:
+            embedding = model.encode(prefixed_query, normalize_embeddings=True)
         return embedding.tolist()
 
     def vector_search(self, session: Session, query_embedding: list[float], limit: int = 50, book_id: int | None = None, chapter: str | None = None) -> list[tuple[Chunk, float]]:
@@ -435,7 +438,9 @@ class RetrievalService:
             return []
         reranker = get_reranker_model()
         passages = texts if texts is not None else [c.content for c in parent_chunks]
-        scores = reranker.predict([(query, p) for p in passages])
+        from app.ingestion import RERANK_LOCK
+        with RERANK_LOCK:
+            scores = reranker.predict([(query, p) for p in passages])
         scored = sorted(zip(parent_chunks, (float(s) for s in scores)), key=lambda x: x[1], reverse=True)
         return scored[:limit]
 
@@ -496,7 +501,9 @@ class RetrievalService:
                     # and a shorter window keep this cheap on a slow CPU.
                     q = queries[-1]
                     model = get_reranker_model()
-                    scores = model.predict([(q, by_id[nid][:NEIGHBOR_CHARS]) for nid in others])
+                    from app.ingestion import RERANK_LOCK
+                    with RERANK_LOCK:
+                        scores = model.predict([(q, by_id[nid][:NEIGHBOR_CHARS]) for nid in others])
                     relevant_ids = {nid for nid, sc in zip(others, scores) if float(sc) >= NEIGHBOR_MIN_SCORE}
                 relevant_ids |= {nid for nid in (parent.id - 1, parent.id + 1)
                                  if nid in by_id and len(by_id[nid]) < SHORT_NEIGHBOR_CHARS}
@@ -535,8 +542,13 @@ class RetrievalService:
 
     def search(self, session: Session, query: str, *, limit: int = 5, book_id: int | None = None,
                chapter: str | None = None, rewrite: bool = True, context_hint: str = "",
-               exclude_chunk_ids: set[int] | None = None, num_candidates: int = 8) -> SearchResult:
+               exclude_chunk_ids: set[int] | None = None, num_candidates: int = 8,
+               deep_rerank: bool = True) -> SearchResult:
         """One retrieval pass: rewrite -> vector+keyword per query -> RRF -> rerank -> expand.
+
+        deep_rerank=False skips the second-stage (biomedical cross-encoder) reranker: background AI jobs
+        (harder versions, twists) search dozens of times per job, and on the NAS CPU that reranker was most of
+        the time per question.
 
         exclude_chunk_ids down-ranks parents already used (MCQ source rotation):
         they are kept only if there are not enough fresh candidates.
@@ -591,13 +603,15 @@ class RetrievalService:
         # Second stage: a biomedical cross-encoder re-orders the top N. Scores
         # kept on each tuple stay the first-stage ones (the MIN_RERANK_SCORE
         # cut-off is calibrated on them); only the order changes.
-        second = get_second_stage_reranker()
+        second = get_second_stage_reranker() if deep_rerank else None
         top_n = settings.reranker_second_stage_top_n
         if second is not None and len(ranked) > 1:
             head, tail = ranked[:top_n], ranked[top_n:]
             s2: dict[int, float] = {}
             for q in queries:
-                scores = second.predict([(q, focus[p.id]) for p, _ in head])
+                from app.ingestion import RERANK_LOCK
+                with RERANK_LOCK:
+                    scores = second.predict([(q, focus[p.id]) for p, _ in head])
                 for (p, _), sc in zip(head, scores):
                     s2[p.id] = max(s2.get(p.id, float("-inf")), float(sc))
             ranked = sorted(head, key=lambda x: s2[x[0].id], reverse=True) + tail

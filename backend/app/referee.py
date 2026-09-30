@@ -34,8 +34,12 @@ def _norm(s: str) -> str:
 
 
 def judge(db: Session, question: str, answer: str | None = None, options: dict[str, str] | None = None,
-          key: str | None = None) -> dict[str, Any]:
-    """Referee one question. Pass `answer` for a recall line, or `options` (+ optional `key`) for an MCQ."""
+          key: str | None = None, passages: list[dict] | None = None,
+          deep_rerank: bool = True) -> dict[str, Any]:
+    """Referee one question. Pass `answer` for a recall line, or `options` (+ optional `key`) for an MCQ.
+
+    passages: [{id, title, page, content}] already retrieved for this question (a harder-version job has
+    just searched for it); the Referee judges against those instead of searching again."""
     question = (question or "").strip()
     if not question:
         raise ValueError("question is required")
@@ -43,11 +47,16 @@ def judge(db: Session, question: str, answer: str | None = None, options: dict[s
     key = (key or "").strip().upper()[:1] or None
     published = answer or (options.get(key) if key else None)
 
-    search_text = f"{question} {published or ' '.join(options.values())}"
-    result = retrieval_service.search(db, search_text[:600], limit=5)
-    blocks = result.context
+    if passages is None:
+        search_text = f"{question} {published or ' '.join(options.values())}"
+        result = retrieval_service.search(db, search_text[:600], limit=5, deep_rerank=deep_rerank)
+        blocks = [{"id": b.id, "title": b.book.title if b.book else None, "page": b.page_number,
+                   "content": b.content or ""} for b in result.context]
+        found_figures, found_sources = result.figures, result.sources
+    else:
+        blocks, found_figures, found_sources = passages, [], []
     context = "\n\n".join(
-        f"Chunk {i}: [{b.book.title if b.book else 'Textbook'}, Page {b.page_number}]\n{b.content}"
+        f"Chunk {i}: [{b['title'] or 'Textbook'}, Page {b['page']}]\n{b['content']}"
         for i, b in enumerate(blocks, 1)
     ) or "NO TEXTBOOK PASSAGES FOUND."
 
@@ -62,7 +71,7 @@ def judge(db: Session, question: str, answer: str | None = None, options: dict[s
     if not llm_configured("chat"):
         return {"verdict": "textbooks_silent", "textbook_answer": None, "supported_option": None,
                 "agrees_with_key": None, "evidence": [], "explanation": "The AI service is not configured.",
-                "figures": [], "sources": result.sources}
+                "figures": [], "sources": found_sources}
 
     try:
         raw = chat_completion(
@@ -96,7 +105,7 @@ def judge(db: Session, question: str, answer: str | None = None, options: dict[s
     except Exception as e:
         logger.warning("Referee failed for %r: %s", question[:80], e)
         return {"verdict": None, "error": f"{type(e).__name__}: {e}", "evidence": [], "figures": [],
-                "sources": result.sources}
+                "sources": found_sources}
 
     evidence = []
     for q in out.get("quotes") or []:
@@ -108,11 +117,11 @@ def judge(db: Session, question: str, answer: str | None = None, options: dict[s
         if not (1 <= idx <= len(blocks)) or len(quote) < 12:
             continue
         block = blocks[idx - 1]
-        if _norm(quote) not in _norm(block.content):
+        if _norm(quote) not in _norm(block["content"]):
             logger.info("Referee dropped an unverifiable quote for %r", question[:60])
             continue
-        evidence.append({"chunk_id": block.id, "book_title": block.book.title if block.book else None,
-                         "page_number": block.page_number, "quote": quote})
+        evidence.append({"chunk_id": block["id"], "book_title": block["title"],
+                         "page_number": block["page"], "quote": quote})
 
     verdict = out.get("verdict") if out.get("verdict") in VERDICTS else "textbooks_silent"
     if verdict != "textbooks_silent" and not evidence:
@@ -131,7 +140,7 @@ def judge(db: Session, question: str, answer: str | None = None, options: dict[s
         agrees = verdict == "supported"
 
     pages = {(e["book_title"], e["page_number"]) for e in evidence}
-    figures = [f for f in result.figures if (f.get("book_title"), f.get("page_number")) in pages]
+    figures = [f for f in found_figures if (f.get("book_title"), f.get("page_number")) in pages]
     explanation = str(out.get("explanation") or "").strip()
     ai_reasoning = str(out.get("ai_reasoning") or "").strip() if verdict == "textbooks_silent" else ""
     return {
@@ -144,5 +153,5 @@ def judge(db: Session, question: str, answer: str | None = None, options: dict[s
         "explanation": explanation,
         "ai_reasoning": ai_reasoning,
         "figures": figures,
-        "sources": result.sources,
+        "sources": found_sources,
     }

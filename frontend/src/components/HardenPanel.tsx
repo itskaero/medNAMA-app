@@ -6,12 +6,17 @@ import { toast } from "sonner";
 import { API } from "@/lib/constants";
 
 /** One seed's progress, as app/hardening.py reports it. */
-interface HardenItem { seed_id: number; n?: number; label: string; stage: string; reason: string | null }
-interface HardenProgress { total: number; done: number; kept: number; dropped: Record<string, number>; items: HardenItem[] }
+interface HardenItem { seed_id?: number; n?: number; label: string; stage: string; reason: string | null; attempt?: number }
+interface HardenProgress {
+  total: number; done: number; kept: number; as_written?: number; dropped: Record<string, number>; items: HardenItem[];
+}
 interface HardenJob {
   job_id: string; status: "running" | "done" | "failed"; progress?: HardenProgress | null; elapsed_s?: number;
   partial?: boolean; detail?: string;
-  result?: { quiz_set_id: string; quiz_set_title: string; total_questions: number; difficulty: number };
+  result?: {
+    quiz_set_id: string; quiz_set_title: string; total_questions: number; difficulty: number;
+    harder?: number; as_written?: number; fill_ids?: number[];
+  };
 }
 export interface HardenPreview { buckets: { label: string; available: number; picked: number }[]; total: number; estimate_min: [number, number] }
 export type HardenLevel = 0 | 4 | 5;   // 0 = the questions as written
@@ -23,7 +28,8 @@ const MAX_WAIT_MS = 90 * 60_000;   // 50 questions can take over an hour on the 
 export const HARDEN_MAX_QUESTIONS = 50;
 const MAX_BUCKETS = 20;   // a whole category ticks all its subtopics; 'All' is the only thing refused
 const STAGE: Record<string, string> = {
-  queued: "Waiting", searching: "Searching textbooks", writing: "Writing", refereeing: "Checking with the Referee",
+  queued: "Waiting", searching: "Searching textbooks", writing: "Writing", retrying: "Writing (second try)",
+  refereeing: "Checking with the Referee", replacing: "Trying another question from the topic",
 };
 const REASON: Record<string, string> = {
   "answer changed": "changed the answer", duplicate: "too close to an existing question", shape: "malformed question",
@@ -90,7 +96,8 @@ export default function HardenPanel({
   scope?: Record<string, unknown> | null;
   numQuestions: number;
   difficulty: 4 | 5;
-  onStart: (quizSetId: string) => void;
+  /** fillIds: original questions that filled slots no harder version passed ("as written"). */
+  onStart: (quizSetId: string, fillIds?: number[]) => void;
   onSaved?: () => void;
 }) {
   const [job, setJob] = useState<HardenJob | null>(null);
@@ -204,7 +211,7 @@ export default function HardenPanel({
       {running ? (
         <div aria-live="polite">
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.76rem", color: "var(--text-secondary)", marginBottom: "4px" }}>
-            <span>{p ? <>Checked <b>{p.done}</b> of {p.total} · <b>{p.kept}</b> kept</> : "Picking questions…"}</span>
+            <span>{p ? <>Done <b>{p.done}</b> of {p.total} · <b>{p.kept}</b> harder{p.as_written ? <> · {p.as_written} as written</> : null}</> : "Picking questions…"}</span>
             <span>{job?.elapsed_s != null ? mmss(job.elapsed_s) : ""}</span>
           </div>
           <div style={{ height: "6px", background: "var(--surface-3)", borderRadius: "3px" }}>
@@ -213,9 +220,10 @@ export default function HardenPanel({
           {p ? (
             <ul style={{ listStyle: "none", margin: "10px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "4px", maxHeight: "280px", overflowY: "auto" }}>
               {p.items.map((it, i) => (
-                <li key={it.seed_id} style={{ display: "flex", gap: "8px", alignItems: "flex-start", fontSize: "0.74rem" }}>
+                <li key={it.n ?? i} style={{ display: "flex", gap: "8px", alignItems: "flex-start", fontSize: "0.74rem" }}>
                   <span style={{ width: "14px", flexShrink: 0, marginTop: "1px" }}>
                     {it.stage === "kept" ? <Check size={13} style={{ color: "var(--sea-green)" }} />
+                      : it.stage === "as written" ? <Check size={13} style={{ color: "var(--text-muted)" }} />
                       : it.stage === "dropped" ? <X size={13} style={{ color: "var(--text-muted)" }} />
                       : it.stage === "queued" ? null : <Loader2 size={12} className="animate-spin" />}
                   </span>
@@ -224,7 +232,11 @@ export default function HardenPanel({
                     <b>Question {it.n ?? i + 1}</b>
                     <span style={{ color: "var(--text-muted)" }}>{it.label ? ` · ${it.label}` : ""}</span>
                     <span style={{ display: "block", color: "var(--text-muted)" }}>
-                      {it.stage === "kept" ? "Kept" : it.stage === "dropped" ? `Dropped: ${reason(it.reason)}` : STAGE[it.stage] ?? it.stage}
+                      {it.stage === "kept" ? `Harder version ready${(it.attempt ?? 1) > 1 ? " (from a replacement question)" : ""}`
+                        : it.stage === "as written" ? `The original question, as written (no harder version passed: ${reason(it.reason)})`
+                        : it.stage === "dropped" ? `Couldn't be filled: ${reason(it.reason)}`
+                        : it.stage === "replacing" ? `${STAGE.replacing} (${reason(it.reason)})`
+                        : STAGE[it.stage] ?? it.stage}
                     </span>
                   </span>
                 </li>
@@ -257,11 +269,13 @@ export default function HardenPanel({
       {job?.status === "done" && job.result ? (
         <div>
           <div style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginBottom: "8px" }}>
-            <b style={{ color: "var(--teal)" }}>{job.result.total_questions} harder questions ready</b> · difficulty {job.result.difficulty}/5
-            {job.progress && job.progress.total > job.progress.kept ? ` · ${job.progress.total - job.progress.kept} dropped by the checks` : ""}
+            <b style={{ color: "var(--teal)" }}>
+              {job.result.harder ?? job.result.total_questions} harder
+              {job.result.as_written ? ` + ${job.result.as_written} as written` : ""} ready
+            </b> · difficulty {job.result.difficulty}/5
             {job.partial ? " · what was saved before the server restarted" : ""} · also in Quiz History
           </div>
-          <button type="button" className="btn-primary" onClick={() => onStart(job.result!.quiz_set_id)} style={{ padding: "9px 22px" }}>
+          <button type="button" className="btn-primary" onClick={() => onStart(job.result!.quiz_set_id, job.result!.fill_ids)} style={{ padding: "9px 22px" }}>
             Start practice exam <ArrowRight size={15} style={{ marginLeft: "4px" }} />
           </button>
         </div>
