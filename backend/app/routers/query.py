@@ -348,6 +348,7 @@ class HardenMcqsRequest(BaseModel):
     request_id: str | None = None # idempotency key; a retry returns the same set
     label: str | None = None      # shows in the set's title ("Hardened · <label>")
     scope: dict | None = None     # or a Practice selection (app/practice_scope.py)
+    stock: bool = False           # admin: the stock batch (scripts/prewarm_harder.py) writes new versions only
 
 @router.post("/api/chat/harden/preview")
 def harden_preview_route(
@@ -371,7 +372,10 @@ def start_harden_job_route(
     """Start harder-rewrite generation in the background; poll /jobs/{job_id}."""
     from app.hardening import start_harden_job
 
-    out = start_harden_job(current_user, req.model_dump(exclude_none=True))
+    body = req.model_dump(exclude_none=True)
+    if body.get("stock") and current_user.role != "admin":
+        body.pop("stock")
+    out = start_harden_job(current_user, body)
     if out.get("error"):
         raise HTTPException(status_code=400, detail=out["error"])
     return out

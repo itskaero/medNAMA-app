@@ -38,12 +38,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
 import numpy as np
-from sqlalchemy import case, func, or_
+from sqlalchemy import Integer, case, cast, func, or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.llm import AI_JOB_SLOTS, chat_completion, llm_configured
-from app.models import MCQ, AnswerEvent, MCQTag, User
+from app.models import MCQ, AnswerEvent, MCQTag, QuizAttempt, User
 from app.past_papers import answer_norm, answers_agree
 
 logger = logging.getLogger(__name__)
@@ -169,6 +169,42 @@ def _pick_seeds(db: Session, user: User, req: dict, limit: int | None = None) ->
                     picked.append(m)
                     break
     return picked
+
+
+def _ready_made(db: Session, user: User, req: dict, n: int) -> list[tuple[int, int]]:
+    """Harder versions already written (by an earlier request or the PC stock batch, scripts/prewarm_harder.py)
+    for questions in this selection, at this difficulty, that this student has neither answered nor been shown.
+    Round-robin across the selection's buckets, one per original question. Returns [(hardened id, seed id)]."""
+    seen = db.query(AnswerEvent.mcq_id).filter(AnswerEvent.user_id == user.id, AnswerEvent.mcq_id.isnot(None))
+    served = db.query(cast(func.jsonb_array_elements_text(QuizAttempt.mcq_ids), Integer)).filter(
+        QuizAttempt.user_id == user.id, QuizAttempt.mcq_ids.isnot(None))
+    queues = []
+    for axis, label in _buckets(req):
+        seeds = _bucket_query(db, user, req, axis, label).with_entities(MCQ.id).subquery()
+        rows = (db.query(MCQ.id, cast(MCQTag.label, Integer))
+                .join(MCQTag, MCQTag.mcq_id == MCQ.id)
+                .filter(MCQTag.axis == "hardened", MCQ.main_category == CATEGORY, MCQ.status == "ready",
+                        MCQ.difficulty == req["difficulty"], cast(MCQTag.label, Integer).in_(db.query(seeds.c.id)),
+                        MCQ.id.notin_(seen), MCQ.id.notin_(served))
+                .order_by(func.random()).limit(n * 2).all())
+        if rows:
+            queues.append(list(rows))
+    out, used = [], set()
+    while len(out) < n and any(queues):
+        for queue in queues:
+            while queue and len(out) < n:
+                hid, sid = queue.pop(0)
+                if sid not in used:
+                    used.add(sid)
+                    out.append((hid, sid))
+                    break
+    return out
+
+
+def _stocked_seeds(db: Session, difficulty: int) -> set[int]:
+    """Originals that already have a harder version at this difficulty (the stock batch skips them)."""
+    return {int(sid) for (sid,) in db.query(MCQTag.label).join(MCQ, MCQ.id == MCQTag.mcq_id).filter(
+        MCQTag.axis == "hardened", MCQ.difficulty == difficulty, MCQ.status == "ready")}
 
 
 def preview(db: Session, user: User, req: dict) -> dict[str, Any]:
@@ -429,9 +465,26 @@ def harden_set(db: Session, user: User, req: dict,
         logger.info("Harden request %s already completed; returning stored set", req.get("request_id"))
         return serialize_quiz_set(existing, set_id, 0, 0, req["difficulty"])
 
-    seeds = _pick_seeds(db, user, req, limit=2 * n + 5)
-    if not seeds:
+    # Instant part: harder versions already written for this selection. Only the rest is written now.
+    # req["stock"] (the PC batch) skips this and writes versions for originals that have none yet.
+    ready = [] if req.get("stock") else _ready_made(db, user, req, n)
+    skip = _stocked_seeds(db, req["difficulty"]) if req.get("stock") else {sid for _, sid in ready}
+    n_new = n - len(ready)
+    seeds = [s for s in _pick_seeds(db, user, req, limit=2 * n + 5 + len(skip)) if s.id not in skip] if n_new else []
+    seeds = seeds[: 2 * n_new + 5]
+    if not seeds and not ready:
         raise HardenError("No questions match these filters to harden.")
+    ready_ids = [hid for hid, _ in ready]
+    if not seeds:   # the whole set was ready-made
+        state = {"total": n, "done": n, "kept": 0, "ready": len(ready), "as_written": 0, "tried": 0, "dropped": {},
+                 "items": [{"n": i, "label": "ready-made", "stage": "ready", "reason": None, "attempt": 1}
+                           for i in range(1, len(ready) + 1)]}
+        if progress:
+            progress(state)
+        out = serialize_quiz_set([], set_id, 0, 0, req["difficulty"])
+        out.update(fill_ids=ready_ids, harder=len(ready), ready=len(ready), as_written=0)
+        logger.info("Harden %s: all %d from ready-made harder versions", set_id, len(ready))
+        return out
 
     # One shared duplication pool: the nearest bank questions to the first seeds plus every seed.
     ctx: dict = {"lock": threading.Lock(), "kept": [], "pool_vecs": [], "pool_answers": [], "pool_stems": []}
@@ -457,8 +510,9 @@ def harden_set(db: Session, user: User, req: dict,
 
     # Progress names each slot by its number, subject and topic only: showing the original statement would
     # spoil the harder version, which keeps the same correct answer.
-    slots = min(n, len(values))
-    state = {"total": slots, "done": 0, "kept": 0, "as_written": 0, "tried": 0, "dropped": {}, "items": [
+    slots = min(n_new, len(values))
+    state = {"total": slots + len(ready), "done": len(ready), "kept": 0, "ready": len(ready), "as_written": 0,
+             "tried": 0, "dropped": {}, "items": [
         {"n": i, "label": tag(values[i - 1]), "stage": "queued", "reason": None, "attempt": 1}
         for i in range(1, slots + 1)]}
     lock = threading.Lock()
@@ -519,14 +573,16 @@ def harden_set(db: Session, user: User, req: dict,
         list(pool.map(work, range(1, slots + 1)))
 
     created = db.query(MCQ).filter(MCQ.quiz_set_id == set_id).order_by(MCQ.id).all()
-    logger.info("Harden %s (%s): %d harder + %d as written of %d slots; %d tried (dropped %s)", set_id, title,
-                state["kept"], state["as_written"], slots, state["tried"], state["dropped"] or "none")
-    if not created and not fill_ids:
+    logger.info("Harden %s (%s): %d ready-made + %d harder + %d as written of %d slots; %d tried (dropped %s)",
+                set_id, title, len(ready), state["kept"], state["as_written"], slots + len(ready), state["tried"],
+                state["dropped"] or "none")
+    if not created and not fill_ids and not ready_ids:
         raise HardenError("None of the rewrites passed the checks" + (
             f" ({', '.join(f'{k}: {v}' for k, v in state['dropped'].items())})" if state["dropped"] else "") + ".")
     out = serialize_quiz_set(created, set_id, sum(state["dropped"].values()), 0, req["difficulty"])
-    out["fill_ids"] = fill_ids
-    out["harder"] = state["kept"]
+    out["fill_ids"] = ready_ids + fill_ids     # the session adds these to the set (include_ids)
+    out["harder"] = state["kept"] + len(ready)
+    out["ready"] = len(ready)
     out["as_written"] = len(fill_ids)
     return out
 

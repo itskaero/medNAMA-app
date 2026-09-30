@@ -8,14 +8,14 @@ import { API } from "@/lib/constants";
 /** One seed's progress, as app/hardening.py reports it. */
 interface HardenItem { seed_id?: number; n?: number; label: string; stage: string; reason: string | null; attempt?: number }
 interface HardenProgress {
-  total: number; done: number; kept: number; as_written?: number; dropped: Record<string, number>; items: HardenItem[];
+  total: number; done: number; kept: number; ready?: number; as_written?: number; dropped: Record<string, number>; items: HardenItem[];
 }
 interface HardenJob {
   job_id: string; status: "running" | "done" | "failed"; progress?: HardenProgress | null; elapsed_s?: number;
   partial?: boolean; detail?: string;
   result?: {
     quiz_set_id: string; quiz_set_title: string; total_questions: number; difficulty: number;
-    harder?: number; as_written?: number; fill_ids?: number[];
+    harder?: number; ready?: number; as_written?: number; fill_ids?: number[];
   };
 }
 export interface HardenPreview { buckets: { label: string; available: number; picked: number }[]; total: number; estimate_min: [number, number] }
@@ -28,7 +28,7 @@ const MAX_WAIT_MS = 90 * 60_000;   // 50 questions can take over an hour on the 
 export const HARDEN_MAX_QUESTIONS = 50;
 const MAX_BUCKETS = 20;   // a whole category ticks all its subtopics; 'All' is the only thing refused
 const STAGE: Record<string, string> = {
-  queued: "Waiting", searching: "Searching textbooks", writing: "Writing", retrying: "Writing (second try)",
+  queued: "Waiting", ready: "Ready-made", searching: "Searching textbooks", writing: "Writing", retrying: "Writing (second try)",
   refereeing: "Checking with the Referee", replacing: "Trying another question from the topic",
 };
 const REASON: Record<string, string> = {
@@ -211,7 +211,7 @@ export default function HardenPanel({
       {running ? (
         <div aria-live="polite">
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.76rem", color: "var(--text-secondary)", marginBottom: "4px" }}>
-            <span>{p ? <>Done <b>{p.done}</b> of {p.total} · <b>{p.kept}</b> harder{p.as_written ? <> · {p.as_written} as written</> : null}</> : "Picking questions…"}</span>
+            <span>{p ? <>Done <b>{p.done}</b> of {p.total} · <b>{p.kept + (p.ready ?? 0)}</b> harder{p.ready ? <> ({p.ready} ready-made)</> : null}{p.as_written ? <> · {p.as_written} as written</> : null}</> : "Picking questions…"}</span>
             <span>{job?.elapsed_s != null ? mmss(job.elapsed_s) : ""}</span>
           </div>
           <div style={{ height: "6px", background: "var(--surface-3)", borderRadius: "3px" }}>
@@ -271,7 +271,7 @@ export default function HardenPanel({
           <div style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginBottom: "8px" }}>
             <b style={{ color: "var(--teal)" }}>
               {job.result.harder ?? job.result.total_questions} harder
-              {job.result.as_written ? ` + ${job.result.as_written} as written` : ""} ready
+              {job.result.ready ? ` (${job.result.ready} ready-made)` : ""}{job.result.as_written ? ` + ${job.result.as_written} as written` : ""} ready
             </b> · difficulty {job.result.difficulty}/5
             {job.partial ? " · what was saved before the server restarted" : ""} · also in Quiz History
           </div>
