@@ -249,7 +249,12 @@ def scope(db: Session, user: User, exam: str | None, years: list[int] | None,
                       .filter(MCQTag.axis == axis, MCQTag.mcq_id.in_(db.query(ids.c.id)))
                       .group_by(MCQTag.label).order_by(func.count(MCQTag.mcq_id).desc()).all())
         facets[axis] = [{"label": label, "count": int(n)} for label, n in counts]
-    return {"count": int(total), "answered": int(answered or 0), "missed": int(missed or 0), "facets": facets}
+    # Twists written from the matching questions (the Twists button practises these).
+    seeds = base(tags).subquery()
+    twist_count = (db.query(func.count(MCQ.id))
+                   .filter(MCQ.twist_of.in_(db.query(seeds.c.id)), MCQ.status == "ready").scalar() or 0)
+    return {"count": int(total), "answered": int(answered or 0), "missed": int(missed or 0),
+            "twists": int(twist_count), "facets": facets}
 
 
 def create_timed_paper(db: Session, user: User, exam: str, years: list[int] | None,

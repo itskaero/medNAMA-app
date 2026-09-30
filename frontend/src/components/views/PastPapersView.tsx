@@ -20,7 +20,7 @@ interface Stats { total: number; answered: number; correct: number }
 interface Paper extends Stats { id: number; year: number | null; title: string; source?: string }
 interface Year extends Stats { year: number | null; papers: Paper[] }
 interface Exam extends Stats { exam: string; years?: Year[]; papers: Paper[] }
-interface Scope { count: number; answered: number; missed: number; facets: Record<Axis, { label: string; count: number }[]> }
+interface Scope { count: number; answered: number; missed: number; twists?: number; facets: Record<Axis, { label: string; count: number }[]> }
 
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 /** "FCPS Part 1 · Surgery · 18 Sep 2019 (M+E)" -> "Surgery · 18 Sep 2019 (M+E)" */
@@ -154,7 +154,8 @@ export default function PastPapersView({
         years: yearsParam,
         tags: activeTags,
         // "All": work through the whole selection 50 at a time (unseen first, Continue after each batch).
-        num_questions: twists ? 20 : count === "all" ? 50 : count,
+        // Twists follow the same count choice as the questions ("All": 50 at a time).
+        num_questions: count === "all" ? 50 : count,
         prefer_unseen: true,
         drill_wrong: !twists && missedOnly,
         twists,
@@ -350,9 +351,11 @@ export default function PastPapersView({
               <PlayCircle size={13} /> Practise
             </button>
           </div>
-          <button className="btn-workspace" disabled={!scope?.count} onClick={() => practice(true)}
-            title="Questions written from these past-paper questions that ask something different (next step, mechanism, a changed finding...). Checked against your textbooks. Generate them with 'Twist it' after answering a question.">
-            <Shuffle size={13} /> Twists
+          <button className="btn-workspace" disabled={!scope?.twists} onClick={() => practice(true)}
+            title={scope?.twists
+              ? `Practise the ${scope.twists.toLocaleString()} twists written from these past-paper questions: each asks something different (next step, mechanism, a changed finding...), checked against your textbooks. Uses the count chosen on the left.`
+              : "No twists written for this selection yet. Answer a past-paper question and tap 'Twist it' to write some."}>
+            <Shuffle size={13} /> Twists ({(scope?.twists ?? 0).toLocaleString()})
           </button>
           {onRapidReview ? (
             <button className="btn-workspace" disabled={!scope?.count}
