@@ -72,7 +72,7 @@ function navGroups(isAdmin: boolean): { title: string; items: NavItem[] }[] {
     ] },
     { title: "Practice", items: [
       item("pastpapers", "Past papers", <History size={14} />, { active: ["pastpapers", "paper"] }),
-      item("quiz", "Mock Builder", <GraduationCap size={14} />),
+      item("quiz", "Practice", <GraduationCap size={14} />, { title: "Build a session: subjects and topics from past papers and the bank, any difficulty" }),
       item("mock", "Weekly mock", <Trophy size={14} />),
       item("duel", "Challenge a friend", <Swords size={14} />),
     ] },

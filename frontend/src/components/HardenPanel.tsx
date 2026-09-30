@@ -81,10 +81,13 @@ export default function HardenPanel({
   difficulty,
   onStart,
   onSaved,
+  scope,
 }: {
   getHeaders: () => HeadersInit;
   categories: string[];
   subCategories: string[];
+  /** A Practice selection (subjects/topics); used instead of categories when given. */
+  scope?: Record<string, unknown> | null;
   numQuestions: number;
   difficulty: 4 | 5;
   onStart: (quizSetId: string) => void;
@@ -94,9 +97,11 @@ export default function HardenPanel({
   const [starting, setStarting] = useState(false);
   const polling = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const blocked = hardenBlockReason(categories, subCategories, numQuestions);
+  const blocked = scope
+    ? (numQuestions > HARDEN_MAX_QUESTIONS ? `AI difficulty is available for sessions of ${HARDEN_MAX_QUESTIONS} questions or fewer.` : null)
+    : hardenBlockReason(categories, subCategories, numQuestions);
   const picks = subCategories.length ? subCategories : categories;
-  const request = { categories: categories.length ? categories : undefined,
+  const request = scope ? { scope, num_questions: numQuestions, difficulty } : { categories: categories.length ? categories : undefined,
     sub_categories: subCategories.length ? subCategories : undefined, num_questions: numQuestions, difficulty };
   const { preview, error: previewError } = useHardenPreview(getHeaders, blocked || job ? null : request);
 

@@ -113,7 +113,7 @@ function ChapterStudyActions({
         const res = await fetch(`${API}/api/chat/generate-ai-quiz/jobs/${started.job_id}`, { headers, credentials: "include" });
         const job = await res.json().catch(() => null);
         if (job?.status === "done") {
-          toast.success(`${job.result?.total_questions ?? 10} chapter questions ready — find them in Mock Builder → Saved History.`, {
+          toast.success(`${job.result?.total_questions ?? 10} chapter questions ready — find them in Practice → Quiz History.`, {
             action: onOpenQuiz ? { label: "Open", onClick: onOpenQuiz } : undefined,
           });
           return;

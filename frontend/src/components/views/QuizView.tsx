@@ -43,7 +43,8 @@ import ExplanationPanel from "@/components/ExplanationPanel";
 import BasicDropdown from "@/components/ui/basic-dropdown";
 import { PaperYears, QuestionMedia } from "@/components/QuestionMedia";
 import { ArchiveBadges, PastPaperExtras } from "@/components/PastPaperExtras";
-import HardenPanel, { HARDEN_STORAGE_KEY, HardenLevel, hardenBlockReason, previewLine, useHardenPreview } from "@/components/HardenPanel";
+import HardenPanel, { HARDEN_MAX_QUESTIONS, HARDEN_STORAGE_KEY, HardenLevel, hardenBlockReason, previewLine, useHardenPreview } from "@/components/HardenPanel";
+import PracticePicker, { EMPTY_SCOPE, PracticeScope, describeScope, scopeActive } from "@/components/PracticePicker";
 
 // Quiz generation runs as a background job: the start request returns at once
 // and the page polls its status, so no proxy/browser timeout can cut it off.
@@ -107,6 +108,8 @@ interface QuizViewProps {
   explanationError: string | null;
   // handlers
   handleStartQuiz: () => void;
+  practiceScope: PracticeScope;
+  setPracticeScope: (s: PracticeScope) => void;
   handleSubmitQuiz: () => void;
   handleSelectOption: (key: string) => void;
   handleStartDrill?: () => void;
@@ -237,6 +240,8 @@ export default function QuizView({
   explanationLoading,
   explanationError,
   handleStartQuiz,
+  practiceScope,
+  setPracticeScope,
   handleSubmitQuiz,
   handleSelectOption,
   handleStartDrill,
@@ -259,7 +264,20 @@ export default function QuizView({
   const [showSmallCategories, setShowSmallCategories] = React.useState(false);
   // Rules step: the questions as written, or AI-hardened versions (difficulty 4 or 5) prepared before the session.
   const [hardenLevel, setHardenLevel] = React.useState<HardenLevel>(0);
-  const hardenBlocked = hardenBlockReason(quizConfigCategories, quizConfigSubCategories, quizConfigNumQuestions);
+  // Practice by subject/topic: the picked scope, its size, and the "new angle" (twists) style.
+  const scopeOn = scopeActive(practiceScope);
+  const [scopeCount, setScopeCount] = React.useState(0);
+  const [newAngle, setNewAngle] = React.useState(false);
+  const twistsAllowed = scopeOn && practiceScope.sources.includes("past");
+  React.useEffect(() => { if (!twistsAllowed && newAngle) setNewAngle(false); }, [twistsAllowed, newAngle]);
+  const pickScope = (sc: PracticeScope) => {
+    setPracticeScope(sc);
+    if (scopeActive(sc)) { setQuizConfigCategories([]); setQuizConfigSubCategories([]); }
+  };
+  const clearScope = () => setPracticeScope({ ...EMPTY_SCOPE, sources: practiceScope.sources });
+  const hardenBlocked = scopeOn
+    ? (quizConfigNumQuestions > HARDEN_MAX_QUESTIONS ? `AI difficulty is available for sessions of ${HARDEN_MAX_QUESTIONS} questions or fewer.` : null)
+    : hardenBlockReason(quizConfigCategories, quizConfigSubCategories, quizConfigNumQuestions);
   React.useEffect(() => { if (hardenBlocked && hardenLevel) setHardenLevel(0); }, [hardenBlocked, hardenLevel]);
   // A harden job still running from before a reload: offer to reopen its progress on the Review step.
   const [pendingHarden, setPendingHarden] = React.useState<4 | 5 | null>(null);
@@ -269,15 +287,22 @@ export default function QuizView({
       if (saved?.jobId) setPendingHarden(saved.difficulty === 5 ? 5 : 4);
     } catch {}
   }, []);
-  const { preview: hardenPreview } = useHardenPreview(getHeaders ?? (() => ({})), getHeaders && hardenLevel && !hardenBlocked ? {
-    categories: quizConfigCategories.length ? quizConfigCategories : undefined,
-    sub_categories: quizConfigSubCategories.length ? quizConfigSubCategories : undefined,
-    num_questions: quizConfigNumQuestions, difficulty: hardenLevel,
-  } : null);
+  const { preview: hardenPreview } = useHardenPreview(getHeaders ?? (() => ({})), getHeaders && hardenLevel && !hardenBlocked ? (scopeOn
+    ? { scope: practiceScope, num_questions: quizConfigNumQuestions, difficulty: hardenLevel }
+    : {
+      categories: quizConfigCategories.length ? quizConfigCategories : undefined,
+      sub_categories: quizConfigSubCategories.length ? quizConfigSubCategories : undefined,
+      num_questions: quizConfigNumQuestions, difficulty: hardenLevel,
+    }) : null);
   const startHardened = (quizSetId: string) => startQuizWith?.({
     quiz_set_id: quizSetId, num_questions: quizConfigNumQuestions, prefer_unseen: false, exclude_mastered: false,
     timer_mode: quizConfigTimerMode, timer_value: quizConfigTimerValue, feedback_mode: quizConfigFeedbackMode,
-  }, `Harder (${hardenLevel}/5) · ${(quizConfigSubCategories.length ? quizConfigSubCategories : quizConfigCategories).join(", ")}`);
+  }, `Harder (${hardenLevel}/5) · ${scopeOn ? describeScope(practiceScope) : (quizConfigSubCategories.length ? quizConfigSubCategories : quizConfigCategories).join(", ")}`);
+  // New angle: the twists written from the selection's past-paper questions.
+  const startTwists = () => startQuizWith?.({
+    scope: practiceScope, twists: true, num_questions: quizConfigNumQuestions, prefer_unseen: true, exclude_mastered: false,
+    timer_mode: quizConfigTimerMode, timer_value: quizConfigTimerValue, feedback_mode: quizConfigFeedbackMode,
+  }, `New angle · ${describeScope(practiceScope)}`);
   const [builderMode, setBuilderMode] = React.useState<"manual" | "ai_assistant" | "saved_history">("manual");
   const [promptInput, setPromptInput] = React.useState("");
   const [selectedBookId, setSelectedBookId] = React.useState<number | "all">("all");
@@ -658,6 +683,7 @@ export default function QuizView({
     const mainCategories = stats?.categories || [];
 
     const toggleCategory = (catName: string) => {
+      clearScope();
       setQuizConfigCategories((prev) => {
         const isSelected = prev.includes(catName);
         let newCats = [];
@@ -693,6 +719,7 @@ export default function QuizView({
     }, []);
 
     const toggleSubCategory = (subName: string) => {
+      clearScope();
       setQuizConfigSubCategories((prev) => {
         const isSelected = prev.includes(subName);
         let newSubs = [];
@@ -721,7 +748,9 @@ export default function QuizView({
     );
 
     let activeSubMCQs = 0;
-    if (quizConfigSubCategories.length > 0) {
+    if (scopeOn) {
+      activeSubMCQs = scopeCount;
+    } else if (quizConfigSubCategories.length > 0) {
       activeSubMCQs = subCategoryOptions
         .filter((s: any) => quizConfigSubCategories.includes(s.name))
         .reduce((sum: number, s: any) => sum + s.count, 0);
@@ -775,7 +804,7 @@ export default function QuizView({
           style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
         >
           <div>
-            <h1 className="dashboard-title">Mock Builder</h1>
+            <h1 className="dashboard-title">Practice</h1>
             <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)" }}>Set up a practice session: topics, rules, then review.</p>
           </div>
           <button className="btn-workspace" onClick={() => setActiveView("dashboard")}>
@@ -982,6 +1011,7 @@ export default function QuizView({
                             onClick={() => {
                               setQuizConfigCategories([]);
                               setQuizConfigSubCategories([]);
+                              clearScope();
                               setQuizConfigNumQuestions(Math.max(1, Math.min(preset.questions, totalSystemMCQs || preset.questions)));
                               setQuizConfigTimerMode("session");
                               setQuizConfigTimerValue(preset.minutes);
@@ -1021,9 +1051,18 @@ export default function QuizView({
                         ))}
                       </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                      {getHeaders ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", marginBottom: "var(--sp-2)" }}>
+                          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            FCPS Part 1 by subject &amp; topic
+                          </label>
+                          <PracticePicker getHeaders={getHeaders} scope={practiceScope} setScope={pickScope} onSize={setScopeCount} />
+                        </div>
+                      ) : null}
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", opacity: scopeOn ? 0.55 : 1 }}>
                         <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                          Main Categories
+                          Other question sets {scopeOn ? <span style={{ textTransform: "none", fontWeight: 400 }}>(picking one replaces the subject selection)</span> : null}
                         </label>
                         {groupCategories(mainCategories).map((group) => {
                           const shown = showSmallCategories ? group.items : group.items.filter((c: any) => categoryCount(c) >= SMALL_CATEGORY);
@@ -1035,8 +1074,8 @@ export default function QuizView({
                                 {group.title === CATEGORY_GROUPS[0].title ? (
                                   <button
                                     type="button"
-                                    className={`config-category-card ${quizConfigCategories.length === 0 ? "active" : ""}`}
-                                    onClick={() => { setQuizConfigCategories([]); setQuizConfigSubCategories([]); }}
+                                    className={`config-category-card ${quizConfigCategories.length === 0 && !scopeOn ? "active" : ""}`}
+                                    onClick={() => { setQuizConfigCategories([]); setQuizConfigSubCategories([]); clearScope(); }}
                                   >
                                     <span className="config-category-title">Mixed Practice (All)</span>
                                     <span className="config-category-subtitle">Every subject you can practise</span>
@@ -1557,22 +1596,27 @@ export default function QuizView({
                 Difficulty
               </label>
               <div style={{ display: "flex", gap: "8px" }}>
-                {([{ level: 0, label: "As written" }, { level: 4, label: "Harder · 4/5 (AI)" }, { level: 5, label: "Brutal · 5/5 (AI)" }] as const).map((d) => {
+                {([{ level: 0, label: "As written" }, ...(twistsAllowed ? [{ level: -1, label: "New angle (twists)" }] : []),
+                   { level: 4, label: "Harder · 4/5 (AI)" }, { level: 5, label: "Brutal · 5/5 (AI)" }] as { level: number; label: string }[]).map((d) => {
                   const off = d.level > 0 && !!hardenBlocked;
+                  const on = d.level === -1 ? newAngle : !newAngle && hardenLevel === d.level;
                   return (
                     <button
                       key={d.level}
                       type="button"
                       disabled={off}
-                      title={off ? hardenBlocked ?? "" : d.level ? "The AI rewrites the questions with harder statements and options (same fact, same answer) before the session starts" : "The questions exactly as in the bank"}
+                      title={off ? hardenBlocked ?? "" : d.level === -1 ? "Twists already written from these past-paper questions: same concept, a different ask (never the original answer)" : d.level ? "The AI rewrites the questions with harder statements and options (same fact, same answer) before the session starts" : "The questions exactly as in the bank"}
                       style={{
                         flex: 1, padding: "10px", borderRadius: "var(--r-md)", border: "1px solid",
-                        borderColor: hardenLevel === d.level ? "var(--teal)" : "var(--border-light)",
-                        background: hardenLevel === d.level ? "rgba(48, 197, 255, 0.08)" : "var(--surface-3)",
-                        color: hardenLevel === d.level ? "var(--teal)" : "var(--text-secondary)",
+                        borderColor: on ? "var(--teal)" : "var(--border-light)",
+                        background: on ? "rgba(48, 197, 255, 0.08)" : "var(--surface-3)",
+                        color: on ? "var(--teal)" : "var(--text-secondary)",
                         cursor: off ? "not-allowed" : "pointer", opacity: off ? 0.5 : 1, fontWeight: 600, fontSize: "0.8rem",
                       }}
-                      onClick={() => setHardenLevel(d.level)}
+                      onClick={() => {
+                        if (d.level === -1) { setNewAngle(true); setHardenLevel(0); }
+                        else { setNewAngle(false); setHardenLevel(d.level as HardenLevel); }
+                      }}
                     >
                       {d.label}
                     </button>
@@ -1707,7 +1751,7 @@ export default function QuizView({
                   <ArrowLeft size={16} />
                   <span>Back to Rules</span>
                 </button>
-                {hardenLevel ? null : <button className="btn-primary" disabled={quizIsLoading} onClick={handleStartQuiz} style={{ padding: "10px 28px" }}>
+                {hardenLevel ? null : <button className="btn-primary" disabled={quizIsLoading} onClick={newAngle ? startTwists : handleStartQuiz} style={{ padding: "10px 28px" }}>
                   {quizIsLoading ? (
                     <Loader2 size={16} className="spinner" style={{ animation: "spin 1s linear infinite" }} />
                   ) : (
@@ -1724,6 +1768,7 @@ export default function QuizView({
                     getHeaders={getHeaders}
                     categories={quizConfigCategories}
                     subCategories={quizConfigSubCategories}
+                    scope={scopeOn ? (practiceScope as unknown as Record<string, unknown>) : null}
                     numQuestions={quizConfigNumQuestions}
                     difficulty={hardenLevel}
                     onStart={startHardened}

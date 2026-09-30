@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { AnswerResponse } from "@/types";
+import { EMPTY_SCOPE, PracticeScope, scopeActive } from "@/components/PracticePicker";
 import { API } from "@/lib/constants";
 import { formatTime } from "@/utils/quizHelpers";
 
@@ -45,6 +46,8 @@ export function useQuiz({
   const [quizConfigExcludeMastered, setQuizConfigExcludeMastered] = useState<boolean>(false);
   const [quizConfigFeedbackMode, setQuizConfigFeedbackMode] = useState<"tutor" | "board">("tutor");
   const [quizConfigStep, setQuizConfigStep] = useState<1 | 2 | 3>(1);
+  // Practice by subject/topic (shared list across past papers and the bank); used instead of categories when set.
+  const [practiceScope, setPracticeScope] = useState<PracticeScope>(EMPTY_SCOPE);
   const [quizTimerCountdown, setQuizTimerCountdown] = useState<number>(0);
 
   // Summary and timer state
@@ -174,7 +177,7 @@ export function useQuiz({
       if (res.status === 404) {
         // The attempt no longer exists on the server (e.g. data was reset); retrying can't help.
         toast.error("This practice session no longer exists on the server, so its answers can't be saved.", {
-          description: "Start a new session from Mock Builder.",
+          description: "Start a new session from Practice.",
           duration: Infinity,
         });
         setQuizAttemptId(null);
@@ -272,8 +275,12 @@ export function useQuiz({
         },
         credentials: "include",
         body: JSON.stringify({
-          categories: quizConfigCategories.length === 0 ? null : quizConfigCategories,
-          sub_categories: quizConfigSubCategories.length === 0 ? null : quizConfigSubCategories,
+          ...(scopeActive(practiceScope)
+            ? { scope: practiceScope }
+            : {
+                categories: quizConfigCategories.length === 0 ? null : quizConfigCategories,
+                sub_categories: quizConfigSubCategories.length === 0 ? null : quizConfigSubCategories,
+              }),
           num_questions: quizConfigNumQuestions,
           exclude_mastered: quizConfigExcludeMastered,
           timer_mode: quizConfigTimerMode,
@@ -560,6 +567,8 @@ export function useQuiz({
     quizIsSubmitting,
     // config
     quizConfigCategories,
+    practiceScope,
+    setPracticeScope,
     setQuizConfigCategories,
     quizConfigSubCategories,
     setQuizConfigSubCategories,
