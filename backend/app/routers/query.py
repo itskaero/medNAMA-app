@@ -347,6 +347,7 @@ class HardenMcqsRequest(BaseModel):
     difficulty: int = 4           # 4 = multi-step reasoning, 5 = deep integration
     request_id: str | None = None # idempotency key; a retry returns the same set
     label: str | None = None      # shows in the set's title ("Hardened · <label>")
+    scope: dict | None = None     # or a Practice selection (app/practice_scope.py)
 
 @router.post("/api/chat/harden/preview")
 def harden_preview_route(
@@ -407,6 +408,8 @@ class StartQuizRequest(BaseModel):
     years: list[int] | None = None                # past-paper years
     tags: dict[str, list[str]] | None = None      # {"subject": [...], "topic": [...], "specialty": [...]}
     twists: bool = False                          # with past-paper filters: their twists instead (app/twists.py)
+    scope: dict | None = None                     # a Practice selection (app/practice_scope.py): sources, subjects,
+                                                  # subject|topic pairs, years; with twists=True, their twists
     label: str | None = None                      # the session's name in Stats ("Past papers · FCPS Part 1 · 2024")
 
 class SelectedAnswer(BaseModel):
@@ -432,7 +435,15 @@ def start_quiz_endpoint(
     # Private (recall-derived) questions are served only through the Daily Dose; restricted
     # (imported past-paper) questions only to users allowed by PAST_PAPERS_ACCESS.
     query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user)
-    if req.past_paper_exam or req.years or req.tags:
+    if req.scope is not None:
+        from app.practice_scope import restrict
+
+        if req.twists:   # twists written from the selection's past-paper questions
+            seeds = restrict(db, db.query(MCQ.id), {**req.scope, "sources": ["past"]})
+            query = query.filter(MCQ.twist_of.in_(seeds))
+        else:
+            query = restrict(db, query, req.scope)
+    elif req.past_paper_exam or req.years or req.tags:
         from app.past_papers import past_paper_filter
 
         if req.twists:   # the twists written from the selected past-paper questions

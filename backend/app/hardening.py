@@ -72,7 +72,11 @@ class HardenError(Exception):
 
 
 def _buckets(req: dict) -> list[tuple[str, str]]:
-    """(axis, label) per bucket of the selection: topics, else sub-categories, else categories."""
+    """(axis, label) per bucket of the selection: a Practice scope's subject|topic groups, else topics, else
+    sub-categories, else categories."""
+    if req.get("scope"):
+        from app.practice_scope import buckets
+        return [("scope", f"{s}|{t}" if t else s) for s, t in buckets(req["scope"])]
     for axis in ("topics", "sub_categories", "categories"):
         if req.get(axis):
             return [(axis, str(v)) for v in dict.fromkeys(req[axis])]
@@ -116,6 +120,10 @@ def _base_query(db: Session, user: User):
 def _bucket_query(db: Session, user: User, req: dict, axis: str, label: str):
     """Questions of one bucket, inside the rest of the selection (a topic stays within the picked subjects)."""
     q = _base_query(db, user)
+    if axis == "scope":
+        from app.practice_scope import restrict
+        s, _, t = label.partition("|")
+        return restrict(db, q, req["scope"], (s, t or None))
     if axis == "topics":
         q = q.filter(MCQ.topic == label)
         if req.get("sub_categories"):
@@ -168,7 +176,8 @@ def preview(db: Session, user: User, req: dict) -> dict[str, Any]:
     buckets = []
     for axis, label in _buckets(req):
         available = _bucket_query(db, user, req, axis, label).count()
-        buckets.append({"label": label, "available": int(available), "picked": 0})
+        buckets.append({"label": label.partition("|")[2] or label if axis == "scope" else label,
+                        "available": int(available), "picked": 0})
     left = n
     while left > 0 and any(b["picked"] < b["available"] for b in buckets):
         for b in buckets:
