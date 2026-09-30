@@ -129,7 +129,8 @@ check("another user polling the job gets 404", st == 404, f"({st})")
 res = poll(job_id)
 check("progress reported while running", bool(seen_progress) and all(
     {"total", "done", "kept", "items"} <= set(p) for p in seen_progress)
-      and all({"seed_id", "stage"} <= set(i) for i in seen_progress[-1]["items"]),
+      # Slots by number and topic only: no statement (it would spoil the harder version).
+      and all({"n", "stage"} <= set(i) and "stem" not in i for i in seen_progress[-1]["items"]),
       f"({len(seen_progress)} polls with progress)")
 check("job finished done", res.get("status") == "done", f"({res.get('status')}: {res.get('detail') or ''})")
 
