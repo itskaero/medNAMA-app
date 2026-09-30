@@ -378,10 +378,13 @@ def harden_set(db: Session, user: User, req: dict,
     label = (req.get("label") or ", ".join(req.get("sub_categories") or req.get("categories") or []) or "practice")
     title = f"Hardened · {label[:40].title()}"
 
+    # Progress names each question by its number, subject and topic only: showing the original statement would
+    # spoil the harder version, which keeps the same correct answer.
     state = {"total": len(values), "done": 0, "kept": 0, "dropped": {}, "items": [
-        {"seed_id": v["id"], "label": v["sub_category"] or v["topic"] or "",
-         "stem": " ".join((v["question_text"] or "").split())[:110], "stage": "queued", "reason": None}
-        for v in values]}
+        {"seed_id": v["id"], "n": i,
+         "label": " · ".join(dict.fromkeys(x for x in (v["sub_category"], v["topic"]) if x)),
+         "stage": "queued", "reason": None}
+        for i, v in enumerate(values, 1)]}
     lock = threading.Lock()
     by_id = {it["seed_id"]: it for it in state["items"]}
 

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { API } from "@/lib/constants";
 
 /** One seed's progress, as app/hardening.py reports it. */
-interface HardenItem { seed_id: number; label: string; stem: string; stage: string; reason: string | null }
+interface HardenItem { seed_id: number; n?: number; label: string; stage: string; reason: string | null }
 interface HardenProgress { total: number; done: number; kept: number; dropped: Record<string, number>; items: HardenItem[] }
 interface HardenJob {
   job_id: string; status: "running" | "done" | "failed"; progress?: HardenProgress | null; elapsed_s?: number;
@@ -207,7 +207,7 @@ export default function HardenPanel({
           </div>
           {p ? (
             <ul style={{ listStyle: "none", margin: "10px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "4px", maxHeight: "280px", overflowY: "auto" }}>
-              {p.items.map((it) => (
+              {p.items.map((it, i) => (
                 <li key={it.seed_id} style={{ display: "flex", gap: "8px", alignItems: "flex-start", fontSize: "0.74rem" }}>
                   <span style={{ width: "14px", flexShrink: 0, marginTop: "1px" }}>
                     {it.stage === "kept" ? <Check size={13} style={{ color: "var(--sea-green)" }} />
@@ -215,7 +215,9 @@ export default function HardenPanel({
                       : it.stage === "queued" ? null : <Loader2 size={12} className="animate-spin" />}
                   </span>
                   <span style={{ flex: 1, minWidth: 0, color: it.stage === "dropped" ? "var(--text-muted)" : "var(--text-primary)" }}>
-                    <span style={{ color: "var(--text-muted)" }}>{it.label ? `${it.label} · ` : ""}</span>{it.stem}
+                    {/* Number and topic only: the original statement would spoil its harder version. */}
+                    <b>Question {it.n ?? i + 1}</b>
+                    <span style={{ color: "var(--text-muted)" }}>{it.label ? ` · ${it.label}` : ""}</span>
                     <span style={{ display: "block", color: "var(--text-muted)" }}>
                       {it.stage === "kept" ? "Kept" : it.stage === "dropped" ? `Dropped: ${reason(it.reason)}` : STAGE[it.stage] ?? it.stage}
                     </span>
