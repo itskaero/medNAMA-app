@@ -10,7 +10,10 @@ import urllib.request
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 from sqlalchemy import text  # noqa: E402
 
+from app.config import settings  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
+
+OPEN = (settings.past_papers_access or "all").lower() == "all"   # every student sees past papers
 
 BASE = os.environ.get("MEDNAMA_BASE_URL", "http://localhost:3000")
 ADMIN = os.environ["MEDNAMA_ADMIN_TOKEN"]
@@ -58,7 +61,11 @@ st, kb = call(ADMIN, "POST", "/api/study/keys", {"main": "Paper 1 · Basic scien
 check("bank category keys", st == 200 and kb["total"] > 500, f"({kb.get('total')})")
 st, ks = call(STUDENT, "POST", "/api/study/keys", {**scope, "limit": 200})
 restricted = set(db.execute(text("SELECT id FROM mcqs WHERE access='restricted'")).scalars().all())
-check("student gets no restricted keys", st == 200 and not ({i["id"] for i in ks.get("items", [])} & restricted), f"({ks.get('total')} open)")
+if OPEN:
+    check("student gets past-paper keys (PAST_PAPERS_ACCESS=all)", st == 200 and {i["id"] for i in ks.get("items", [])} & restricted,
+          f"({ks.get('total')})")
+else:
+    check("student gets no restricted keys", st == 200 and not ({i["id"] for i in ks.get("items", [])} & restricted), f"({ks.get('total')} open)")
 
 print("One-page summary")
 db.execute(text("DELETE FROM topic_summaries"))
@@ -81,7 +88,10 @@ t0 = time.time()
 st, s2 = call(ADMIN, "POST", "/api/study/topic-summary", {**scope, "years": [2024]})
 check("second call served from cache (years ignored)", st == 200 and s2.get("cached") and time.time() - t0 < 5, f"({time.time() - t0:.1f}s)")
 st, _ = call(STUDENT, "POST", "/api/study/topic-summary", scope)
-check("student cannot read the restricted summary", st == 403, f"({st})")
+if OPEN:
+    check("student reads the summary (PAST_PAPERS_ACCESS=all)", st == 200, f"({st})")
+else:
+    check("student cannot read the restricted summary", st == 403, f"({st})")
 
 print("Work through all (batches)")
 f = {"past_paper_exam": "FCPS Part 1", "years": [2022], "tags": {"topic": ["Renal"]}, "num_questions": 20, "prefer_unseen": True}
