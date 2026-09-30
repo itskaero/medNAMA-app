@@ -8,6 +8,8 @@ import { API } from "@/lib/constants";
 interface Readiness {
   predicted_score: number | null;
   pass_line: number;
+  paper1?: { score: number | null; low: number | null; high: number | null; coverage: number; missing: { subject: string; share: number }[] };
+  peers?: { students: number; min_students: number; ahead_of: number | null; average: number | null };
   subjects: { subject: string; answered: number; mastery: number; enough_data: boolean }[];
   missing_part1_subjects: string[];
   concepts: { tracked: number; mastered: number; due_now: number; due_this_week: number };
@@ -119,6 +121,37 @@ export function ReadinessCard({
         <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "6px" }}>
           {predicted === null ? "Answer 10+ questions in a subject to get an estimate." : data.note}
         </div>
+        {data.paper1 ? (
+          <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px dashed var(--border-light)", fontSize: "0.76rem" }}>
+            <div title="Your subject scores weighted by how often FCPS Part 1 past papers ask each subject">
+              <b>Paper 1 forecast: </b>
+              {data.paper1.score === null ? (
+                <span style={{ color: "var(--text-muted)" }}>needs subjects covering {pct(0.3)} of the paper (now {pct(data.paper1.coverage)})</span>
+              ) : (
+                <>
+                  <span style={{ fontWeight: 800, color: data.paper1.score >= data.pass_line ? "var(--sea-green)" : "var(--text-primary)" }}>{pct(data.paper1.score)}</span>
+                  <span style={{ color: "var(--text-muted)" }}> (likely {pct(data.paper1.low ?? 0)}–{pct(data.paper1.high ?? 0)}) · covers {pct(data.paper1.coverage)} of the paper</span>
+                </>
+              )}
+            </div>
+            {data.paper1.missing.length ? (
+              <div style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginTop: "3px" }}>
+                Not counted yet: {data.paper1.missing.slice(0, 3).map((m) => `${m.subject} (${pct(m.share)} of the paper)`).join(", ")}
+              </div>
+            ) : null}
+            {data.peers ? (
+              <div style={{ marginTop: "4px" }} title="Among students with 30+ answers in the last 60 days">
+                {data.peers.ahead_of !== null ? (
+                  <>How others did: <b>ahead of {data.peers.ahead_of}%</b> of {data.peers.students} students (their average {pct(data.peers.average ?? 0)})</>
+                ) : (
+                  <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>
+                    How others did shows once {data.peers.min_students}+ other students have 30+ answers ({data.peers.students} so far).
+                  </span>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div>

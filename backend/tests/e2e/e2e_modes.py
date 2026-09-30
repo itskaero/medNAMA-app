@@ -57,6 +57,8 @@ bad = next(k for k in sorted(right_other.options) if k != right_other.correct_op
 st, ans = call(STUDENT, "POST", "/api/study/answer", {"mcq_id": right_other.id, "selected_option": bad, "confidence": "guess"})
 check("wrong guess -> confusion or gap", st == 200 and ans.get("mistake_type") in ("gap", "confusion"), f"({ans.get('mistake_type')})")
 st, rd = call(STUDENT, "GET", "/api/study/readiness")
+check("readiness has a Paper 1 forecast and standing", st == 200 and {"score", "coverage", "missing"} <= set(rd.get("paper1", {}))
+      and "ahead_of" in rd.get("peers", {}), f"({rd.get('paper1', {}).get('score')}, peers={rd.get('peers')})")
 check("readiness has mistakes + sprint", st == 200 and "mistakes" in rd and "sprint" in rd,
       f"(types={ {k: v['count'] for k, v in rd.get('mistakes', {}).get('types', {}).items()} }, pairs={rd.get('mistakes', {}).get('pairs')})")
 
@@ -114,6 +116,10 @@ check("result has review with answers + subjects", st == 200 and res2["review"] 
 st, _ = call(STUDENT, "POST", "/api/mocks/weekly/start")
 st, sres = call(STUDENT, "POST", "/api/mocks/weekly/submit", {"answers": {str(qs[0]["id"]): "A"}})
 check("student ranked below admin", st == 200 and sres.get("rank") == 2 and sres.get("candidates") == 2, f"({sres.get('score')}/{sres.get('total')})")
+board = sres.get("leaderboard") or []
+check("leaderboard: admin first with a masked name, the student's own row named",
+      len(board) == 2 and board[0]["rank"] == 1 and "•" in board[0]["name"] and board[1]["you"] and board[1]["name"] == "student",
+      f"({[(r['rank'], r['name']) for r in board]})")
 st, ov2 = call(STUDENT, "GET", "/api/mocks/weekly")
 check("overview history", ov2["entry"]["status"] == "submitted" and ov2["history"] and ov2["candidates"] == 2)
 print("\nALL PASS" if ok else "\nSOME CHECKS FAILED")

@@ -453,6 +453,23 @@ def _percentile(db: Session, mock: WeeklyMock, entry: WeeklyMockEntry) -> dict[s
     }
 
 
+def _leaderboard(db: Session, mock: WeeklyMock, user: User, top: int = 10) -> list[dict[str, Any]]:
+    """This week's top scores. Other students' names are masked (first and last letter); you see your own row."""
+    rows = (db.query(WeeklyMockEntry, User.username).join(User, User.id == WeeklyMockEntry.user_id)
+            .filter(WeeklyMockEntry.mock_id == mock.id, WeeklyMockEntry.submitted_at.isnot(None))
+            .order_by(WeeklyMockEntry.score.desc(), WeeklyMockEntry.submitted_at).all())
+    board, rank, prev = [], 0, None
+    for i, (e, name) in enumerate(rows, start=1):
+        if e.score != prev:
+            rank, prev = i, e.score
+        me = e.user_id == user.id
+        if i > top and not me:
+            continue
+        masked = name if me else (name[0] + "•••" + name[-1] if len(name) > 2 else name[0] + "•••")
+        board.append({"rank": rank, "name": masked, "score": e.score, "total": e.total, "you": me})
+    return board
+
+
 def mock_overview(db: Session, user: User, part: str = "p1", track: str = "") -> dict[str, Any]:
     part, track = paper_key(db, part, track)
     mock = get_or_create_weekly_mock(db, part, track)
@@ -593,6 +610,7 @@ def mock_result(db: Session, user: User, mock: WeeklyMock | None = None, part: s
         "pass_line": PASS_LINE, "passed": (entry.score or 0) / total >= PASS_LINE, "overtime": entry.overtime,
         "time_taken_min": round((entry.submitted_at - entry.started_at).total_seconds() / 60, 1),
         **_percentile(db, mock, entry),
+        "leaderboard": _leaderboard(db, mock, user),
         "subjects": [{"subject": k, **v} for k, v in sorted(subjects.items(), key=lambda kv: kv[1]["correct"] / max(1, kv[1]["total"]))],
         "review": review,
     }

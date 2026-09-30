@@ -33,7 +33,7 @@ from sqlalchemy import and_, func, or_, text
 from sqlalchemy.orm import Session
 
 from app.llm import chat_completion, key_instruction, llm_configured
-from app.models import MCQ, AnswerEvent, Book, ConceptCard, ConceptReview, DailySession, Figure, User
+from app.models import MCQ, AnswerEvent, Book, ConceptCard, ConceptReview, DailySession, Figure, MCQTag, User
 
 logger = logging.getLogger(__name__)
 
@@ -834,6 +834,81 @@ def mark_item_done(db: Session, session: DailySession, index: int, correct: bool
         db.commit()
 
 
+# ─── Paper 1 forecast and standing ─────────────────────────────────────────
+
+P1_PAST_CATEGORY = "Past papers · FCPS Part 1"
+FORECAST_MIN_ANSWERS = 10     # per subject, as for readiness
+FORECAST_MIN_COVERAGE = 0.3   # share of the paper the practised subjects must cover for a forecast
+PEER_MIN_ANSWERS = 30         # a student counts in "how others did" from this many answers (60 days)
+PEER_MIN_STUDENTS = 4         # other students needed before a standing is shown
+_p1_weights: dict[str, Any] = {"at": None, "w": {}}
+_peer_cache: dict[str, Any] = {"at": None, "scores": {}}
+
+
+def paper1_weights(db: Session) -> dict[str, float]:
+    """Share of FCPS Part 1 past-paper questions per subject (shared topic list): how much of the paper each
+    subject is, judged by what the exam has asked. Cached for a day."""
+    now = _now()
+    if _p1_weights["at"] is not None and now - _p1_weights["at"] < timedelta(hours=24):
+        return _p1_weights["w"]
+    rows = (db.query(MCQTag.label, func.count(func.distinct(MCQTag.mcq_id)))
+            .join(MCQ, MCQ.id == MCQTag.mcq_id)
+            .filter(MCQTag.axis == "fcps_subject", MCQ.main_category == P1_PAST_CATEGORY)
+            .group_by(MCQTag.label).all())
+    total = sum(n for _, n in rows) or 1
+    _p1_weights.update(at=now, w={label: n / total for label, n in rows})
+    return _p1_weights["w"]
+
+
+def paper1_forecast(db: Session, stats: dict[str, dict[str, float]]) -> dict[str, Any]:
+    """Predicted Paper 1 score: subject mastery weighted by how often past papers ask each subject, with a 95%
+    range from the answer counts. Subjects not yet practised enough are listed, not guessed."""
+    weights = paper1_weights(db)
+    covered = {s: w for s, w in weights.items() if s in stats and stats[s]["n"] >= FORECAST_MIN_ANSWERS}
+    coverage = sum(covered.values())
+    missing = [{"subject": s, "share": round(w, 3)} for s, w in sorted(weights.items(), key=lambda kv: -kv[1])
+               if s not in covered]
+    out: dict[str, Any] = {"score": None, "low": None, "high": None, "coverage": round(coverage, 3), "missing": missing}
+    if coverage < FORECAST_MIN_COVERAGE:
+        return out
+    score = sum(w * stats[s]["mastery"] for s, w in covered.items()) / coverage
+    var = sum((w / coverage) ** 2 * stats[s]["mastery"] * (1 - stats[s]["mastery"]) / stats[s]["n"]
+              for s, w in covered.items())
+    half = 1.96 * math.sqrt(var)
+    out.update(score=round(score, 3), low=round(max(0.0, score - half), 3), high=round(min(1.0, score + half), 3))
+    return out
+
+
+def _peer_scores(db: Session) -> dict[int, float]:
+    """Paper 1 forecasts of every student with enough recent answers (cached 15 minutes)."""
+    now = _now()
+    if _peer_cache["at"] is not None and now - _peer_cache["at"] < timedelta(minutes=15):
+        return _peer_cache["scores"]
+    since = now - timedelta(days=60)
+    active = [uid for (uid,) in db.query(AnswerEvent.user_id).filter(AnswerEvent.created_at >= since)
+              .group_by(AnswerEvent.user_id).having(func.count(AnswerEvent.id) >= PEER_MIN_ANSWERS)]
+    scores = {}
+    for uid in active:
+        f = paper1_forecast(db, subject_accuracy(db, uid))
+        if f["score"] is not None:
+            scores[uid] = f["score"]
+    _peer_cache.update(at=now, scores=scores)
+    return scores
+
+
+def peer_standing(db: Session, user_id: int, score: float | None) -> dict[str, Any]:
+    """How others did: where this forecast sits among other active students' forecasts. Needs a few students
+    before it says anything, so one friend's score is never exposed."""
+    others = [s for uid, s in _peer_scores(db).items() if uid != user_id]
+    out: dict[str, Any] = {"students": len(others), "min_students": PEER_MIN_STUDENTS, "ahead_of": None, "average": None}
+    if score is None or len(others) < PEER_MIN_STUDENTS:
+        return out
+    below = sum(1 for s in others if s < score)
+    ties = sum(1 for s in others if s == score)
+    out.update(ahead_of=round(100 * (below + 0.5 * ties) / len(others)), average=round(sum(others) / len(others), 3))
+    return out
+
+
 # ─── readiness ──────────────────────────────────────────────────────────────
 
 def readiness(db: Session, user: User) -> dict[str, Any]:
@@ -847,6 +922,7 @@ def readiness(db: Session, user: User) -> dict[str, Any]:
                          "enough_data": s["n"] >= 10})
     scored = [s for s in subjects if s["enough_data"]]
     predicted = (sum(s["mastery"] * s["answered"] for s in scored) / sum(s["answered"] for s in scored)) if scored else None
+    forecast = paper1_forecast(db, stats)
     reviews = db.query(ConceptReview).filter(ConceptReview.user_id == user.id)
     total_concepts = reviews.count()
     mastered = reviews.filter(ConceptReview.box >= MASTERED_BOX).count()
@@ -863,6 +939,8 @@ def readiness(db: Session, user: User) -> dict[str, Any]:
     return {
         "predicted_score": round(predicted, 3) if predicted is not None else None,
         "pass_line": PASS_LINE,
+        "paper1": forecast,
+        "peers": peer_standing(db, user.id, forecast["score"]),
         "subjects": subjects,
         "missing_part1_subjects": [s for s in PART1_SUBJECTS if s not in stats],
         "concepts": {"tracked": total_concepts, "mastered": mastered, "due_now": due_now, "due_this_week": due_week},

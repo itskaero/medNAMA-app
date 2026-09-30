@@ -47,6 +47,7 @@ interface Result {
   rank: number;
   percentile: number | null;
   average: number | null;
+  leaderboard?: { rank: number; name: string; score: number; total: number; you: boolean }[];
   subjects: { subject: string; correct: number; total: number }[];
   review: {
     id: number; question_text: string; options: Record<string, string>; correct_option: string;
@@ -416,6 +417,24 @@ export default function WeeklyMockView({
         <button className="btn-workspace" onClick={shareResult} style={{ marginBottom: "var(--sp-4)" }}>
           <Share2 size={12} /> Share my result
         </button>
+
+        {!mockId && result.leaderboard && result.leaderboard.length > 1 ? (
+          <div style={{ marginBottom: "var(--sp-5)" }}>
+            <h2 style={{ fontSize: "0.95rem", margin: "0 0 8px" }}>This week&apos;s leaderboard</h2>
+            <table className="users-table" style={{ maxWidth: "420px" }}>
+              <tbody>
+                {result.leaderboard.map((r) => (
+                  <tr key={`${r.rank}-${r.name}`} style={r.you ? { fontWeight: 700, color: "var(--sky)" } : undefined}>
+                    <td style={{ width: "48px" }}>#{r.rank}</td>
+                    <td>{r.you ? `${r.name} (you)` : r.name}</td>
+                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{r.score} / {r.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "4px" }}>Other students&apos; names are shortened.</div>
+          </div>
+        ) : null}
 
         <h2 style={{ fontSize: "0.95rem", margin: "0 0 8px" }}>By {!mockId && part === "p2" && track ? "topic" : !mockId && part === "p2" ? "faculty" : "subject"} (weakest first)</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "var(--sp-5)" }}>

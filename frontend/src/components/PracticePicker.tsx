@@ -105,7 +105,19 @@ export default function PracticePicker({
         {SOURCE_CHOICES.map((c) => (
           <button key={c.key} type="button" role="radio" aria-checked={sourceKey === c.key} title={c.hint}
             className={`practice-chip ${sourceKey === c.key ? "active" : ""}`}
-            onClick={() => setScope({ ...scope, sources: c.sources, years: c.sources.includes("past") ? scope.years : [] })}>
+            onClick={() => {
+              // Drop picks that have no questions in the new source (e.g. Anatomy has none in the bank).
+              const has = (subject: string, topic?: string) => {
+                const s = tree?.subjects.find((x) => x.subject === subject);
+                const node = topic ? s?.topics.find((t) => t.topic === topic) : s;
+                return !tree || (node ? count(node, c.sources) > 0 : false);
+              };
+              setScope({
+                ...scope, sources: c.sources, years: c.sources.includes("past") ? scope.years : [],
+                subjects: scope.subjects.filter((s) => has(s)),
+                topics: scope.topics.filter((p) => { const [s, t] = p.split("|"); return has(s, t); }),
+              });
+            }}>
             {c.label}
           </button>
         ))}
