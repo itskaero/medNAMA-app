@@ -32,6 +32,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-500}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      # Who sees the imported past papers (and their twists), and who may open book page images
+      PAST_PAPERS_ACCESS: ${PAST_PAPERS_ACCESS:-admin}
+      PAGE_VIEWER_ACCESS: ${PAGE_VIEWER_ACCESS:-admin}
       HF_HOME: /models/huggingface
       TRANSFORMERS_CACHE: /models/huggingface
     depends_on:
