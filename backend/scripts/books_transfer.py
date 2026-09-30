@@ -49,8 +49,30 @@ def _columns(conn, table: str) -> list[str]:
 
 
 def _raw(conn):
-    """The psycopg connection under a SQLAlchemy connection (for COPY)."""
+    """The DB-API connection under a SQLAlchemy connection (for COPY)."""
     return conn.connection.driver_connection
+
+
+def _copy_out(raw, sql: str, f) -> None:
+    """COPY ... TO STDOUT into a file, with psycopg 3 (PC) or psycopg2 (the NAS image)."""
+    with raw.cursor() as cur:
+        if hasattr(cur, "copy"):
+            with cur.copy(sql) as cp:
+                for block in cp:
+                    f.write(block)
+        else:
+            cur.copy_expert(sql, f)
+
+
+def _copy_in(raw, sql: str, f) -> None:
+    """COPY ... FROM STDIN from a file, with psycopg 3 or psycopg2."""
+    with raw.cursor() as cur:
+        if hasattr(cur, "copy"):
+            with cur.copy(sql) as cp:
+                while block := f.read(1 << 20):
+                    cp.write(block)
+        else:
+            cur.copy_expert(sql, f, size=1 << 20)
 
 
 def export(args) -> None:
@@ -75,11 +97,9 @@ def export(args) -> None:
                 path = out / f"{table}-{b.id}.bin"
                 col_list = ", ".join(cols[table])
                 n = 0
-                with raw.cursor() as cur, open(path, "wb") as f:
-                    with cur.copy(f"COPY (SELECT {col_list} FROM {table} WHERE book_id = {int(b.id)} ORDER BY id) "
-                                  f"TO STDOUT (FORMAT binary)") as cp:
-                        for block in cp:
-                            f.write(block)
+                with open(path, "wb") as f:
+                    _copy_out(raw, f"COPY (SELECT {col_list} FROM {table} WHERE book_id = {int(b.id)} ORDER BY id) "
+                                   f"TO STDOUT (FORMAT binary)", f)
                 n = db.execute(text(f"SELECT count(*) FROM {table} WHERE book_id = :b"), {"b": b.id}).scalar()
                 entry[f"{table}_rows"] = n
                 entry[f"{table}_bytes"] = path.stat().st_size
@@ -106,10 +126,8 @@ def _import_book(entry: dict, folder: Path, cols: dict, apply: bool) -> None:
             for table in ("chunks", "figures"):
                 conn.execute(text(f"CREATE TEMP TABLE t_{table} (LIKE {table} INCLUDING DEFAULTS) ON COMMIT DROP"))
                 col_list = ", ".join(cols[table])
-                with raw.cursor() as cur, open(folder / f"{table}-{bid}.bin", "rb") as f:
-                    with cur.copy(f"COPY t_{table} ({col_list}) FROM STDIN (FORMAT binary)") as cp:
-                        while block := f.read(1 << 20):
-                            cp.write(block)
+                with open(folder / f"{table}-{bid}.bin", "rb") as f:
+                    _copy_in(raw, f"COPY t_{table} ({col_list}) FROM STDIN (FORMAT binary)", f)
                 clash = conn.execute(text(
                     f"SELECT count(*) FROM {table} x JOIN t_{table} t USING (id) WHERE x.book_id <> :b"),
                     {"b": bid}).scalar()
