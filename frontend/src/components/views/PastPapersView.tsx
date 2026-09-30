@@ -234,9 +234,9 @@ export default function PastPapersView({
           <History size={20} style={{ color: "var(--sky)" }} /> Past papers
         </h1>
         <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-          Recalled questions from past sittings, by year; pick a year to choose single sittings. Filter by subject, topic, faculty
-          paper, body system or archive, then practise at your own pace or sit a timed paper. A question both archives recalled is
-          shown once. Answers feed your review schedule like any other question.
+          Recalled questions from past sittings, by year; pick a year to choose single sittings, or narrow to a faculty paper, then
+          practise at your own pace or sit a timed paper. To practise by subject or topic, use Practice. A question both archives
+          recalled is shown once. Answers feed your review schedule like any other question.
         </p>
       </div>
 

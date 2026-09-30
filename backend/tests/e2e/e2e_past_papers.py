@@ -8,6 +8,7 @@ import urllib.request
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 from sqlalchemy import text  # noqa: E402
 
+from app.config import settings  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 
 BASE = os.environ.get("MEDNAMA_BASE_URL", "http://localhost:3000")
@@ -95,20 +96,30 @@ check("another user cannot open your timed paper", st == 404, f"({st})")
 st, wk = call(ADMIN, "GET", "/api/mocks/weekly?part=p1")
 check("timed papers stay out of weekly history", st == 200 and all(h.get("part") in ("p1", "p2") for h in wk.get("history", [])))
 
-print("Student (PAST_PAPERS_ACCESS=admin)")
-st, ov = call(STUDENT, "GET", "/api/past-papers")
-check("past papers locked", st == 200 and ov.get("locked") is True)
-st, _ = call(STUDENT, "POST", "/api/past-papers/scope", {"exam": "FCPS Part 1"})
-check("scope refused", st == 403, f"({st})")
-st, quiz = call(STUDENT, "POST", "/api/quizzes/start", {"past_paper_exam": "FCPS Part 1", "num_questions": 10})
-check("practice quiz cannot reach restricted questions", st in (400, 404) or not ({q["id"] for q in quiz.get("mcqs", [])} & restricted), f"({st})")
-st, quiz = call(STUDENT, "POST", "/api/quizzes/start", {"categories": ["Past papers · FCPS Part 1"], "num_questions": 10})
-check("category route blocked too", st in (400, 404) or not ({q["id"] for q in quiz.get("mcqs", [])} & restricted), f"({st})")
-rid = next(iter(restricted))
-st, _ = call(STUDENT, "POST", "/api/study/answer", {"mcq_id": rid, "selected_option": "A", "confidence": "sure"})
-check("answering a restricted id -> 404", st == 404, f"({st})")
-st, stats = call(STUDENT, "GET", "/api/dashboard/stats")
-check("dashboard categories hide past papers", "Past papers" not in json.dumps(stats.get("categories")))
+ACCESS = (settings.past_papers_access or "all").lower()
+if ACCESS == "all":
+    print("Student (PAST_PAPERS_ACCESS=all): every signed-in student practises past papers")
+    st, ov = call(STUDENT, "GET", "/api/past-papers")
+    check("past papers open", st == 200 and not ov.get("locked"), f"({st})")
+    st, sc = call(STUDENT, "POST", "/api/past-papers/scope", {"exam": "FCPS Part 1"})
+    check("scope allowed", st == 200 and sc.get("count", 0) > 0, f"({st})")
+    st, quiz = call(STUDENT, "POST", "/api/quizzes/start", {"past_paper_exam": "FCPS Part 1", "num_questions": 10})
+    check("practice quiz serves past-paper questions", st == 200 and {q["id"] for q in quiz.get("mcqs", [])} & restricted, f"({st})")
+else:
+    print("Student (PAST_PAPERS_ACCESS=admin)")
+    st, ov = call(STUDENT, "GET", "/api/past-papers")
+    check("past papers locked", st == 200 and ov.get("locked") is True)
+    st, _ = call(STUDENT, "POST", "/api/past-papers/scope", {"exam": "FCPS Part 1"})
+    check("scope refused", st == 403, f"({st})")
+    st, quiz = call(STUDENT, "POST", "/api/quizzes/start", {"past_paper_exam": "FCPS Part 1", "num_questions": 10})
+    check("practice quiz cannot reach restricted questions", st in (400, 404) or not ({q["id"] for q in quiz.get("mcqs", [])} & restricted), f"({st})")
+    st, quiz = call(STUDENT, "POST", "/api/quizzes/start", {"categories": ["Past papers · FCPS Part 1"], "num_questions": 10})
+    check("category route blocked too", st in (400, 404) or not ({q["id"] for q in quiz.get("mcqs", [])} & restricted), f"({st})")
+    rid = next(iter(restricted))
+    st, _ = call(STUDENT, "POST", "/api/study/answer", {"mcq_id": rid, "selected_option": "A", "confidence": "sure"})
+    check("answering a restricted id -> 404", st == 404, f"({st})")
+    st, stats = call(STUDENT, "GET", "/api/dashboard/stats")
+    check("dashboard categories hide past papers", "Past papers" not in json.dumps(stats.get("categories")))
 
 print("Shared features stay open-only")
 st, duel = call(ADMIN, "POST", "/api/duels", {"subject": None, "count": 10})

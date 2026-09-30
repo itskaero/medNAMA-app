@@ -12,6 +12,7 @@ import urllib.request
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 from sqlalchemy import text  # noqa: E402
 
+from app.config import settings  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 
 BASE = os.environ.get("MEDNAMA_BASE_URL", "http://localhost:3000")
@@ -76,8 +77,11 @@ st, quiz = call(ADMIN, "POST", "/api/quizzes/start", {"past_paper_exam": "FCPS P
 check("archive filter", st == 200 and all(q.get("archive") == "MediVerse" for q in quiz["mcqs"]),
       f"({ {q.get('archive') for q in quiz.get('mcqs', [])} })")
 st, quiz = call(ADMIN, "POST", "/api/quizzes/start", {"past_paper_exam": "FCPS Part 1", "num_questions": 200})
-cats = {q["main_category"] for q in quiz.get("mcqs", [])}
-check("FCPS Part 1 practice has no Dentistry-only questions", st == 200 and "Past papers · FCPS Part 1 (Dentistry)" not in cats, f"({cats})")
+# A Dentistry question that is also in an FCPS Part 1 paper (e.g. the Old Pool) belongs to both exams.
+served = [q["id"] for q in quiz.get("mcqs", [])]
+dent_only = q1("SELECT count(*) FROM unnest(CAST(:i AS int[])) AS s(id) WHERE NOT EXISTS (SELECT 1 FROM past_paper_questions q "
+               "JOIN past_papers p ON p.id = q.paper_id WHERE q.mcq_id = s.id AND p.exam = 'FCPS Part 1')", i=served)
+check("FCPS Part 1 practice has no Dentistry-only questions", st == 200 and served and dent_only == 0, f"({dent_only} of {len(served)})")
 qids = [q["id"] for q in quiz["mcqs"]]
 dup = q1("SELECT count(*) - count(DISTINCT coalesce(recall_group, -id)) FROM mcqs WHERE id = ANY(:i)", i=qids)
 check("a session never holds two versions of one question", dup == 0, f"({dup})")
@@ -110,13 +114,18 @@ order = [q["id"] for q in s1["mcqs"]]
 check("the answered question's other version is not served as unseen", b not in order[:max(1, s1["unseen_in_scope"])],
       f"(unseen {s1.get('unseen_in_scope')})")
 
-print("Student (PAST_PAPERS_ACCESS=admin)")
-st, _ = call(STUDENT, "GET", f"/api/mcqs/{a}/recalls")
-check("recalls locked", st == 403, f"({st})")
-st, _ = call(STUDENT, "POST", f"/api/mcqs/{a}/twists")
-check("twists locked", st == 403, f"({st})")
-st, _ = call(STUDENT, "POST", f"/api/mcqs/{a}/check-key")
-check("check-key locked", st == 403, f"({st})")
+if (settings.past_papers_access or "all").lower() == "all":
+    print("Student (PAST_PAPERS_ACCESS=all)")
+    st, _ = call(STUDENT, "GET", f"/api/mcqs/{a}/recalls")
+    check("recalls open to students", st == 200, f"({st})")
+else:
+    print("Student (PAST_PAPERS_ACCESS=admin)")
+    st, _ = call(STUDENT, "GET", f"/api/mcqs/{a}/recalls")
+    check("recalls locked", st == 403, f"({st})")
+    st, _ = call(STUDENT, "POST", f"/api/mcqs/{a}/twists")
+    check("twists locked", st == 403, f"({st})")
+    st, _ = call(STUDENT, "POST", f"/api/mcqs/{a}/check-key")
+    check("check-key locked", st == 403, f"({st})")
 
 if LLM:
     print("Key check (Answer-Key Referee)")

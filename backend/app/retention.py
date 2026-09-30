@@ -109,7 +109,7 @@ def restricted_allowed(user: User | None) -> bool:
     """May this user see restricted (imported past-paper) questions? See settings.past_papers_access."""
     from app.config import settings
 
-    mode = (settings.past_papers_access or "admin").lower()
+    mode = (settings.past_papers_access or "all").lower()
     return user is not None and (mode == "all" or (mode == "admin" and user.role == "admin"))
 
 
