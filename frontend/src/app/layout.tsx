@@ -9,14 +9,19 @@ export const metadata: Metadata = {
   title: "medNAMA — Clinical Knowledge Assistant",
   description:
     "Evidence-based medical Q&A grounded strictly in your reference textbooks. Inline citations, extracted diagrams, zero hallucinations.",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "medNAMA", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#0b1726",
 };
 
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorker } from "@/components/ServiceWorker";
 
 export default function RootLayout({
   children,
@@ -32,6 +37,7 @@ export default function RootLayout({
       <body style={{ height: "100%" }}>
         {children}
         <Toaster position="top-center" />
+        <ServiceWorker />
       </body>
     </html>
   );

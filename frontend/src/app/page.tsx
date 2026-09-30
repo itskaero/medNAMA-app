@@ -37,6 +37,7 @@ import StudyView from "@/components/views/StudyView";
 import DailyDoseView from "@/components/views/DailyDoseView";
 import RefereeView from "@/components/views/RefereeView";
 import UsersView from "@/components/views/UsersView";
+import OfflineView from "@/components/views/OfflineView";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import DuelView from "@/components/views/DuelView";
 import WeeklyMockView from "@/components/views/WeeklyMockView";
@@ -50,7 +51,7 @@ import PageViewer from "@/components/PageViewer";
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "users" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review" | "revise"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "users" | "offline" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review" | "revise"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [timedMockId, setTimedMockId] = useState<number | null>(null);
@@ -143,6 +144,10 @@ export default function Home() {
   } = useSidebar();
 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  // Opened with no connection (an installed app on the bus): go straight to the Offline pack.
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) setActiveView("offline");
+  }, []);
 
   // getHeaders — needed by multiple hooks
   const getHeaders = useCallback((): HeadersInit => {
@@ -477,6 +482,10 @@ export default function Home() {
 
     if (activeView === "referee" && isAdmin) {
       return <RefereeView token={token} />;
+    }
+
+    if (activeView === "offline") {
+      return <OfflineView getHeaders={getHeaders} username={username} />;
     }
 
     if (activeView === "users" && isAdmin) {

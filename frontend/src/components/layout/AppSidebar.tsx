@@ -23,6 +23,7 @@ import {
   Scale,
   Users,
   KeyRound,
+  CloudOff,
   Swords,
   Trophy,
   GitCompareArrows,
@@ -78,6 +79,7 @@ function navGroups(isAdmin: boolean): { title: string; items: NavItem[] }[] {
       item("quiz", "Practice", <GraduationCap size={14} />, { title: "Build a session: subjects and topics from past papers and the bank, any difficulty" }),
       item("mock", "Weekly mock", <Trophy size={14} />),
       item("duel", "Challenge a friend", <Swords size={14} />),
+      item("offline", "Offline pack", <CloudOff size={14} />, { title: "Download questions to answer with no connection; answers sync when you are back" }),
     ] },
     { title: "Learn", items: [
       item("chat", "Discuss with Dr MedNama", <Stethoscope size={14} style={{ color: "var(--sky)" }} />),

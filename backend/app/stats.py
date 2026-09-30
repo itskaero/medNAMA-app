@@ -30,6 +30,7 @@ WITH ev AS (
            WHEN e.source = 'dose' THEN 'Daily Dose'
            WHEN e.source = 'sprint' THEN 'Final sprint'
            WHEN e.source = 'duel' THEN 'Challenge'
+           WHEN e.source = 'offline' THEN 'Offline pack'
            WHEN e.source = 'mock' THEN CASE WHEN wm.part = 'pp' THEN 'Timed past papers' ELSE 'Weekly mock' END
            WHEN e.source = 'retest' OR m.main_category = 'Concept re-test' THEN 'Re-tests'
            WHEN m.main_category LIKE 'Past papers%' THEN 'Past papers'
@@ -44,7 +45,7 @@ WITH ev AS (
 )
 """
 
-SESSION_NAMES = {"dose": "Daily Dose", "sprint": "Final sprint", "duel": "Challenge a friend"}
+SESSION_NAMES = {"dose": "Daily Dose", "sprint": "Final sprint", "duel": "Challenge a friend", "offline": "Offline pack"}
 
 
 def _pct(correct: int, n: int) -> float | None:
