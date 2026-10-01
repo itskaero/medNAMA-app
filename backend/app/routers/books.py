@@ -14,6 +14,8 @@ from app.models import Book, Chunk, User
 from app.auth import require_admin, require_student_or_admin, rate_limiter
 from app.deps import bg_ingest_worker, get_db
 
+from app.retention import subject_for_title  # noqa: E402
+
 router = APIRouter()
 
 STALLED_AFTER_MIN = 60   # 'processing' with no progress this long = the ingest stopped
@@ -53,7 +55,7 @@ def list_books(
             "authors": b.authors,
             "edition": b.edition,
             "year": b.year,
-            "subject": b.subject,
+            "subject": b.subject or subject_for_title(b.title),
         }
         for b in books
     ]

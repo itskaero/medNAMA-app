@@ -64,6 +64,7 @@ def _run_chat_turn(db: Session, req: "ChatQueryRequest", user_id: int, on_stage=
         book_id=req.book_id,
         chapter=req.chapter,
         level=req.level,
+        mode=req.mode,
         on_stage=on_stage,
     )
 

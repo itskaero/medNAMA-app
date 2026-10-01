@@ -76,6 +76,8 @@ interface ChatViewProps {
   // Study level for answer depth
   level?: string | null;
   setLevel?: (level: string | null) => void;
+  tutor?: boolean;
+  setTutor?: (on: boolean) => void;
 }
 
 /** Study-a-chapter actions: a cited high-yield summary, or 10 MCQs from this chapter only. */
@@ -176,6 +178,8 @@ export default function ChatView({
   fetchChapters,
   level = null,
   setLevel,
+  tutor = false,
+  setTutor,
 }: ChatViewProps) {
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -485,6 +489,16 @@ export default function ChatView({
                     ariaLabel="Scope retrieval to a textbook"
                   />
                 </div>
+
+                {setTutor ? (
+                  <div role="radiogroup" aria-label="How Dr MedNama replies" style={{ display: "inline-flex", gap: "4px" }}
+                    title="Tutor me: Dr MedNama asks you one question at a time and corrects you from the books, then gives the full answer">
+                    <button type="button" role="radio" aria-checked={!tutor} className={`practice-chip ${!tutor ? "active" : ""}`}
+                      onClick={() => setTutor(false)}>Answer</button>
+                    <button type="button" role="radio" aria-checked={tutor} className={`practice-chip ${tutor ? "active" : ""}`}
+                      onClick={() => setTutor(true)}>Tutor me</button>
+                  </div>
+                ) : null}
 
                 {setLevel ? (
                   <div style={{ width: "170px" }} title="Sets the depth and focus of answers">

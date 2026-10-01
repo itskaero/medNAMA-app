@@ -4,26 +4,22 @@ import React from "react";
 import {
   Stethoscope,
   LogOut,
-  Upload,
-  BookOpen,
   BookMarked,
   Bookmark,
   GraduationCap,
   TrendingUp,
   LayoutDashboard,
-  MessageSquare,
-  Loader2,
   Moon,
   Sun,
   Compass,
   Sunset,
-  Sparkles,
   NotebookPen,
   Flame,
   Scale,
   Users,
   KeyRound,
   CloudOff,
+  Library,
   Swords,
   Trophy,
   GitCompareArrows,
@@ -32,7 +28,6 @@ import {
   BookOpenCheck,
 } from "lucide-react";
 import { Book } from "@/types";
-import { BookItem } from "@/components";
 
 interface AppSidebarProps {
   activeView: string;
@@ -65,8 +60,9 @@ interface AppSidebarProps {
 
 interface NavItem { view: string; label: string; icon: React.ReactNode; active: string[]; title?: string }
 
-/** Sidebar: what to do today, ways to practise, ways to learn, and progress / tools. */
-function navGroups(isAdmin: boolean): { title: string; items: NavItem[] }[] {
+/** Sidebar: today, ways to practise, ways to learn, review, and (admins) tools. The textbook list lives on its
+ *  own Library page: squeezed under a long menu it shrank to nothing on phones. */
+function navGroups(isAdmin: boolean, bookCount: number): { title: string; items: NavItem[] }[] {
   const item = (view: string, label: string, icon: React.ReactNode, extra: Partial<NavItem> = {}): NavItem =>
     ({ view, label, icon, active: [view], ...extra });
   return [
@@ -74,30 +70,31 @@ function navGroups(isAdmin: boolean): { title: string; items: NavItem[] }[] {
       item("dashboard", "Dashboard", <LayoutDashboard size={14} />),
       item("daily", "Daily Dose", <Flame size={14} style={{ color: "#f59e0b" }} />),
     ] },
-    { title: "Practice", items: [
-      item("pastpapers", "Past papers", <History size={14} />, { active: ["pastpapers", "paper"] }),
+    { title: "Practise", items: [
       item("quiz", "Practice", <GraduationCap size={14} />, { title: "Build a session: subjects and topics from past papers and the bank, any difficulty" }),
+      item("pastpapers", "Past papers", <History size={14} />, { active: ["pastpapers", "paper"] }),
       item("mock", "Weekly mock", <Trophy size={14} />),
       item("duel", "Challenge a friend", <Swords size={14} />),
       item("offline", "Offline pack", <CloudOff size={14} />, { title: "Download questions to answer with no connection; answers sync when you are back" }),
+      item("sprint", "Final sprint", <Zap size={14} />, { title: "Opens in the last 7 days before your exam" }),
     ] },
     { title: "Learn", items: [
-      item("chat", "Discuss with Dr MedNama", <Stethoscope size={14} style={{ color: "var(--sky)" }} />),
+      item("chat", "Dr MedNama", <Stethoscope size={14} style={{ color: "var(--sky)" }} />, { title: "Ask, or be tutored, from your textbooks" }),
       item("revise", "Revise from books", <BookOpenCheck size={14} style={{ color: "var(--sea-green)" }} />,
         { title: "A one-page summary of a topic, written from your own books" }),
       item("lookalikes", "Look-alikes", <GitCompareArrows size={14} />),
-      item("sprint", "Final sprint", <Zap size={14} />, { title: "Opens in the last 7 days before your exam" }),
       item("study", "Study Corner", <NotebookPen size={14} />),
-      item("bookmarks", "Bookmarks", <Bookmark size={14} />),
+      item("library", `Library${bookCount ? ` · ${bookCount}` : ""}`, <Library size={14} />, { title: "The textbooks every answer comes from" }),
     ] },
-    { title: "Progress & tools", items: [
+    { title: "Review", items: [
       item("stats", "Stats", <TrendingUp size={14} />),
+      item("bookmarks", "Bookmarks", <Bookmark size={14} />),
       item("mcq-bank", "MCQ Bank", <BookMarked size={14} />),
-      ...(isAdmin ? [item("users", "Users", <Users size={14} />,
-        { title: "Admin: accounts, invite codes and password resets" })] : []),
-      ...(isAdmin ? [item("referee", "Answer-Key Referee", <Scale size={14} />,
-        { title: "Admin: check recall answers and MCQ keys against the textbooks" })] : []),
     ] },
+    ...(isAdmin ? [{ title: "Admin", items: [
+      item("users", "Users", <Users size={14} />, { title: "Accounts, invite codes and password resets" }),
+      item("referee", "Answer-Key Referee", <Scale size={14} />, { title: "Check recall answers and MCQ keys against the textbooks" }),
+    ] }] : []),
   ];
 }
 
@@ -206,9 +203,9 @@ export default function AppSidebar({
         </button>
       </div>
 
-      {/* Workspace navigation, in four groups */}
+      {/* Workspace navigation, in groups */}
       <nav aria-label="Main" style={{ padding: "var(--sp-2) var(--sp-3)", display: "flex", flexDirection: "column", gap: "2px", borderBottom: "1px solid var(--border)" }}>
-        {navGroups(isAdmin).map((group) => (
+        {navGroups(isAdmin, books.length).map((group) => (
           <div key={group.title} role="group" aria-label={group.title} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
             <div style={{ fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", padding: "8px 10px 2px" }}>
               {group.title}
@@ -231,81 +228,6 @@ export default function AppSidebar({
           </div>
         ))}
       </nav>
-
-      {/* Library */}
-      <div className="sidebar-section-label" aria-label="Library section">
-        Reference Library
-      </div>
-      <div className="book-list" role="list" aria-label="Uploaded textbooks">
-        {booksError && books.length === 0 && !isLoadingBooks ? (
-          <div style={{ padding: "16px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem" }}>
-            <p style={{ margin: "0 0 8px" }}>Couldn&apos;t load the library. {booksError}</p>
-            {onRetryBooks ? (
-              <button type="button" className="btn-workspace" style={{ padding: "4px 10px", fontSize: "0.74rem" }} onClick={onRetryBooks}>
-                Retry
-              </button>
-            ) : null}
-          </div>
-        ) : isLoadingBooks ? (
-          <div style={{ padding: "24px 12px", textAlign: "center", color: "var(--text-muted)" }}>
-            <Loader2
-              size={20}
-              style={{ margin: "0 auto 8px", display: "block", animation: "spin 1s linear infinite" }}
-            />
-            <span style={{ fontSize: "0.75rem" }}>Loading library…</span>
-          </div>
-        ) : books.length === 0 ? (
-          <div className="books-empty">
-            <BookOpen size={32} />
-            <p>
-              {isAdmin
-                ? "Upload your first PDF textbook below."
-                : "No textbooks available. Ask your administrator to add books."}
-            </p>
-          </div>
-        ) : (
-          books.map((b) => (
-            <BookItem key={b.id} book={b} isAdmin={isAdmin} onDelete={handleDeleteBook} />
-          ))
-        )}
-      </div>
-
-      {/* Upload — admin only */}
-      {isAdmin && process.env.NEXT_PUBLIC_CLOUD_MODE !== "true" && (
-        <div className="sidebar-upload">
-          <input
-            type="file"
-            accept=".pdf"
-            style={{ display: "none" }}
-            ref={fileRef}
-            onChange={handleFileUpload}
-            aria-hidden
-          />
-          <button
-            className="upload-btn"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            aria-label="Upload PDF textbook"
-          >
-            {uploading ? (
-              <>
-                <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />
-                Ingesting…
-              </>
-            ) : (
-              <>
-                <Upload size={15} />
-                Upload Textbook
-              </>
-            )}
-          </button>
-          {uploadError && (
-            <div className="upload-error" role="alert">
-              {uploadError}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Sidebar Theme Switcher Footer */}
       <div

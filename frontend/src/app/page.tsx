@@ -38,6 +38,7 @@ import DailyDoseView from "@/components/views/DailyDoseView";
 import RefereeView from "@/components/views/RefereeView";
 import UsersView from "@/components/views/UsersView";
 import OfflineView from "@/components/views/OfflineView";
+import LibraryView from "@/components/views/LibraryView";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import DuelView from "@/components/views/DuelView";
 import WeeklyMockView from "@/components/views/WeeklyMockView";
@@ -51,7 +52,7 @@ import PageViewer from "@/components/PageViewer";
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "users" | "offline" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review" | "revise"
+    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "users" | "offline" | "library" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review" | "revise"
   >("dashboard");
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [timedMockId, setTimedMockId] = useState<number | null>(null);
@@ -83,6 +84,15 @@ export default function Home() {
       }
     }, 0);
     return () => clearTimeout(timer);
+  }, []);
+  // "Tutor me": Dr MedNama asks step by step instead of answering at once (per browser).
+  const [chatTutor, setChatTutorState] = useState(false);
+  useEffect(() => {
+    try { setChatTutorState(localStorage.getItem("mednama_tutor") === "1"); } catch { /* storage unavailable */ }
+  }, []);
+  const setChatTutor = useCallback((on: boolean) => {
+    setChatTutorState(on);
+    try { localStorage.setItem("mednama_tutor", on ? "1" : "0"); } catch { /* storage unavailable */ }
   }, []);
   // Study level (answer depth). Per-browser preference; null = general exam prep.
   const [chatLevel, setChatLevelState] = useState<string | null>(null);
@@ -196,6 +206,7 @@ export default function Home() {
     setMessages,
     scope: chatScope,
     level: chatLevel,
+    tutor: chatTutor,
   });
 
   // F2 — fetch distinct chapter headings when the user scopes chat to a book
@@ -484,6 +495,14 @@ export default function Home() {
       return <RefereeView token={token} />;
     }
 
+    if (activeView === "library") {
+      return (
+        <LibraryView books={books} isLoading={isLoadingBooks} error={booksError} onRetry={() => fetchBooks(true)}
+          isAdmin={isAdmin} uploading={uploading} uploadError={uploadError} onUpload={handleFileUpload}
+          onDelete={handleDeleteBook} fileRef={fileRef} />
+      );
+    }
+
     if (activeView === "offline") {
       return <OfflineView getHeaders={getHeaders} username={username} />;
     }
@@ -624,6 +643,8 @@ export default function Home() {
         setScope={setChatScope}
         level={chatLevel}
         setLevel={setChatLevel}
+        tutor={chatTutor}
+        setTutor={setChatTutor}
         chapters={chatChapters}
         fetchChapters={fetchChatChapters}
       />

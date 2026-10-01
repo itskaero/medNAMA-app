@@ -184,3 +184,33 @@ def set_exam_date(
         user.exam_date = None
     db.commit()
     return {"exam_date": user.exam_date.isoformat() if user.exam_date else None}
+
+
+@router.get("/api/study/anki-export")
+def anki_export(db: Session = Depends(get_db), current_user: User = Depends(require_student_or_admin)):
+    """Your concept cards as an Anki import file (File > Import): front = the concept, back = the summary, the
+    textbook quote and page, and the mnemonic; tagged by subject. Plain text, so any Anki version reads it."""
+    import html
+
+    from app.models import ConceptCard, ConceptReview
+
+    rows = (db.query(ConceptCard, ConceptReview).join(ConceptReview, ConceptReview.concept_id == ConceptCard.id)
+            .filter(ConceptReview.user_id == current_user.id).order_by(ConceptCard.subject, ConceptCard.title).all())
+
+    def cell(text: str) -> str:
+        return html.escape(" ".join((text or "").split("\t"))).replace("\r", "").replace("\n", "<br>")
+
+    lines = ["#separator:tab", "#html:true", "#tags column:3", "#deck:medNAMA"]
+    for card, _ in rows:
+        back = [cell(card.summary)]
+        if card.quote:
+            back.append(f"<i>“{cell(card.quote)}”</i>")
+        if card.book_title:
+            back.append(f"<small>{cell(card.book_title)}{f', p. {card.page_number}' if card.page_number else ''}</small>")
+        if card.mnemonic:
+            back.append(f"<b>Mnemonic:</b> {cell(card.mnemonic)}")
+        tag = "medNAMA " + "_".join((card.subject or "General").split())
+        lines.append(f"{cell(card.title)}\t{'<br><br>'.join(back)}\t{tag}")
+    body = "\n".join(lines) + "\n"
+    return Response(content=body, media_type="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="medNAMA-cards.txt"'})

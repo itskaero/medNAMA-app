@@ -22,6 +22,7 @@ class ChatQueryRequest(BaseModel):
     book_id: int | None = None
     chapter: str | None = None
     level: str | None = None  # 'undergraduate' | 'fcps1' | 'fcps2'
+    mode: str | None = None   # 'tutor': Socratic, one question at a time (app/generation.py TUTOR_RULES)
 
 class ConceptBookmarkCreate(BaseModel):
     content: str

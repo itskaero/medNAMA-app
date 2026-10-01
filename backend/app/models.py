@@ -329,6 +329,9 @@ class ConceptReview(Base):
     last_result: Mapped[str | None] = mapped_column(Text, default=None)
     lapses: Mapped[int] = mapped_column(server_default="0")
     reviews: Mapped[int] = mapped_column(server_default="0")
+    stability: Mapped[float | None] = mapped_column(default=None)      # FSRS (app/fsrs.py), days
+    difficulty: Mapped[float | None] = mapped_column(default=None)     # FSRS, 1-10
+    last_review_at: Mapped[datetime | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 

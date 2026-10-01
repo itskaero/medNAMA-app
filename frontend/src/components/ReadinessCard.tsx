@@ -90,6 +90,22 @@ export function ReadinessCard({
     } else toast.error("Could not save the exam date.");
   };
 
+  const exportAnki = async () => {
+    try {
+      const res = await fetch(`${API}/api/study/anki-export`, { headers: headers(), credentials: "include" });
+      if (!res.ok) throw new Error();
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "medNAMA-cards.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Saved medNAMA-cards.txt: in Anki, File > Import.");
+    } catch {
+      toast.error("Could not export the cards.");
+    }
+  };
+
   if (!data) return null;
   const predicted = data.predicted_score;
 
@@ -183,6 +199,15 @@ export function ReadinessCard({
         </div>
         <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
           Concepts: <b>{data.concepts.mastered}</b> mastered of {data.concepts.tracked} tracked · <b>{data.concepts.due_now}</b> due now
+          {data.concepts.tracked ? (
+            <>
+              {" · "}
+              <button type="button" className="practice-link" onClick={exportAnki}
+                title="Download your concept cards for Anki (File > Import). Re-tests here are timed by FSRS, the scheduler Anki uses.">
+                Export to Anki
+              </button>
+            </>
+          ) : null}
         </div>
         {onOpenDailyDose ? (
           <button className="btn-workspace" onClick={onOpenDailyDose} style={{ alignSelf: "flex-start", padding: "5px 12px", fontSize: "0.78rem" }}>

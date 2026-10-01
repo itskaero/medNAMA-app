@@ -42,6 +42,23 @@ DEFAULT_LEVEL_GUIDANCE = (
     "be concise, high-yield and exam-oriented."
 )
 
+# "Tutor me": the student asked to be taught, not told. Same JSON as an answer, so citations and figures still
+# show; the model leads with questions and gives the full answer only at the end.
+TUTOR_RULES = (
+    "TUTOR MODE (overrides how you write textbook_answer_markdown; the JSON format stays the same):\n"
+    "The student wants to work it out, not be told. Teach one step at a time, like a good viva examiner who wants "
+    "them to pass.\n"
+    "- First message on a topic: in one or two sentences say what you will work through, then ask ONE focused "
+    "question the student can answer in a sentence (a mechanism, a key finding, the next step). A short hint from "
+    "the passages is fine; do not give the answer.\n"
+    "- When the student replies: say plainly whether they are right, correct any error with the textbook fact "
+    "(cited [Book, Page]), then ask the next question that builds on it.\n"
+    "- After three or four exchanges, or as soon as the student is stuck or asks for the answer, give the full, "
+    "concise answer with citations and one line on what they got right and what to revise.\n"
+    "- Keep each turn under 120 words. Leave supplementary_markdown and buzzwords_markdown empty except in that "
+    "final answer. Cite every textbook fact you state; never attach a page to a question you ask.\n\n"
+)
+
 # Legacy refusal / error texts that must not be replayed as conversation history.
 _REFUSAL_MARKERS = (
     "i am sorry, but the answer to your question is not covered",
@@ -248,8 +265,10 @@ def generate_answer(
     chapter: str | None = None,
     level: str | None = None,
     on_stage=None,
+    mode: str | None = None,
 ) -> dict[str, Any]:
     """Retrieve textbook context and generate a books-first answer with a labelled AI supplement.
+    mode="tutor": Socratic tutoring on the same passages (TUTOR_RULES).
 
     on_stage(name) is called as the pipeline advances ("searching", "generating")
     so a streaming endpoint can report progress.
@@ -264,7 +283,13 @@ def generate_answer(
     stage("searching")
     # Use the previous user question to disambiguate follow-ups ("and in adults?") in the rewrite.
     prev_user = next((t["content"] for t in reversed(history or []) if t.get("role") == "user"), "")
-    result = retrieval_service.search(session, query, limit=6, book_id=book_id, chapter=chapter,
+    tutor = (mode or "").lower() == "tutor"
+    search_q = query
+    if tutor and history:
+        # A tutoring reply ("low pH?") says little on its own: search with the topic the session started from.
+        first_user = next((t["content"] for t in history if t.get("role") == "user"), "")
+        search_q = f"{first_user[:300]} {query}".strip()
+    result = retrieval_service.search(session, search_q, limit=6, book_id=book_id, chapter=chapter,
                                       context_hint=prev_user[:300])
     chunks = result.context
     all_figures = result.figures
@@ -275,6 +300,7 @@ def generate_answer(
     system_prompt = (
         "You are Dr. MedNama, an expert medical tutor for MBBS and FCPS (CPSP) exam preparation.\n"
         f"{level_line}\n\n"
+        + (TUTOR_RULES if tutor else "") +
         "BOOKS AVAILABLE IN SYSTEM:\n"
         f"{books_str}\n\n"
         "HOW TO ANSWER MEDICAL QUESTIONS (books first, then clearly labelled AI knowledge):\n"

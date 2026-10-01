@@ -7,6 +7,11 @@ export interface Book {
   error_message: string | null;
   created_at: string;
   stalled?: boolean;   // still "processing" but nothing written for over an hour (GET /api/books)
+  full_title?: string | null;
+  authors?: string[] | null;
+  edition?: number | null;
+  year?: number | null;
+  subject?: string | null;
 }
 
 export interface Citation {

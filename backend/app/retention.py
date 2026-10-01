@@ -412,21 +412,31 @@ def concept_status_for_mcq(db: Session, mcq_id: int) -> tuple[str, ConceptCard |
 # ─── scheduling ─────────────────────────────────────────────────────────────
 
 def _schedule(review: ConceptReview, is_correct: bool, confidence: str) -> None:
+    """FSRS (app/fsrs.py): update the concept's stability and difficulty and set the next re-test for 90% recall.
+    A review scheduled by the old fixed steps starts from the interval its box had. box is kept in step with the
+    stability (the step it has reached), since "mastered" and the dashboard count boxes."""
+    from app import fsrs
+
     now = _now()
-    review.reviews = (review.reviews or 0) + 1
-    if not is_correct or confidence == "guess":
-        review.box = 0
-        review.lapses = (review.lapses or 0) + (0 if is_correct else 1)
-        review.next_due = now + timedelta(days=INTERVAL_DAYS[0])
-        review.last_result = "guess" if is_correct else "wrong"
-    elif confidence == "unsure":
-        box = review.box or 0
-        review.next_due = now + timedelta(days=max(1, INTERVAL_DAYS[min(box, len(INTERVAL_DAYS) - 1)] // 2))
-        review.last_result = "unsure"
+    g = fsrs.rating(is_correct, confidence)
+    if review.stability is None or review.difficulty is None:
+        if (review.reviews or 0) > 0:   # scheduled before FSRS: carry its progress over
+            review.stability = float(INTERVAL_DAYS[min(review.box or 0, len(INTERVAL_DAYS) - 1)])
+            review.difficulty = 5.0
+            elapsed = max(0.0, (now - (review.updated_at or now)).total_seconds() / 86400)
+            review.stability, review.difficulty = fsrs.review(review.stability, review.difficulty, elapsed, g)
+        else:
+            review.stability, review.difficulty = fsrs.initial(g)
     else:
-        review.box = min((review.box or 0) + 1, len(INTERVAL_DAYS) - 1)
-        review.next_due = now + timedelta(days=INTERVAL_DAYS[review.box])
-        review.last_result = "correct"
+        elapsed = max(0.0, (now - (review.last_review_at or review.updated_at or now)).total_seconds() / 86400)
+        review.stability, review.difficulty = fsrs.review(review.stability, review.difficulty, elapsed, g)
+    review.reviews = (review.reviews or 0) + 1
+    if not is_correct:
+        review.lapses = (review.lapses or 0) + 1
+    review.last_review_at = now
+    review.next_due = now + timedelta(days=fsrs.interval_days(review.stability))
+    review.box = sum(1 for d in INTERVAL_DAYS[1:] if review.stability >= d)
+    review.last_result = "wrong" if not is_correct else {"sure": "correct"}.get(confidence, confidence)
 
 
 def record_answer(db: Session, user_id: int, mcq: MCQ, selected: str, confidence: str = "sure",

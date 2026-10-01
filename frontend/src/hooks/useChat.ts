@@ -18,6 +18,8 @@ interface UseChatParams {
   scope?: { book_id: number | null; chapter: string | null };
   /** Study level that sets answer depth: undergraduate | fcps1 | fcps2 (null = general exam prep). */
   level?: string | null;
+  /** "Tutor me": Socratic, one question at a time. */
+  tutor?: boolean;
 }
 
 // The answer is streamed (Server-Sent Events): the backend sends progress
@@ -134,6 +136,7 @@ export function useChat({
   setMessages,
   scope,
   level,
+  tutor = false,
 }: UseChatParams) {
   const [inputValue, setInputValue] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -193,6 +196,7 @@ export function useChat({
             book_id: scope?.book_id ?? null,
             chapter: scope?.chapter ?? null,
             level: level ?? null,
+            mode: tutor ? "tutor" : null,
           }),
         });
 
@@ -287,7 +291,7 @@ export function useChat({
         inputRef.current?.focus();
       }
     },
-    [isSearching, getHeaders, activeConversationId, fetchConversations, scope, level]
+    [isSearching, getHeaders, activeConversationId, fetchConversations, scope, level, tutor]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
