@@ -3,6 +3,7 @@ import { ChevronDown, BookOpen, FileText, Loader2, X } from "lucide-react";
 import { RAGSource } from "../types";
 import { API } from "@/lib/constants";
 import { proxySafeFetch } from "@/lib/proxyFetch";
+import { CiteLink } from "@/components/CiteLink";
 
 /** Full-text view of a single matched source chunk (fetched on demand). */
 function FullTextView({
@@ -140,7 +141,7 @@ export const SourcesPanel = React.memo(
                 <div className="citation-body">
                   <div className="citation-source">
                     {s.book_title}
-                    {s.page_number ? <span className="citation-page">p. {s.page_number}</span> : null}
+                    {s.page_number ? <span className="citation-page"><CiteLink bookTitle={s.book_title} page={s.page_number} excerpt={s.snippet}>p. {s.page_number}</CiteLink></span> : null}
                     {s.relevance_score ? (
                       <span className="citation-page" title="Reranker relevance score">
                         {Math.round(s.relevance_score * 100)}%

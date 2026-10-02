@@ -6,6 +6,12 @@ export interface Book {
   total_pages: number | null;
   error_message: string | null;
   created_at: string;
+  stalled?: boolean;   // still "processing" but nothing written for over an hour (GET /api/books)
+  full_title?: string | null;
+  authors?: string[] | null;
+  edition?: number | null;
+  year?: number | null;
+  subject?: string | null;
 }
 
 export interface Citation {
@@ -20,6 +26,7 @@ export interface Figure {
   reason_to_include?: string;
   caption?: string | null;
   page_number?: number;
+  book_title?: string | null;
 }
 
 /** A reranked candidate shown in the collapsible "All matched sources" panel. */
@@ -34,11 +41,24 @@ export interface RAGSource {
   relevance_score: number;
 }
 
+/** How much of an answer is backed by the ingested textbooks. */
+export type Grounding = "textbook" | "partial" | "ai_only" | "none";
+
 export interface AnswerResponse {
   answer_markdown: string;
   citations: Citation[];
   figures: Figure[];
   sources?: RAGSource[];
+  /** Cited part from the textbooks (answer_markdown = this + labelled supplement). */
+  textbook_answer_markdown?: string;
+  /** Uncited AI clinical knowledge beyond the textbooks. */
+  supplementary_markdown?: string;
+  grounding?: Grounding;
+  status?: "ok" | "llm_error" | "not_configured";
+  /** Books with a strong matching passage that the answer did not cite. */
+  also_in?: { book_title: string; page_number: number | null; chunk_id?: number }[];
+  /** Exam buzzwords / mnemonics (AI-made ones are labelled "(AI mnemonic)"). */
+  buzzwords_markdown?: string;
 }
 
 export interface Message {
@@ -49,6 +69,8 @@ export interface Message {
   errorMsg?: string;
   query?: string;
   timestamp?: string;
+  /** Live pipeline stage reported by the streaming chat endpoint (thinking messages). */
+  stage?: string;
 }
 
 export interface Note {
@@ -76,7 +98,18 @@ export interface Flashcard {
   created_at: string | null;
 }
 
-export type StudyTab = "notes" | "flashcards";
+export type StudyTab = "notes" | "flashcards" | "sheets";
+
+/** A revision sheet this user wrote, listed in Study Corner (scope needed to reopen it). */
+export interface SavedSheet {
+  id: number;
+  label: string;
+  book_ids: number[];
+  chapter: string | null;
+  topic: string | null;
+  length: "quick" | "full";
+  created_at: string | null;
+}
 
 export type ActiveView =
   | "chat"

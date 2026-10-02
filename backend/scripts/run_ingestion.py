@@ -24,7 +24,9 @@ Usage
     python scripts/run_ingestion.py                     # resume from where it left off
     python scripts/run_ingestion.py --dry-run           # show the plan, change nothing
     python scripts/run_ingestion.py --file patho.pdf    # re-ingest / finish one book
-    python scripts/run_ingestion.py --force             # wipe & re-ingest everything
+    python scripts/run_ingestion.py --force             # re-ingest every book in place (ids kept,
+                                                        #   citations remapped: app/reingest.py)
+    python scripts/run_ingestion.py --force --file x.pdf  # re-ingest one book
     python scripts/run_ingestion.py --verify            # also re-ingest ready books that have 0 children
     python scripts/run_ingestion.py --workers 0         # parallel slices per book (0 = auto-fit to free RAM)
     python scripts/run_ingestion.py --ram-budget-mb 6000 # cap RAM used by worker models
@@ -194,7 +196,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Resumable medNAMA ingestion runner.")
     parser.add_argument("--pdfs", type=Path, default=DEFAULT_PDFS_DIR, help="Directory containing PDFs")
     parser.add_argument("--file", help="Process a single PDF by filename")
-    parser.add_argument("--force", action="store_true", help="Wipe and re-ingest every book")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-ingest ready books in place (with --file: just that one)")
     parser.add_argument("--verify", action="store_true",
                         help="Re-ingest 'ready' books whose data is missing")
     parser.add_argument("--dry-run", action="store_true", help="Show the plan and exit")
@@ -236,6 +239,7 @@ def main() -> None:
     cache = args.log.parent / ".page_counts.json"
     consecutive_failures: dict[str, int] = {}   # filename -> consecutive failures this session
     exhausted: dict[str, bool] = {}             # gave up after --max-failures
+    forced_done: set[str] = set()               # --force: re-ingested once this run (the watchdog must not loop)
 
     while True:
         # DB up? A watchdog must not die just because the DB briefly blinked.
@@ -252,7 +256,8 @@ def main() -> None:
         counts = load_page_counts(args.pdfs, cache)
         state = db_book_state()
         jobs = plan_books(args.pdfs, state, args.force, args.verify, args.file)
-        todo = [j for j in jobs if j["action"] != "SKIP"]
+        todo = [j for j in jobs if j["action"] != "SKIP"
+                and not (j["action"] == "RETRY(force)" and j["name"] in forced_done)]
 
         # Drop books that exhausted their failure budget; remember them for the summary.
         todo = [j for j in todo if consecutive_failures.get(j["name"], 0) < args.max_failures]
@@ -310,8 +315,11 @@ def main() -> None:
                 book_id = ingest_book(job["path"], workers=eff_workers,
                                       slice_size=slice_arg,
                                       slice_timeout=args.slice_timeout,
-                                      ram_budget_mb=args.ram_budget_mb or None)
+                                      ram_budget_mb=args.ram_budget_mb or None,
+                                      replace=job["action"] == "RETRY(force)")
                 consecutive_failures[name] = 0
+                if job["action"] == "RETRY(force)":
+                    forced_done.add(name)
                 ok_count += 1
                 print(f"OK: {name} (book_id={book_id})")
             except Exception as e:

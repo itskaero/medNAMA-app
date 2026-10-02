@@ -43,8 +43,11 @@ docker cp "$DUMP" "$CID:/tmp/medrag.dump"
 docker exec "$CID" ls -l /tmp/medrag.dump
 
 echo "[2/5] dropping & recreating database '$NEWDB' (DESTRUCTIVE to $NEWDB only)..."
-docker exec "$CID" psql -U medrag -v ON_ERROR_STOP=1 \
-    -c "DROP DATABASE IF EXISTS $NEWDB" >/dev/null
+# Connect to the maintenance DB: psql defaults to a DB named after the user
+# ("medrag"), which cannot drop itself. WITH (FORCE) ends stray connections
+# (e.g. a restarting backend) that would otherwise block the drop.
+docker exec "$CID" psql -U medrag -d postgres -v ON_ERROR_STOP=1 \
+    -c "DROP DATABASE IF EXISTS \"$NEWDB\" WITH (FORCE)" >/dev/null
 docker exec "$CID" createdb -U medrag "$NEWDB"
 
 echo "[3/5] starting detached pg_restore (verbose log at /tmp/restore.log)..."

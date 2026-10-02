@@ -1,6 +1,6 @@
 "use client";
 
-import React, { RefObject, useEffect } from "react";
+import React, { RefObject, useEffect, useState } from "react";
 import {
   Stethoscope,
   Send,
@@ -13,10 +13,14 @@ import {
   ChevronDown,
   X,
   BookOpen,
+  ListChecks,
+  FileText,
 } from "lucide-react";
 import { Message, Figure, Book } from "@/types";
 import { AIMessage } from "@/components";
 import BasicDropdown from "@/components/ui/basic-dropdown";
+import { toast } from "sonner";
+import { API } from "@/lib/constants";
 import { groupConversations } from "@/utils/quizHelpers";
 
 export interface ChatScope {
@@ -25,10 +29,10 @@ export interface ChatScope {
 }
 
 const SUGGESTIONS = [
-  { icon: <span>🔬</span>, text: "What did Louis Pasteur say about microbes?" },
-  { icon: <span>📖</span>, text: "What manual is used for bacterial classification?" },
-  { icon: <span>📚</span>, text: "Who drew the artwork for Pelczar's fifth edition?" },
-  { icon: <span>🩺</span>, text: "What is the difference between gram-positive and gram-negative bacteria?" },
+  { icon: <span>🫀</span>, text: "Explain the Frank-Starling mechanism and what shifts the curve" },
+  { icon: <span>💊</span>, text: "Mechanism and adverse effects of SGLT2 inhibitors" },
+  { icon: <span>🔬</span>, text: "Nephritic vs nephrotic syndrome: key differences" },
+  { icon: <span>🧠</span>, text: "Blood supply of the internal capsule and the effect of its lesions" },
 ];
 
 interface ChatViewProps {
@@ -69,6 +73,75 @@ interface ChatViewProps {
   setScope?: (s: ChatScope) => void;
   chapters?: string[];
   fetchChapters?: (bookId: number) => void;
+  // Study level for answer depth
+  level?: string | null;
+  setLevel?: (level: string | null) => void;
+  tutor?: boolean;
+  setTutor?: (on: boolean) => void;
+}
+
+/** Study-a-chapter actions: a cited high-yield summary, or 10 MCQs from this chapter only. */
+function ChapterStudyActions({
+  bookId,
+  chapter,
+  token,
+  sendQuery,
+  onOpenQuiz,
+}: {
+  bookId: number;
+  chapter: string;
+  token: string | null;
+  sendQuery: (q: string) => void;
+  onOpenQuiz?: () => void;
+}) {
+  const [quizBusy, setQuizBusy] = useState(false);
+
+  const quizMe = async () => {
+    setQuizBusy(true);
+    const t = localStorage.getItem("token") || token;
+    const headers: HeadersInit = { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+    try {
+      const start = await fetch(`${API}/api/chat/generate-ai-quiz/jobs`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ prompt: `High-yield FCPS questions on ${chapter}`, book_id: bookId, chapter, count: 10, exam_profile: "fcps" }),
+      });
+      const started = await start.json().catch(() => null);
+      if (!start.ok || !started?.job_id) throw new Error((started && started.detail) || `HTTP ${start.status}`);
+      toast.message("Writing 10 questions from this chapter…");
+      for (let i = 0; i < 120; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const res = await fetch(`${API}/api/chat/generate-ai-quiz/jobs/${started.job_id}`, { headers, credentials: "include" });
+        const job = await res.json().catch(() => null);
+        if (job?.status === "done") {
+          toast.success(`${job.result?.total_questions ?? 10} chapter questions ready — find them in Practice → Quiz History.`, {
+            action: onOpenQuiz ? { label: "Open", onClick: onOpenQuiz } : undefined,
+          });
+          return;
+        }
+        if (job?.status === "failed") throw new Error(job.detail || "generation failed");
+      }
+      throw new Error("still generating; check Saved History shortly");
+    } catch (e) {
+      toast.error(`Chapter quiz: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setQuizBusy(false);
+    }
+  };
+
+  const btn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", fontSize: "0.7rem" };
+  return (
+    <>
+      <button className="btn-workspace" style={btn} title="High-yield summary of this chapter, cited to its pages"
+        onClick={() => sendQuery(`Give me a high-yield FCPS summary of the chapter "${chapter}": key facts, numbers, classic associations and exam traps.`)}>
+        <FileText size={10} /> Summarise chapter
+      </button>
+      <button className="btn-workspace" style={btn} disabled={quizBusy} onClick={quizMe} title="10 FCPS-style questions from this chapter only">
+        {quizBusy ? <Loader2 size={10} className="animate-spin" /> : <ListChecks size={10} />} Quiz me on this chapter
+      </button>
+    </>
+  );
 }
 
 export default function ChatView({
@@ -103,6 +176,10 @@ export default function ChatView({
   setScope,
   chapters = [],
   fetchChapters,
+  level = null,
+  setLevel,
+  tutor = false,
+  setTutor,
 }: ChatViewProps) {
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -413,6 +490,32 @@ export default function ChatView({
                   />
                 </div>
 
+                {setTutor ? (
+                  <div role="radiogroup" aria-label="How Dr MedNama replies" style={{ display: "inline-flex", gap: "4px" }}
+                    title="Tutor me: Dr MedNama asks you one question at a time and corrects you from the books, then gives the full answer">
+                    <button type="button" role="radio" aria-checked={!tutor} className={`practice-chip ${!tutor ? "active" : ""}`}
+                      onClick={() => setTutor(false)}>Answer</button>
+                    <button type="button" role="radio" aria-checked={tutor} className={`practice-chip ${tutor ? "active" : ""}`}
+                      onClick={() => setTutor(true)}>Tutor me</button>
+                  </div>
+                ) : null}
+
+                {setLevel ? (
+                  <div style={{ width: "170px" }} title="Sets the depth and focus of answers">
+                    <BasicDropdown
+                      items={[
+                        { value: "any", label: "Level: General" },
+                        { value: "undergraduate", label: "Level: MBBS" },
+                        { value: "fcps1", label: "Level: FCPS-I" },
+                        { value: "fcps2", label: "Level: FCPS-II" },
+                      ]}
+                      value={level ?? "any"}
+                      onChange={(val) => setLevel(val === "any" ? null : val)}
+                      ariaLabel="Study level for answers"
+                    />
+                  </div>
+                ) : null}
+
                 {scope?.book_id ? (
                   <div style={{ width: "220px", maxWidth: "40vw" }}>
                     <BasicDropdown
@@ -455,6 +558,15 @@ export default function ChatView({
                   <X size={10} />
                   Clear
                 </button>
+                {scope.chapter ? (
+                  <ChapterStudyActions
+                    bookId={scope.book_id}
+                    chapter={scope.chapter}
+                    token={token}
+                    sendQuery={sendQuery}
+                    onOpenQuiz={setActiveView ? () => setActiveView("quiz") : undefined}
+                  />
+                ) : null}
               </>
             ) : null}
           </div>
@@ -481,7 +593,7 @@ export default function ChatView({
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <div className="model-chip-pill">
                   <span className="model-chip-dot" />
-                  <span>Dr. MedNama 1.5 · Textbook RAG</span>
+                  <span>Dr. MedNama · answers from your textbooks</span>
                   <ChevronDown size={10} style={{ marginLeft: "4px" }} />
                 </div>
               </div>

@@ -29,6 +29,7 @@ import {
   ArrowLeft,
   AlertTriangle,
   RotateCcw,
+  Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnswerResponse, Figure, Book } from "@/types";
@@ -40,6 +41,22 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import BasicDropdown from "@/components/ui/basic-dropdown";
+import { PaperYears, QuestionMedia } from "@/components/QuestionMedia";
+import { ArchiveBadges, PastPaperExtras } from "@/components/PastPaperExtras";
+import HardenPanel, { HARDEN_MAX_QUESTIONS, HARDEN_STORAGE_KEY, HardenLevel, hardenBlockReason, previewLine, useHardenPreview } from "@/components/HardenPanel";
+import PracticePicker, { EMPTY_SCOPE, PracticeScope, describeScope, scopeActive } from "@/components/PracticePicker";
+
+// Quiz generation runs as a background job: the start request returns at once
+// and the page polls its status, so no proxy/browser timeout can cut it off.
+const QUIZ_POLL_INTERVAL_MS = 2_500;
+// FCPS-I style paper: ~1.2 min per single-best-answer question.
+// Mock presets. CPSP FCPS-I: two papers of 100 single-best-answer MCQs, 2 hours each,
+// 75% pass mark, no negative marking; the full preset reproduces one paper.
+const MOCK_PRESETS = [
+  { key: "short", title: "FCPS mock (short)", questions: 50, minutes: 60 },
+  { key: "full", title: "Full FCPS-I paper", questions: 100, minutes: 120 },
+] as const;
+const QUIZ_MAX_WAIT_MS = 6 * 60_000;
 
 interface QuizViewProps {
   // quiz flow
@@ -49,6 +66,8 @@ interface QuizViewProps {
   quizCurrentIdx: number;
   setQuizCurrentIdx: (idx: number | ((prev: number) => number)) => void;
   quizSelectedAnswers: { [key: number]: string };
+  quizConfidence?: { [key: number]: "sure" | "unsure" | "guess" };
+  setQuizConfidence?: React.Dispatch<React.SetStateAction<{ [key: number]: "sure" | "unsure" | "guess" }>>;
   quizAttemptId: number | null;
   quizIsLoading: boolean;
   quizIsSubmitting: boolean;
@@ -89,6 +108,8 @@ interface QuizViewProps {
   explanationError: string | null;
   // handlers
   handleStartQuiz: () => void;
+  practiceScope: PracticeScope;
+  setPracticeScope: (s: PracticeScope) => void;
   handleSubmitQuiz: () => void;
   handleSelectOption: (key: string) => void;
   handleStartDrill?: () => void;
@@ -98,12 +119,15 @@ interface QuizViewProps {
   stats: any;
   bookmarkedMcqs: any[];
   token: string | null;
+  isAdmin?: boolean;                 // shared sets can only be deleted by an admin
   toggleBookmarkMCQ: (mcqId: number) => void;
   setActiveView: (view: any) => void;
   onFigureClick: (fig: Figure) => void;
   books?: Book[];
   getHeaders?: () => HeadersInit;
   startAiCustomQuiz?: (quizSetId: string) => Promise<void>;
+  startQuizWith?: (filters: Record<string, unknown>, label?: string, returnTo?: string) => Promise<void>;
+  lastRun?: { filters: Record<string, unknown>; label: string; returnTo?: string; total: number; unseen: number; batch: number } | null;
 }
 
 interface AiQuizSetSummary {
@@ -137,6 +161,43 @@ interface StudioMessage {
   timestamp: string;
 }
 
+// What a finished background job (AI quiz or hardening) returns, plus the result
+// shape the chat cards and Manual-builder harden card render.
+interface QuizJobResult {
+  quiz_set_id: string;
+  quiz_set_title: string;
+  total_questions: number;
+  difficulty?: number | null;
+  duplicates_skipped?: number;
+  failed_batches?: number;
+  grounding?: string;
+  mcqs: Array<{
+    id: number;
+    question_text: string;
+    options: Record<string, string>;
+    correct_option: string;
+    difficulty?: number | null;
+    explanation_markdown?: string;
+  }>;
+}
+
+// Mock Builder categories, grouped: the exam banks, sets written for this student, and non-FCPS exams.
+const CATEGORY_GROUPS: { title: string; match: (c: string) => boolean }[] = [
+  { title: "Question banks", match: () => true },
+  { title: "Made for you", match: (c) => ["AI MCQs", "Concept re-test", "Past-paper twists", "Look-alikes", "Spot the diagnosis", "High-yield", "Hardened MCQs"].includes(c) },
+  { title: "Other exams", match: (c) => ["English", "NTS MCQ bank", "NTS mocks"].includes(c) },
+];
+const SMALL_CATEGORY = 20;   // sets smaller than this sit behind "More"
+const categoryCount = (c: any): number => c.sub_categories.reduce((sum: number, s: any) => sum + s.count, 0);
+function groupCategories(categories: any[]): { title: string; items: any[] }[] {
+  const groups = CATEGORY_GROUPS.map((g) => ({ title: g.title, items: [] as any[] }));
+  for (const c of categories) {
+    const i = CATEGORY_GROUPS.findIndex((g, k) => k > 0 && g.match(c.main_category));
+    groups[i < 0 ? 0 : i].items.push(c);
+  }
+  return groups.filter((g, k) => k === 0 || g.items.length);
+}
+
 export default function QuizView({
   quizStep,
   setQuizStep,
@@ -144,6 +205,8 @@ export default function QuizView({
   quizCurrentIdx,
   setQuizCurrentIdx,
   quizSelectedAnswers,
+  quizConfidence = {},
+  setQuizConfidence,
   quizIsLoading,
   quizIsSubmitting,
   quizConfigCategories,
@@ -177,6 +240,8 @@ export default function QuizView({
   explanationLoading,
   explanationError,
   handleStartQuiz,
+  practiceScope,
+  setPracticeScope,
   handleSubmitQuiz,
   handleSelectOption,
   handleStartDrill,
@@ -185,20 +250,71 @@ export default function QuizView({
   stats,
   bookmarkedMcqs,
   token,
+  isAdmin = false,
   toggleBookmarkMCQ,
   setActiveView,
   onFigureClick,
   books = [],
   getHeaders,
   startAiCustomQuiz,
+  startQuizWith,
+  lastRun,
 }: QuizViewProps) {
   // Segmented control and generation states inside QuizView
+  const [showSmallCategories, setShowSmallCategories] = React.useState(false);
+  // Rules step: the questions as written, or AI-hardened versions (difficulty 4 or 5) prepared before the session.
+  const [hardenLevel, setHardenLevel] = React.useState<HardenLevel>(0);
+  // Practice by subject/topic: the picked scope, its size, and the "new angle" (twists) style.
+  const scopeOn = scopeActive(practiceScope);
+  const [scopeCount, setScopeCount] = React.useState(0);
+  const [newAngle, setNewAngle] = React.useState(false);
+  const twistsAllowed = scopeOn && practiceScope.sources.includes("past");
+  React.useEffect(() => { if (!twistsAllowed && newAngle) setNewAngle(false); }, [twistsAllowed, newAngle]);
+  const pickScope = (sc: PracticeScope) => {
+    setPracticeScope(sc);
+    if (scopeActive(sc)) { setQuizConfigCategories([]); setQuizConfigSubCategories([]); }
+  };
+  const clearScope = () => setPracticeScope({ ...EMPTY_SCOPE, sources: practiceScope.sources });
+  const hardenBlocked = scopeOn
+    ? (quizConfigNumQuestions > HARDEN_MAX_QUESTIONS ? `AI difficulty is available for sessions of ${HARDEN_MAX_QUESTIONS} questions or fewer.` : null)
+    : hardenBlockReason(quizConfigCategories, quizConfigSubCategories, quizConfigNumQuestions);
+  React.useEffect(() => { if (hardenBlocked && hardenLevel) setHardenLevel(0); }, [hardenBlocked, hardenLevel]);
+  // A harden job still running from before a reload: offer to reopen its progress on the Review step.
+  const [pendingHarden, setPendingHarden] = React.useState<4 | 5 | null>(null);
+  React.useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HARDEN_STORAGE_KEY) || "null");
+      if (saved?.jobId) setPendingHarden(saved.difficulty === 5 ? 5 : 4);
+    } catch {}
+  }, []);
+  const { preview: hardenPreview } = useHardenPreview(getHeaders ?? (() => ({})), getHeaders && hardenLevel && !hardenBlocked ? (scopeOn
+    ? { scope: practiceScope, num_questions: quizConfigNumQuestions, difficulty: hardenLevel }
+    : {
+      categories: quizConfigCategories.length ? quizConfigCategories : undefined,
+      sub_categories: quizConfigSubCategories.length ? quizConfigSubCategories : undefined,
+      num_questions: quizConfigNumQuestions, difficulty: hardenLevel,
+    }) : null);
+  const startHardened = (quizSetId: string, fillIds?: number[]) => startQuizWith?.({
+    quiz_set_id: quizSetId, include_ids: fillIds?.length ? fillIds : undefined,
+    num_questions: quizConfigNumQuestions, prefer_unseen: false, exclude_mastered: false,
+    timer_mode: quizConfigTimerMode, timer_value: quizConfigTimerValue, feedback_mode: quizConfigFeedbackMode,
+  }, `Harder (${hardenLevel}/5) · ${scopeOn ? describeScope(practiceScope) : (quizConfigSubCategories.length ? quizConfigSubCategories : quizConfigCategories).join(", ")}`);
+  // New angle: the twists written from the selection's past-paper questions.
+  const startTwists = () => startQuizWith?.({
+    scope: practiceScope, twists: true, num_questions: quizConfigNumQuestions, prefer_unseen: true, exclude_mastered: false,
+    timer_mode: quizConfigTimerMode, timer_value: quizConfigTimerValue, feedback_mode: quizConfigFeedbackMode,
+  }, `New angle · ${describeScope(practiceScope)}`);
   const [builderMode, setBuilderMode] = React.useState<"manual" | "ai_assistant" | "saved_history">("manual");
   const [promptInput, setPromptInput] = React.useState("");
   const [selectedBookId, setSelectedBookId] = React.useState<number | "all">("all");
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [aiDifficulty, setAiDifficulty] = React.useState(3); // 1-5, sent to the AI quiz generator
   const [aiCount, setAiCount] = React.useState(5); // F3 — multiples of 5 only: 5/10/15/20
+  const [aiProfile, setAiProfile] = React.useState<"fcps" | "usmle" | "quick">("fcps"); // FCPS/USMLE = 5 options A-E
+  // Tap-a-topic chips in the AI MCQs tab (the bank's subtopic labels, like the Manual builder pills).
+  const [pickedTopic, setPickedTopic] = React.useState<string | null>(null);
+  // "Harder versions (AI)": rewrite existing questions into harder statements & options.
+  const [generatingNote, setGeneratingNote] = React.useState("Searching your textbooks and drafting board-style MCQs...");
   const [quizHistory, setQuizHistory] = React.useState<AiQuizSetSummary[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
   const [historySearch, setHistorySearch] = React.useState("");
@@ -237,6 +353,23 @@ export default function QuizView({
         (item.topic && item.topic.toLowerCase().includes(q))
     );
   }, [quizHistory, historySearch]);
+
+  // Tap-a-topic chips for the AI MCQs tab: the bank's real subtopics (with counts),
+  // exactly what the Manual builder pills show, most-covered first.
+  const allTopicChips = React.useMemo(() => {
+    const byName = new Map<string, number>();
+    for (const cat of stats?.categories || []) {
+      for (const sub of cat?.sub_categories || []) {
+        const name = String(sub?.name || "").trim();
+        if (!name) continue;
+        byName.set(name, (byName.get(name) || 0) + Number(sub?.count || 0));
+      }
+    }
+    return Array.from(byName.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 60);
+  }, [stats]);
 
   const [studioMessages, setStudioMessages] = React.useState<StudioMessage[]>([
     {
@@ -282,6 +415,73 @@ export default function QuizView({
     }
   }, [studioMessages, isGenerating, builderMode]);
 
+  // Poll a background job until it finishes. Transient network errors
+  // (e.g. a proxy restart) are tolerated; only a real job failure or the overall
+  // wait cap ends it.
+  const waitForJob = async (
+    jobId: string, path: string,
+    opts: { maxWaitMs?: number; onProgress?: (p: { done: number; total: number; kept: number }) => void } = {},
+  ): Promise<QuizJobResult> => {
+    if (!getHeaders) throw new Error("Not signed in.");
+    const started = Date.now();
+    let networkFailures = 0;
+    while (Date.now() - started < (opts.maxWaitMs ?? QUIZ_MAX_WAIT_MS)) {
+      await new Promise((r) => setTimeout(r, QUIZ_POLL_INTERVAL_MS));
+      let res: Response;
+      try {
+        res = await fetch(`${API}${path}/${encodeURIComponent(jobId)}`, {
+          headers: getHeaders(),
+          credentials: "include",
+        });
+      } catch {
+        if (++networkFailures >= 10) throw new Error("Lost contact with the server while the job was running.");
+        continue;
+      }
+      networkFailures = 0;
+      const body = (await res.json().catch(() => null)) as any;
+      if (!res.ok) {
+        if (res.status >= 500) continue; // proxy hiccup; keep polling
+        throw new Error((body && body.detail) || `Job status check failed (HTTP ${res.status}).`);
+      }
+      if (body?.progress && opts.onProgress) opts.onProgress(body.progress);
+      if (body?.status === "done") return body.result;
+      if (body?.status === "failed") throw new Error(body.detail || "The job failed.");
+    }
+    throw new Error(
+      "The job is still running after several minutes. It will appear in Saved History when it finishes."
+    );
+  };
+
+  const waitForQuizJob = async (jobId: string): Promise<any> =>
+    waitForJob(jobId, "/api/chat/generate-ai-quiz/jobs");
+
+  // Phase 6 — turn a missed question into a spaced-repetition flashcard.
+  const [flashcardSavedIds, setFlashcardSavedIds] = React.useState<number[]>([]);
+  const handleMakeFlashcard = async (mcq: any) => {
+    if (!getHeaders) return;
+    const answerText = mcq.options?.[mcq.correct_option] ?? "";
+    const explanation =
+      explanationMCQId === mcq.id && explanationData?.answer_markdown ? explanationData.answer_markdown : "";
+    const back = `**${mcq.correct_option}. ${answerText}**${explanation ? `\n\n${explanation.slice(0, 1500)}` : ""}`;
+    try {
+      const res = await fetch(`${API}/api/flashcards`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          front: mcq.question_text,
+          back,
+          topic: mcq.sub_category || mcq.main_category || "Missed MCQ",
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setFlashcardSavedIds((prev) => [...prev, mcq.id]);
+      toast.success("Saved to flashcards (Study Corner).");
+    } catch (e: any) {
+      toast.error(`Could not save flashcard: ${e.message || e}`);
+    }
+  };
+
   // Handle AI Quiz Generation inside config screen
   const handleGenerate = async (customPrompt?: string) => {
     const queryPrompt = customPrompt || promptInput;
@@ -309,8 +509,14 @@ export default function QuizView({
     setPromptInput("");
     setIsGenerating(true);
 
+    // Idempotency key: a repeated start (double click, retry) returns the same job.
+    const requestId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
     try {
-      const res = await proxySafeFetch(`${API}/api/chat/generate-ai-quiz`, {
+      const startRes = await proxySafeFetch(`${API}/api/chat/generate-ai-quiz/jobs`, {
         method: "POST",
         headers: {
           ...getHeaders(),
@@ -322,26 +528,33 @@ export default function QuizView({
           book_id: selectedBookId === "all" ? null : selectedBookId,
           difficulty: aiDifficulty,
           count: aiCount,
+          exam_profile: aiProfile,
+          request_id: requestId,
         }),
       });
-
-      const data = (await res.json().catch(() => null)) as any;
-
-      if (!res.ok) {
-        throw new Error((data && data.detail) || `Failed to generate quiz (HTTP ${res.status}).`);
+      const started = (await startRes.json().catch(() => null)) as any;
+      if (!startRes.ok || !started?.job_id) {
+        throw new Error((started && started.detail) || `Failed to start quiz generation (HTTP ${startRes.status}).`);
       }
+
+      const data = await waitForQuizJob(started.job_id);
 
       fetchQuizHistory();
       const dupNote =
         data && typeof data.duplicates_skipped === "number" && data.duplicates_skipped > 0
-          ? `\n\n_${data.duplicates_skipped} near-duplicate${data.duplicates_skipped === 1 ? "" : "s"} were skipped to keep this set fresh._`
+          ? `\n\n_${data.duplicates_skipped} question${data.duplicates_skipped === 1 ? " was" : "s were"} skipped because they repeated existing MCQs on this topic._`
+          : "";
+      const g = data?.grounding_counts;
+      const groundingNote =
+        g && typeof g.book === "number"
+          ? `\n\n${g.book} from your textbooks (cited book & page)${g.ai ? `, ${g.ai} from AI clinical knowledge (labelled, no page)` : ""}.`
           : "";
       setStudioMessages((prev) => [
         ...prev,
         {
           id: `ai-${Date.now()}`,
           sender: "ai",
-          content: `I've generated **${data.quiz_set_title}** containing ${data.total_questions} board-style MCQs grounded directly in textbook RAG context!${dupNote}`,
+          content: `I've generated **${data.quiz_set_title}** containing ${data.total_questions} MCQs.${groundingNote}${dupNote}`,
           quizResult: data,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
@@ -360,6 +573,88 @@ export default function QuizView({
       ]);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Start a harden job and wait for it: AI rewrites existing questions (either explicit
+  // seed_ids or the current topic selection) into harder statements & options at a chosen
+  // difficulty, keeping the same facts and correct answers.
+  const startHarden = async (payload: Record<string, unknown>): Promise<QuizJobResult> => {
+    if (!getHeaders) throw new Error("Not signed in.");
+    const requestId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const startRes = await proxySafeFetch(`${API}/api/chat/harden/jobs`, {
+      method: "POST",
+      headers: { ...getHeaders(), "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ ...payload, request_id: requestId }),
+    });
+    const started = (await startRes.json().catch(() => null)) as { job_id?: string; detail?: string } | null;
+    if (!startRes.ok || !started?.job_id) {
+      throw new Error((started && started.detail) || `Failed to start hardening (HTTP ${startRes.status}).`);
+    }
+    // Hardening checks every rewrite against the textbooks: a 20-question set can take half an hour on the NAS.
+    return waitForJob(started.job_id, "/api/chat/harden/jobs", {
+      maxWaitMs: 30 * 60_000,
+      onProgress: (p) => setGeneratingNote(`Rewriting to a harder difficulty: checked ${p.done} of ${p.total}, ${p.kept} kept so far...`),
+    });
+  };
+
+  const handleHardenFromSet = async (set: StudioMessage["quizResult"]) => {
+    const ids = (set?.mcqs || []).map((m) => Number(m?.id)).filter(Boolean).slice(0, 20);
+    if (!ids.length) {
+      toast.error("No questions in that set to rewrite.");
+      return;
+    }
+    const target = Math.max(4, aiDifficulty) as 4 | 5;
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    setStudioMessages((prev) => [
+      ...prev,
+      {
+        id: `user-${Date.now()}`,
+        sender: "user",
+        content: `Rewrite this set harder (difficulty ${target}/5): ${set?.quiz_set_title || "previous set"}`,
+        timestamp: timeStr,
+      },
+    ]);
+    setGeneratingNote("Rewriting these questions to a harder difficulty (same facts, tougher statements and options)...");
+    setIsGenerating(true);
+    try {
+      const data = await startHarden({
+        seed_ids: ids,
+        num_questions: Math.max(5, Math.min(20, Math.round(ids.length / 5) * 5)),
+        difficulty: target,
+        label: String(set?.quiz_set_title || "practice").replace(/^(AI\s*)?/i, ""),
+      });
+      setStudioMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}`,
+          sender: "ai",
+          content:
+            `I've rewritten **${data.quiz_set_title}** into ${data.total_questions} harder versions - the same facts and ` +
+            `correct answers, but tougher statements and options at difficulty ${data.difficulty}/5. It is saved in Quiz History.`,
+          quizResult: data,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+      fetchQuizHistory();
+    } catch (err) {
+      setStudioMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-err-${Date.now()}`,
+          sender: "ai",
+          isError: true,
+          content: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+    } finally {
+      setIsGenerating(false);
+      setGeneratingNote("Searching your textbooks and drafting board-style MCQs...");
     }
   };
 
@@ -389,6 +684,7 @@ export default function QuizView({
     const mainCategories = stats?.categories || [];
 
     const toggleCategory = (catName: string) => {
+      clearScope();
       setQuizConfigCategories((prev) => {
         const isSelected = prev.includes(catName);
         let newCats = [];
@@ -424,6 +720,7 @@ export default function QuizView({
     }, []);
 
     const toggleSubCategory = (subName: string) => {
+      clearScope();
       setQuizConfigSubCategories((prev) => {
         const isSelected = prev.includes(subName);
         let newSubs = [];
@@ -452,7 +749,9 @@ export default function QuizView({
     );
 
     let activeSubMCQs = 0;
-    if (quizConfigSubCategories.length > 0) {
+    if (scopeOn) {
+      activeSubMCQs = scopeCount;
+    } else if (quizConfigSubCategories.length > 0) {
       activeSubMCQs = subCategoryOptions
         .filter((s: any) => quizConfigSubCategories.includes(s.name))
         .reduce((sum: number, s: any) => sum + s.count, 0);
@@ -506,7 +805,8 @@ export default function QuizView({
           style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
         >
           <div>
-            <h1 className="dashboard-title">Configure Practice Session</h1>
+            <h1 className="dashboard-title">Practice</h1>
+            <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)" }}>Set up a practice session: topics, rules, then review.</p>
           </div>
           <button className="btn-workspace" onClick={() => setActiveView("dashboard")}>
             Back to Dashboard
@@ -560,6 +860,18 @@ export default function QuizView({
             </React.Fragment>
           ))}
         </div>
+
+        {pendingHarden && quizConfigStep !== 3 ? (
+          <div role="status" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", margin: "0 0 var(--sp-4)",
+            padding: "10px 14px", borderRadius: "12px", border: "1px solid var(--teal)", background: "rgba(76, 217, 100, 0.06)", fontSize: "0.8rem" }}>
+            <Loader2 size={14} className="animate-spin" style={{ color: "var(--teal)" }} />
+            <span style={{ flex: 1 }}>Harder versions are being prepared in the background.</span>
+            <button type="button" className="btn-workspace" style={{ padding: "4px 12px", fontSize: "0.76rem" }}
+              onClick={() => { setHardenLevel(pendingHarden); setPendingHarden(null); setQuizConfigStep(3); }}>
+              Show progress
+            </button>
+          </div>
+        ) : null}
 
         {/* Step 1: Topics */}
         {quizConfigStep === 1 && (
@@ -691,40 +1003,114 @@ export default function QuizView({
                   {/* Mode 1: Manual Builder */}
                   {builderMode === "manual" && (
                     <>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                          Main Categories
-                        </label>
-                        <div className="config-category-grid" role="group">
+                      {/* Phase 6 — one-click FCPS-style mock papers using the existing timed + board modes */}
+                      <div style={{ display: "flex", gap: "var(--sp-2)", flexWrap: "wrap", marginBottom: "var(--sp-3)" }}>
+                        {MOCK_PRESETS.map((preset) => (
                           <button
+                            key={preset.key}
                             type="button"
-                            className={`config-category-card ${quizConfigCategories.length === 0 ? "active" : ""}`}
-                            onClick={() => { setQuizConfigCategories([]); setQuizConfigSubCategories([]); }}
+                            onClick={() => {
+                              setQuizConfigCategories([]);
+                              setQuizConfigSubCategories([]);
+                              clearScope();
+                              setQuizConfigNumQuestions(Math.max(1, Math.min(preset.questions, totalSystemMCQs || preset.questions)));
+                              setQuizConfigTimerMode("session");
+                              setQuizConfigTimerValue(preset.minutes);
+                              setQuizConfigFeedbackMode("board");
+                              setQuizConfigExcludeMastered(false);
+                              setQuizConfigStep(3);
+                              if (totalSystemMCQs && totalSystemMCQs < preset.questions) {
+                                toast.warning(`Only ${totalSystemMCQs} questions in the bank yet; the paper will use all of them.`);
+                              } else {
+                                toast.success(`${preset.title} set up: review the settings and start.`);
+                              }
+                            }}
+                            style={{
+                              flex: "1 1 240px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "12px",
+                              padding: "12px 14px",
+                              borderRadius: "12px",
+                              border: "1px dashed var(--sky)",
+                              background: "rgba(48,197,255,0.06)",
+                              color: "var(--text-primary)",
+                              cursor: "pointer",
+                              textAlign: "left",
+                            }}
+                            title="All subjects, unseen questions first, one session timer, answers revealed at the end (75% pass line)"
                           >
-                            <span className="config-category-title">Mixed Practice (All)</span>
-                            <span className="config-category-subtitle">Select all ingested subjects</span>
+                            <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                              <span style={{ fontWeight: 700, fontSize: "0.86rem" }}>{preset.title}</span>
+                              <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                                {preset.questions} questions · {preset.minutes} min · all subjects · board mode · unseen first
+                              </span>
+                            </span>
+                            <Clock size={16} style={{ color: "var(--sky)", flexShrink: 0 }} />
                           </button>
-                          {mainCategories.map((c: any, i: number) => {
-                            const count = c.sub_categories.reduce((sum: number, s: any) => sum + s.count, 0);
-                            const isSelected = quizConfigCategories.includes(c.main_category);
-                            return (
-                              <button
-                                key={i}
-                                type="button"
-                                className={`config-category-card ${isSelected ? "active" : ""}`}
-                                onClick={() => toggleCategory(c.main_category)}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: "12px" }}>
-                                  <span className="config-category-title" title={c.main_category} style={{ textAlign: "left", flex: 1 }}>{c.main_category}</span>
-                                  <div style={{ flexShrink: 0, marginTop: "2px" }}>
-                                    <Checkbox checked={isSelected} readOnly />
-                                  </div>
-                                </div>
-                                <span className="config-category-subtitle">{c.sub_categories.length} subtopics · {count} MCQs</span>
-                              </button>
-                            );
-                          })}
+                        ))}
+                      </div>
+
+                      {getHeaders ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", marginBottom: "var(--sp-2)" }}>
+                          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            FCPS Part 1 by subject &amp; topic
+                          </label>
+                          <PracticePicker getHeaders={getHeaders} scope={practiceScope} setScope={pickScope} onSize={setScopeCount} />
                         </div>
+                      ) : null}
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", opacity: scopeOn ? 0.55 : 1 }}>
+                        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          Other question sets {scopeOn ? <span style={{ textTransform: "none", fontWeight: 400 }}>(picking one replaces the subject selection)</span> : null}
+                        </label>
+                        {groupCategories(mainCategories).map((group) => {
+                          const shown = showSmallCategories ? group.items : group.items.filter((c: any) => categoryCount(c) >= SMALL_CATEGORY);
+                          const hidden = group.items.length - shown.length;
+                          return (
+                            <div key={group.title} style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "10px" }}>
+                              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{group.title}</div>
+                              <div className="config-category-grid" role="group" aria-label={group.title}>
+                                {group.title === CATEGORY_GROUPS[0].title ? (
+                                  <button
+                                    type="button"
+                                    className={`config-category-card ${quizConfigCategories.length === 0 && !scopeOn ? "active" : ""}`}
+                                    onClick={() => { setQuizConfigCategories([]); setQuizConfigSubCategories([]); clearScope(); }}
+                                  >
+                                    <span className="config-category-title">Mixed Practice (All)</span>
+                                    <span className="config-category-subtitle">Every subject you can practise</span>
+                                  </button>
+                                ) : null}
+                                {shown.map((c: any) => {
+                                  const isSelected = quizConfigCategories.includes(c.main_category);
+                                  return (
+                                    <button
+                                      key={c.main_category}
+                                      type="button"
+                                      className={`config-category-card ${isSelected ? "active" : ""}`}
+                                      onClick={() => toggleCategory(c.main_category)}
+                                    >
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: "12px" }}>
+                                        <span className="config-category-title" title={c.main_category} style={{ textAlign: "left", flex: 1 }}>{c.main_category}</span>
+                                        <div style={{ flexShrink: 0, marginTop: "2px" }}>
+                                          <Checkbox checked={isSelected} readOnly />
+                                        </div>
+                                      </div>
+                                      <span className="config-category-subtitle">{c.sub_categories.length} subtopics · {categoryCount(c).toLocaleString()} MCQs</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {hidden > 0 ? (
+                                <button type="button" className="btn-workspace" style={{ padding: "3px 10px", fontSize: "0.72rem" }}
+                                  onClick={() => setShowSmallCategories(true)}>
+                                  More ({hidden} small set{hidden > 1 ? "s" : ""})
+                                </button>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", marginTop: "24px" }}>
@@ -754,6 +1140,7 @@ export default function QuizView({
                           })}
                         </div>
                       </div>
+
 
                       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "auto", paddingTop: "var(--sp-4)" }}>
                         <button className="btn-primary" onClick={handleNextStep}>
@@ -879,6 +1266,17 @@ export default function QuizView({
                                             <Play size={12} fill="currentColor" />
                                             <span>Practice Now</span>
                                           </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleHardenFromSet(msg.quizResult)}
+                                            disabled={isGenerating}
+                                            className="btn-secondary py-2 px-3 text-xs font-bold rounded-lg flex items-center gap-1"
+                                            style={{ minHeight: "36px", background: "var(--surface-3)", border: "1px solid var(--border-light)", color: "var(--teal)", cursor: isGenerating ? "not-allowed" : "pointer" }}
+                                            title="Rewrite the same facts and answers at a harder difficulty"
+                                          >
+                                            {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Layers size={12} />}
+                                            <span>{isGenerating ? "Rewriting…" : "Make harder (AI)"}</span>
+                                          </button>
                                         </div>
                                       </div>
                                     )}
@@ -895,7 +1293,7 @@ export default function QuizView({
                                   </div>
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-secondary)", fontSize: "0.82rem" }}>
                                     <Loader2 size={16} className="animate-spin text-[var(--sky)] shrink-0" />
-                                    <span>Searching textbook RAG context & drafting board-style MCQs...</span>
+                                    <span>{generatingNote}</span>
                                   </div>
                                 </div>
                               </div>
@@ -903,6 +1301,30 @@ export default function QuizView({
                           </div>
                         )}
                       </div>
+
+                      {allTopicChips.length ? (
+                        <div style={{ marginTop: "10px" }}>
+                          <div style={{ fontSize: "0.66rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+                            Or tap a topic from your bank
+                          </div>
+                          <div className="config-sub-pills-list" style={{ maxHeight: "112px", overflowY: "auto", paddingRight: "2px" }}>
+                            {allTopicChips.map((c) => (
+                              <button
+                                key={c.name}
+                                type="button"
+                                className={`config-sub-pill ${pickedTopic === c.name ? "active" : ""}`}
+                                title={`Generate MCQs on ${c.name}`}
+                                onClick={() => {
+                                  setPickedTopic(c.name);
+                                  handleGenerate(c.name);
+                                }}
+                              >
+                                {pickedTopic === c.name ? "✓ " : ""}{c.name} ({c.count})
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
 
                       {/* Chat Input */}
                       <div className="chat-composer-box" style={{ padding: "8px 12px", background: "var(--surface-2)", borderRadius: "var(--r-md)", border: "1px solid var(--border-light)" }}>
@@ -994,6 +1416,34 @@ export default function QuizView({
                                 </button>
                               ))}
                             </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: "2px" }}>
+                                Style
+                              </span>
+                              {([["fcps", "FCPS (A–E)", "CPSP single best answer, 5 options"], ["usmle", "USMLE (A–E)", "Long clinical vignette, 5 options"], ["quick", "Quick recall (A–D)", "Short rapid-recall drill, 4 options"]] as const).map(([val, label, hint]) => (
+                                <button
+                                  key={val}
+                                  type="button"
+                                  title={hint}
+                                  onClick={() => setAiProfile(val)}
+                                  style={{
+                                    height: "24px",
+                                    padding: "0 8px",
+                                    borderRadius: "6px",
+                                    border: "1px solid",
+                                    borderColor: aiProfile === val ? "var(--sky)" : "var(--border-light)",
+                                    background: aiProfile === val ? "rgba(48,197,255,0.12)" : "var(--surface-3)",
+                                    color: aiProfile === val ? "var(--sky)" : "var(--text-secondary)",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                    fontSize: "0.7rem",
+                                    transition: "all var(--dur-fast)",
+                                  }}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <span className="keyboard-send-hint" style={{ fontSize: "0.68rem" }}>⏎ to generate</span>
@@ -1063,16 +1513,18 @@ export default function QuizView({
                                 >
                                   Practice
                                 </button>
-                                <button
-                                  type="button"
-                                  className="chat-delete-btn"
-                                  style={{ position: "static", transform: "none", opacity: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "6px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", alignSelf: "center" }}
-                                  onClick={(e) => handleDeleteQuizSet(qSet.quiz_set_id, qSet.quiz_set_title, e)}
-                                  title="Delete set"
-                                  aria-label="Delete custom set"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
+                                {isAdmin ? (
+                                  <button
+                                    type="button"
+                                    className="chat-delete-btn"
+                                    style={{ position: "static", transform: "none", opacity: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "6px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", alignSelf: "center" }}
+                                    onClick={(e) => handleDeleteQuizSet(qSet.quiz_set_id, qSet.quiz_set_title, e)}
+                                    title="Delete set (for everyone)"
+                                    aria-label="Delete custom set"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                ) : null}
                               </div>
                             </div>
                           ))
@@ -1137,6 +1589,49 @@ export default function QuizView({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Difficulty: as written, or AI-hardened versions prepared before the session */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+              <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Difficulty
+              </label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {([{ level: 0, label: "As written" }, ...(twistsAllowed ? [{ level: -1, label: "New angle (twists)" }] : []),
+                   { level: 4, label: "Harder · 4/5 (AI)" }, { level: 5, label: "Brutal · 5/5 (AI)" }] as { level: number; label: string }[]).map((d) => {
+                  const off = d.level > 0 && !!hardenBlocked;
+                  const on = d.level === -1 ? newAngle : !newAngle && hardenLevel === d.level;
+                  return (
+                    <button
+                      key={d.level}
+                      type="button"
+                      disabled={off}
+                      title={off ? hardenBlocked ?? "" : d.level === -1 ? "Twists already written from these past-paper questions: same concept, a different ask (never the original answer)" : d.level ? "The AI rewrites the questions with harder statements and options (same fact, same answer) before the session starts" : "The questions exactly as in the bank"}
+                      style={{
+                        flex: 1, padding: "10px", borderRadius: "var(--r-md)", border: "1px solid",
+                        borderColor: on ? "var(--teal)" : "var(--border-light)",
+                        background: on ? "rgba(48, 197, 255, 0.08)" : "var(--surface-3)",
+                        color: on ? "var(--teal)" : "var(--text-secondary)",
+                        cursor: off ? "not-allowed" : "pointer", opacity: off ? 0.5 : 1, fontWeight: 600, fontSize: "0.8rem",
+                      }}
+                      onClick={() => {
+                        if (d.level === -1) { setNewAngle(true); setHardenLevel(0); }
+                        else { setNewAngle(false); setHardenLevel(d.level as HardenLevel); }
+                      }}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {hardenBlocked ? (
+                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>{hardenBlocked}</span>
+              ) : hardenLevel ? (
+                <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>
+                  {hardenPreview ? `${previewLine(hardenPreview, quizConfigNumQuestions)}.` : "Working out which questions to rewrite…"}
+                  {" "}They are prepared on the next step, before the session starts.
+                </span>
+              ) : null}
             </div>
 
             {/* Timer */}
@@ -1240,6 +1735,7 @@ export default function QuizView({
                   ["Active Subjects", quizConfigCategories.length === 0 ? "Mixed Practice (All)" : quizConfigCategories.join(", ")],
                   ["Subtopics Checked", quizConfigSubCategories.length === 0 ? "All Available Topics" : `${quizConfigSubCategories.length} Topics`],
                   ["Question Count", `${quizConfigNumQuestions} questions`],
+                  ["Difficulty", hardenLevel ? `Harder versions (AI), ${hardenLevel}/5` : "As written"],
                   ["Timer Mode", quizConfigTimerMode === "none" ? "Un-timed (Stopwatch)" : quizConfigTimerMode === "session" ? `Session Countdown (${quizConfigTimerValue}m)` : `Per-Question Limit (${quizConfigTimerValue}s)`],
                   ["Feedback Style", quizConfigFeedbackMode === "tutor" ? "Tutor Mode (Instant Explanations)" : "Board Exam Mode (Delayed Feedback)"],
                   ["Skip Mastered Qs", quizConfigExcludeMastered ? "Enabled" : "Disabled"],
@@ -1256,7 +1752,7 @@ export default function QuizView({
                   <ArrowLeft size={16} />
                   <span>Back to Rules</span>
                 </button>
-                <button className="btn-primary" disabled={quizIsLoading} onClick={handleStartQuiz} style={{ padding: "10px 28px" }}>
+                {hardenLevel ? null : <button className="btn-primary" disabled={quizIsLoading} onClick={newAngle ? startTwists : handleStartQuiz} style={{ padding: "10px 28px" }}>
                   {quizIsLoading ? (
                     <Loader2 size={16} className="spinner" style={{ animation: "spin 1s linear infinite" }} />
                   ) : (
@@ -1265,8 +1761,22 @@ export default function QuizView({
                       <ArrowRight size={16} style={{ marginLeft: "4px" }} />
                     </>
                   )}
-                </button>
+                </button>}
               </div>
+              {hardenLevel && getHeaders ? (
+                <div style={{ marginTop: "var(--sp-3)" }}>
+                  <HardenPanel
+                    getHeaders={getHeaders}
+                    categories={quizConfigCategories}
+                    subCategories={quizConfigSubCategories}
+                    scope={scopeOn ? (practiceScope as unknown as Record<string, unknown>) : null}
+                    numQuestions={quizConfigNumQuestions}
+                    difficulty={hardenLevel}
+                    onStart={startHardened}
+                    onSaved={fetchQuizHistory}
+                  />
+                </div>
+              ) : null}
             </div>
 
             {/* Diagnostics */}
@@ -1381,8 +1891,12 @@ export default function QuizView({
           <div className="quiz-question-col">
             <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--r-xl)", padding: "var(--sp-6)", display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-light)", paddingBottom: "12px" }}>
-                <span style={{ fontSize: "0.72rem", color: "var(--sky)", background: "var(--sky-dim)", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
-                  {currentMCQ.sub_category || currentMCQ.main_category || "Board MCQ"}
+                <span style={{ display: "inline-flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.72rem", color: "var(--sky)", background: "var(--sky-dim)", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
+                    {currentMCQ.sub_category || currentMCQ.main_category || "Board MCQ"}
+                  </span>
+                  <PaperYears years={currentMCQ.paper_years} />
+                  <ArchiveBadges mcq={currentMCQ} />
                 </span>
                 <button type="button" className="chat-delete-btn"
                   style={{ position: "static", opacity: 1, color: bookmarkedMcqs.some(b => b.id === currentMCQ.id) ? "var(--teal)" : "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
@@ -1391,9 +1905,10 @@ export default function QuizView({
                 </button>
               </div>
 
-              <p style={{ fontSize: "1.05rem", fontWeight: 500, lineHeight: 1.6, color: "var(--text-primary)" }}>
+              <p style={{ fontSize: "1.05rem", fontWeight: 500, lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-line" }}>
                 {currentMCQ.question_text}
               </p>
+              <QuestionMedia ids={currentMCQ.media} token={token} />
 
               <div className="quiz-options-list" role="radiogroup">
                 {optionKeys.map((key, index) => {
@@ -1428,6 +1943,37 @@ export default function QuizView({
                 })}
               </div>
 
+              {/* Confidence tap: a correct guess is still re-tested by the retention engine */}
+              {setQuizConfidence ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "var(--sp-3)", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>How sure are you?</span>
+                  {(["sure", "unsure", "guess"] as const).map((c) => {
+                    const active = (quizConfidence[currentMCQ.id] ?? "sure") === c;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setQuizConfidence((prev) => ({ ...prev, [currentMCQ.id]: c }))}
+                        title={c === "guess" ? "Guessed answers come back for review even if correct" : undefined}
+                        style={{
+                          padding: "2px 10px", borderRadius: "999px", fontSize: "0.72rem", cursor: "pointer",
+                          border: `1px solid ${active ? "var(--sky)" : "var(--border-light)"}`,
+                          background: active ? "rgba(48,197,255,0.12)" : "transparent",
+                          color: active ? "var(--sky)" : "var(--text-secondary)",
+                        }}
+                      >
+                        {c === "sure" ? "Sure" : c === "unsure" ? "Unsure" : "Guess"}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {/* Past-paper question: other archives' versions, textbook check when keys disagree, Twists */}
+              {isAnswered && quizConfigFeedbackMode !== "board" ? (
+                <PastPaperExtras key={currentMCQ.id} mcq={currentMCQ} token={token} onFigureClick={onFigureClick} />
+              ) : null}
+
               {/* Action Bar */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "var(--sp-4)", borderTop: "1px solid var(--border-light)", paddingTop: "var(--sp-4)" }}>
                 <div>
@@ -1455,7 +2001,7 @@ export default function QuizView({
             </div>
           </div>
 
-          <ExplanationPanel explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
+          <ExplanationPanel forMCQId={currentMCQ?.id} explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
         </div>
 
         {/* Custom Quit Confirmation Modal */}
@@ -1565,8 +2111,41 @@ export default function QuizView({
               <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Completed in {formatTime(quizSecondsElapsed)}</span>
             </div>
             <div className="stat-card" style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: "var(--sp-3)" }}>
-              <button className="btn-primary" onClick={() => setQuizStep("config")} style={{ width: "100%" }}>Start New Session</button>
-              <button className="btn-workspace" onClick={() => setActiveView("dashboard")} style={{ width: "100%" }}>Back to Dashboard</button>
+              {lastRun && startQuizWith ? (
+                <>
+                  {/* A run through a whole selection (past papers, "Do all"): keep going batch by batch. */}
+                  {(() => {
+                    const left = Math.max(0, lastRun.unseen - Math.min(lastRun.batch, lastRun.unseen));
+                    const size = Number(lastRun.filters.num_questions) || lastRun.batch || 50;
+                    return left > 0 ? (
+                      <button className="btn-primary" style={{ width: "100%" }}
+                        onClick={() => startQuizWith({ ...lastRun.filters, drill_wrong: false }, lastRun.label, lastRun.returnTo)}>
+                        Continue: next {Math.min(size, left)} ({left.toLocaleString()} unanswered left of {lastRun.total.toLocaleString()})
+                      </button>
+                    ) : (
+                      <div style={{ fontSize: "0.82rem", color: "var(--sea-green)", fontWeight: 600, textAlign: "center" }}>
+                        You have answered every question in this selection ({lastRun.total.toLocaleString()}).
+                      </div>
+                    );
+                  })()}
+                  {correctCount < totalCount ? (
+                    <button className="btn-workspace" style={{ width: "100%" }}
+                      onClick={() => startQuizWith({ ...lastRun.filters, drill_wrong: true }, `${lastRun.label} · missed`, lastRun.returnTo)}>
+                      Practise my missed questions
+                    </button>
+                  ) : null}
+                  {lastRun.returnTo ? (
+                    <button className="btn-workspace" onClick={() => setActiveView(lastRun.returnTo!)} style={{ width: "100%" }}>
+                      Back to {lastRun.returnTo === "pastpapers" ? "past papers" : "dashboard"}
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <button className="btn-primary" onClick={() => setQuizStep("config")} style={{ width: "100%" }}>Start New Session</button>
+                  <button className="btn-workspace" onClick={() => setActiveView("dashboard")} style={{ width: "100%" }}>Back to Dashboard</button>
+                </>
+              )}
             </div>
           </div>
 
@@ -1635,10 +2214,22 @@ export default function QuizView({
                         <GraduationCap size={14} />
                         Clinical Explanation
                       </button>
+                      {quizSelectedAnswers[reviewMCQ.id] !== reviewMCQ.correct_option ? (
+                        <button
+                          className="btn-workspace"
+                          style={{ marginLeft: "8px", display: "flex", alignItems: "center", gap: "6px" }}
+                          disabled={flashcardSavedIds.includes(reviewMCQ.id)}
+                          onClick={() => handleMakeFlashcard(reviewMCQ)}
+                          title="Save this missed question to Study Corner flashcards (spaced repetition)"
+                        >
+                          <Layers size={14} />
+                          {flashcardSavedIds.includes(reviewMCQ.id) ? "Flashcard saved" : "Make flashcard"}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
-                <ExplanationPanel explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
+                <ExplanationPanel forMCQId={reviewMCQ?.id} explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
               </div>
             )}
           </div>

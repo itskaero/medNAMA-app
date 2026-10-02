@@ -16,6 +16,9 @@ interface AuthCardProps {
   setAuthRole: (v: string) => void;
   isAuthLoading: boolean;
   handleAuthSubmit: (e: React.FormEvent) => void;
+  authInvite?: string;
+  setAuthInvite?: (v: string) => void;
+  registrationMode?: "invite" | "open" | "closed";
 }
 
 export default function AuthCard({
@@ -30,6 +33,9 @@ export default function AuthCard({
   setAuthRole,
   isAuthLoading,
   handleAuthSubmit,
+  authInvite = "",
+  setAuthInvite,
+  registrationMode = "invite",
 }: AuthCardProps) {
   return (
     <div className="auth-split-layout">
@@ -115,7 +121,29 @@ export default function AuthCard({
                     required
                   />
                 </div>
-                <button type="submit" className="btn-primary-new" disabled={isAuthLoading}>
+                {isRegisterMode && registrationMode === "invite" ? (
+                  <div className="field">
+                    <label className="field-label" htmlFor="auth-invite">
+                      Invite code
+                    </label>
+                    <input
+                      id="auth-invite"
+                      type="text"
+                      className="field-input-new"
+                      placeholder="e.g. maple-4821 (ask the admin)"
+                      value={authInvite}
+                      onChange={(e) => setAuthInvite?.(e.target.value)}
+                      autoComplete="off"
+                      required
+                    />
+                  </div>
+                ) : null}
+                {isRegisterMode && registrationMode === "closed" ? (
+                  <div className="auth-error" role="status" style={{ fontSize: "0.8rem" }}>
+                    Sign-up is closed here. Ask the admin to create your account.
+                  </div>
+                ) : null}
+                <button type="submit" className="btn-primary-new" disabled={isAuthLoading || (isRegisterMode && registrationMode === "closed")}>
                   {isAuthLoading
                     ? "Authenticating…"
                     : isRegisterMode

@@ -5,8 +5,11 @@ import { GraduationCap, X, Loader2 } from "lucide-react";
 import { AnswerResponse, Figure } from "@/types";
 import { parseMarkdown } from "@/utils/markdown";
 import { CitationsDrawer, FiguresDrawer } from "@/components";
+import { ReportButton } from "@/components/ReportButton";
 
 interface ExplanationPanelProps {
+  /** The question on screen: the panel stays hidden while it holds another question's explanation. */
+  forMCQId?: number | null;
   explanationMCQId: number | null;
   setExplanationMCQId: (id: number | null) => void;
   explanationLoading: boolean;
@@ -17,6 +20,7 @@ interface ExplanationPanelProps {
 }
 
 export default function ExplanationPanel({
+  forMCQId,
   explanationMCQId,
   setExplanationMCQId,
   explanationLoading,
@@ -25,22 +29,30 @@ export default function ExplanationPanel({
   token,
   onFigureClick,
 }: ExplanationPanelProps) {
-  if (explanationMCQId === null) return null;
+  if (explanationMCQId === null || (forMCQId != null && explanationMCQId !== forMCQId)) return null;
 
   return (
     <div className="explanation-inline-panel">
       <div className="explanation-inline-header">
         <h3 className="explanation-inline-title">
           <GraduationCap size={16} style={{ color: "var(--teal)" }} />
-          RAG Explanation
+          Textbook explanation
         </h3>
-        <button
-          className="close-btn"
-          onClick={() => setExplanationMCQId(null)}
-          aria-label="Close explanation panel"
-        >
-          <X size={16} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <ReportButton
+            kind="mcq"
+            token={token}
+            mcqId={explanationMCQId}
+            answerExcerpt={explanationData?.answer_markdown}
+          />
+          <button
+            className="close-btn"
+            onClick={() => setExplanationMCQId(null)}
+            aria-label="Close explanation panel"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
       <div className="explanation-inline-body">
         {explanationLoading ? (
@@ -50,7 +62,7 @@ export default function ExplanationPanel({
               className="spinner"
               style={{ margin: "0 auto 10px", display: "inline-block", animation: "spin 1s linear infinite" }}
             />
-            <span style={{ display: "block", fontSize: "0.82rem" }}>Generating RAG Explanation...</span>
+            <span style={{ display: "block", fontSize: "0.82rem" }}>Writing the explanation from your textbooks...</span>
           </div>
         ) : explanationError ? (
           <div style={{ color: "var(--danger)", padding: "16px", fontSize: "0.82rem", textAlign: "center" }}>

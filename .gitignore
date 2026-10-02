@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 venv/
 .venv/
+.venv-gpu/
 
 # Env / secrets
 .env
@@ -10,6 +11,7 @@ venv/
 
 # Ignored files (pdfs tracked separately)
 *.dump
+*.dump.sha256
 
 # Large / local-only artifacts (never push these)
 ingest_all.cmd
@@ -32,3 +34,40 @@ out/
 # OS
 Thumbs.db
 .DS_Store
+
+# Diagnosis reports (scripts/run_diagnosis.py)
+diagnosis_*.txt
+
+# NAS deploy bundle: scripts are tracked, images/secrets/models are not
+mednama-nas-deploy/*.tar
+mednama-nas-deploy/SHA256SUMS
+mednama-nas-deploy/MANIFEST.txt
+mednama-nas-deploy/restore_nas.sh
+mednama-nas-deploy/app/.env
+
+
+# Private source books (never commit; see plan: private-first)
+rafiullah-*.pdf
+/*.pdf
+data/private/
+data/reingest/
+data/transfer/
+data/coverage-*.json
+mednama-nas-deploy/db/
+
+# The MCQ banks and the imported past-paper archives are local only (~200 MB, never tracked):
+# scripts/seed_*.py read them and the SQL dumps are machine-specific.
+mcqs/
+
+# 0-byte file from a stray shell redirect
+/joined-explorer-no
+
+# Kept local, never pushed: data, database dumps, the NAS deploy setup and compose files.
+data/
+NAS/
+mednama-nas-deploy/
+mcqs/
+*.sql
+*.dump
+docker-compose*.yml
+docker-compose*.yaml

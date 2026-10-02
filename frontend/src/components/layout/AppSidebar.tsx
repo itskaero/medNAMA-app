@@ -4,24 +4,30 @@ import React from "react";
 import {
   Stethoscope,
   LogOut,
-  Upload,
-  BookOpen,
   BookMarked,
   Bookmark,
   GraduationCap,
   TrendingUp,
   LayoutDashboard,
-  MessageSquare,
-  Loader2,
   Moon,
   Sun,
   Compass,
   Sunset,
-  Sparkles,
   NotebookPen,
+  Flame,
+  Scale,
+  Users,
+  KeyRound,
+  CloudOff,
+  Library,
+  Swords,
+  Trophy,
+  GitCompareArrows,
+  Zap,
+  History,
+  BookOpenCheck,
 } from "lucide-react";
 import { Book } from "@/types";
-import { BookItem } from "@/components";
 
 interface AppSidebarProps {
   activeView: string;
@@ -33,6 +39,8 @@ interface AppSidebarProps {
   isAdmin: boolean;
   books: Book[];
   isLoadingBooks: boolean;
+  booksError?: string | null;
+  onRetryBooks?: () => void;
   uploading: boolean;
   uploadError: string | null;
   theme: "dark" | "light" | "balanced" | "warm";
@@ -47,6 +55,47 @@ interface AppSidebarProps {
   fetchDetailedStats: () => void;
   mcqFilterCategory: string;
   mcqSearchText: string;
+  onChangePassword?: () => void;
+}
+
+interface NavItem { view: string; label: string; icon: React.ReactNode; active: string[]; title?: string }
+
+/** Sidebar: today, ways to practise, ways to learn, review, and (admins) tools. The textbook list lives on its
+ *  own Library page: squeezed under a long menu it shrank to nothing on phones. */
+function navGroups(isAdmin: boolean, bookCount: number): { title: string; items: NavItem[] }[] {
+  const item = (view: string, label: string, icon: React.ReactNode, extra: Partial<NavItem> = {}): NavItem =>
+    ({ view, label, icon, active: [view], ...extra });
+  return [
+    { title: "Today", items: [
+      item("dashboard", "Dashboard", <LayoutDashboard size={14} />),
+      item("daily", "Daily Dose", <Flame size={14} style={{ color: "#f59e0b" }} />),
+    ] },
+    { title: "Practise", items: [
+      item("quiz", "Practice", <GraduationCap size={14} />, { title: "Build a session: subjects and topics from past papers and the bank, any difficulty" }),
+      item("pastpapers", "Past papers", <History size={14} />, { active: ["pastpapers", "paper"] }),
+      item("mock", "Weekly mock", <Trophy size={14} />),
+      item("duel", "Challenge a friend", <Swords size={14} />),
+      item("offline", "Offline pack", <CloudOff size={14} />, { title: "Download questions to answer with no connection; answers sync when you are back" }),
+      item("sprint", "Final sprint", <Zap size={14} />, { title: "Opens in the last 7 days before your exam" }),
+    ] },
+    { title: "Learn", items: [
+      item("chat", "Dr MedNama", <Stethoscope size={14} style={{ color: "var(--sky)" }} />, { title: "Ask, or be tutored, from your textbooks" }),
+      item("revise", "Revise from books", <BookOpenCheck size={14} style={{ color: "var(--sea-green)" }} />,
+        { title: "A one-page summary of a topic, written from your own books" }),
+      item("lookalikes", "Look-alikes", <GitCompareArrows size={14} />),
+      item("study", "Study Corner", <NotebookPen size={14} />),
+      item("library", `Library${bookCount ? ` · ${bookCount}` : ""}`, <Library size={14} />, { title: "The textbooks every answer comes from" }),
+    ] },
+    { title: "Review", items: [
+      item("stats", "Stats", <TrendingUp size={14} />),
+      item("bookmarks", "Bookmarks", <Bookmark size={14} />),
+      item("mcq-bank", "MCQ Bank", <BookMarked size={14} />),
+    ] },
+    ...(isAdmin ? [{ title: "Admin", items: [
+      item("users", "Users", <Users size={14} />, { title: "Accounts, invite codes and password resets" }),
+      item("referee", "Answer-Key Referee", <Scale size={14} />, { title: "Check recall answers and MCQ keys against the textbooks" }),
+    ] }] : []),
+  ];
 }
 
 export default function AppSidebar({
@@ -59,6 +108,8 @@ export default function AppSidebar({
   isAdmin,
   books,
   isLoadingBooks,
+  booksError,
+  onRetryBooks,
   uploading,
   uploadError,
   theme,
@@ -73,6 +124,7 @@ export default function AppSidebar({
   fetchDetailedStats,
   mcqFilterCategory,
   mcqSearchText,
+  onChangePassword,
 }: AppSidebarProps) {
   const initials = username ? username.slice(0, 2).toUpperCase() : "DR";
 
@@ -140,160 +192,42 @@ export default function AppSidebar({
             {username}
           </span>
         </div>
+        {onChangePassword ? (
+          <button className="btn-logout" onClick={onChangePassword} aria-label="Change password" title="Change password">
+            <KeyRound size={12} style={{ display: "inline" }} />
+          </button>
+        ) : null}
         <button className="btn-logout" onClick={handleLogout} aria-label="Sign out">
           <LogOut size={12} style={{ display: "inline", marginRight: 4 }} />
           Sign out
         </button>
       </div>
 
-      {/* Workspace Navigation Links */}
-      <div
-        style={{
-          padding: "var(--sp-2) var(--sp-3)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "2px",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <button
-          className={`btn-workspace-nav ${activeView === "dashboard" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("dashboard");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <LayoutDashboard size={14} />
-          Dashboard
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "chat" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("chat");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <Stethoscope size={14} style={{ color: "var(--sky)" }} />
-          Discuss with Dr MedNama
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "mcq-bank" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("mcq-bank");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <BookMarked size={14} />
-          MCQ Bank
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "bookmarks" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("bookmarks");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <Bookmark size={14} />
-          Bookmarks
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "study" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("study");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <NotebookPen size={14} />
-          Study Corner
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "quiz" ? "active" : ""}`}
-          onClick={() => {
-            setSelectedTopic(null);
-            setActiveView("quiz");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <GraduationCap size={14} />
-          Mock Builder
-        </button>
-        <button
-          className={`btn-workspace-nav ${activeView === "stats" ? "active" : ""}`}
-          onClick={() => {
-            setActiveView("stats");
-            setMobileMenuOpen(false);
-          }}
-        >
-          <TrendingUp size={14} />
-          Stats
-        </button>
-      </div>
-
-      {/* Library */}
-      <div className="sidebar-section-label" aria-label="Library section">
-        Reference Library
-      </div>
-      <div className="book-list" role="list" aria-label="Uploaded textbooks">
-        {isLoadingBooks ? (
-          <div style={{ padding: "24px 12px", textAlign: "center", color: "var(--text-muted)" }}>
-            <Loader2
-              size={20}
-              style={{ margin: "0 auto 8px", display: "block", animation: "spin 1s linear infinite" }}
-            />
-            <span style={{ fontSize: "0.75rem" }}>Loading library…</span>
-          </div>
-        ) : books.length === 0 ? (
-          <div className="books-empty">
-            <BookOpen size={32} />
-            <p>
-              {isAdmin
-                ? "Upload your first PDF textbook below."
-                : "No textbooks available. Ask your administrator to add books."}
-            </p>
-          </div>
-        ) : (
-          books.map((b) => (
-            <BookItem key={b.id} book={b} isAdmin={isAdmin} onDelete={handleDeleteBook} />
-          ))
-        )}
-      </div>
-
-      {/* Upload — admin only */}
-      {isAdmin && process.env.NEXT_PUBLIC_CLOUD_MODE !== "true" && (
-        <div className="sidebar-upload">
-          <input
-            type="file"
-            accept=".pdf"
-            style={{ display: "none" }}
-            ref={fileRef}
-            onChange={handleFileUpload}
-            aria-hidden
-          />
-          <button
-            className="upload-btn"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            aria-label="Upload PDF textbook"
-          >
-            {uploading ? (
-              <>
-                <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />
-                Ingesting…
-              </>
-            ) : (
-              <>
-                <Upload size={15} />
-                Upload Textbook
-              </>
-            )}
-          </button>
-          {uploadError && (
-            <div className="upload-error" role="alert">
-              {uploadError}
+      {/* Workspace navigation, in groups */}
+      <nav aria-label="Main" style={{ padding: "var(--sp-2) var(--sp-3)", display: "flex", flexDirection: "column", gap: "2px", borderBottom: "1px solid var(--border)" }}>
+        {navGroups(isAdmin, books.length).map((group) => (
+          <div key={group.title} role="group" aria-label={group.title} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <div style={{ fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", padding: "8px 10px 2px" }}>
+              {group.title}
             </div>
-          )}
-        </div>
-      )}
+            {group.items.map((item) => (
+              <button
+                key={item.view}
+                className={`btn-workspace-nav ${item.active.includes(activeView) ? "active" : ""}`}
+                title={item.title}
+                onClick={() => {
+                  if (item.view === "quiz") setSelectedTopic(null);
+                  setActiveView(item.view);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ))}
+      </nav>
 
       {/* Sidebar Theme Switcher Footer */}
       <div

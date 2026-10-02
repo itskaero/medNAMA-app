@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Note, Flashcard } from "@/types";
+import { Note, Flashcard, SavedSheet } from "@/types";
 import { API } from "@/lib/constants";
 import { proxySafeFetch } from "@/lib/proxyFetch";
 
@@ -25,8 +25,10 @@ async function readError(res: Response): Promise<string> {
 export function useStudy({ token, getHeaders }: UseStudyParams) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [savedSheets, setSavedSheets] = useState<SavedSheet[]>([]);
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [isLoadingFlashcards, setIsLoadingFlashcards] = useState(false);
+  const [isLoadingSheets, setIsLoadingSheets] = useState(false);
 
   // ── Notes ────────────────────────────────────────────────────────────────
   const fetchNotes = useCallback(async () => {
@@ -174,13 +176,47 @@ export function useStudy({ token, getHeaders }: UseStudyParams) {
     [getHeaders]
   );
 
+  // ── Saved revision sheets (written in Revise from books) ──────────────────
+  const fetchSheets = useCallback(async () => {
+    if (!token) return;
+    setIsLoadingSheets(true);
+    try {
+      const res = await proxySafeFetch(`${API}/api/study/revision-sheets/saved`, {
+        headers: getHeaders(),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await readError(res));
+      setSavedSheets(await res.json());
+    } catch (err) {
+      console.error("Failed to load saved sheets:", err);
+    } finally {
+      setIsLoadingSheets(false);
+    }
+  }, [token, getHeaders]);
+
+  const deleteSheet = useCallback(
+    async (id: number) => {
+      const res = await proxySafeFetch(`${API}/api/study/revision-sheets/saved/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await readError(res));
+      setSavedSheets((prev) => prev.filter((s) => s.id !== id));
+    },
+    [getHeaders]
+  );
+
   return {
     notes,
     flashcards,
+    savedSheets,
     isLoadingNotes,
     isLoadingFlashcards,
+    isLoadingSheets,
     fetchNotes,
     fetchFlashcards,
+    fetchSheets,
     createNote,
     updateNote,
     deleteNote,
@@ -188,5 +224,6 @@ export function useStudy({ token, getHeaders }: UseStudyParams) {
     updateFlashcard,
     deleteFlashcard,
     reviewFlashcard,
+    deleteSheet,
   };
 }

@@ -4,6 +4,12 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 
+// The session is an HttpOnly cookie the page cannot read. localStorage keeps only this marker, so the rest of the
+// app can still ask "signed in?"; requests carry the cookie (same-origin /api), and the backend reads the cookie
+// before any Authorization header.
+export const SESSION_MARKER = "cookie-session";
+const isJwt = (t: string | null) => !!t && t.split(".").length === 3;
+
 export function useAuth() {
   const [token, setToken] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
@@ -38,12 +44,14 @@ export function useAuth() {
 
     if (savedToken && savedUsername && savedRole) {
       fetch(`${API}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${savedToken}` },
+        // An older sign-in kept the token itself here: send it once so /me can set the cookie, then forget it.
+        headers: isJwt(savedToken) ? { Authorization: `Bearer ${savedToken}` } : {},
         credentials: "include",
       })
         .then((res) => {
           if (res.ok) {
-            setToken(savedToken);
+            localStorage.setItem("token", SESSION_MARKER);
+            setToken(SESSION_MARKER);
             setUsername(savedUsername);
             setRole(savedRole);
           } else {
@@ -51,7 +59,7 @@ export function useAuth() {
           }
         })
         .catch(() => {
-          setToken(savedToken);
+          setToken(isJwt(savedToken) ? savedToken : SESSION_MARKER);
           setUsername(savedUsername);
           setRole(savedRole);
         })
@@ -59,6 +67,15 @@ export function useAuth() {
     } else {
       setIsAuthLoading(false);
     }
+  }, []);
+
+  // Sign-up needs an invite code on this server ("invite"), is open, or is closed (the admin creates accounts).
+  const [authInvite, setAuthInvite] = useState("");
+  const [registrationMode, setRegistrationMode] = useState<"invite" | "open" | "closed">("invite");
+  useEffect(() => {
+    fetch(`${API}/api/auth/registration`).then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.mode === "open" || d?.mode === "closed" || d?.mode === "invite") setRegistrationMode(d.mode); })
+      .catch(() => {});
   }, []);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -75,7 +92,8 @@ export function useAuth() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ username: authUsername, password: authPassword, role: authRole }),
+          body: JSON.stringify({ username: authUsername, password: authPassword, role: authRole,
+                                 invite_code: authInvite.trim() || undefined }),
         });
         if (!res.ok) {
           const d = await res.json();
@@ -100,10 +118,10 @@ export function useAuth() {
           throw new Error(d.detail || "Incorrect credentials.");
         }
         const data = await res.json();
-        localStorage.setItem("token", data.access_token);
+        localStorage.setItem("token", SESSION_MARKER);
         localStorage.setItem("username", data.username);
         localStorage.setItem("role", data.role);
-        setToken(data.access_token);
+        setToken(SESSION_MARKER);
         setUsername(data.username);
         setRole(data.role);
         setAuthUsername("");
@@ -134,6 +152,9 @@ export function useAuth() {
     setAuthRole,
     isRegisterMode,
     setIsRegisterMode,
+    authInvite,
+    setAuthInvite,
+    registrationMode,
     mounted,
     handleAuthSubmit,
     handleLogout,

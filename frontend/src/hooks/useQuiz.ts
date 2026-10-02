@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { AnswerResponse } from "@/types";
+import { EMPTY_SCOPE, PracticeScope, scopeActive } from "@/components/PracticePicker";
 import { API } from "@/lib/constants";
 import { formatTime } from "@/utils/quizHelpers";
 
@@ -30,6 +31,8 @@ export function useQuiz({
   const [quizMCQs, setQuizMCQs] = useState<any[]>([]);
   const [quizCurrentIdx, setQuizCurrentIdx] = useState(0);
   const [quizSelectedAnswers, setQuizSelectedAnswers] = useState<{ [key: number]: string }>({});
+  // Retention engine: how sure the student was per question (default "sure").
+  const [quizConfidence, setQuizConfidence] = useState<{ [key: number]: "sure" | "unsure" | "guess" }>({});
   const [quizAttemptId, setQuizAttemptId] = useState<number | null>(null);
   const [quizIsLoading, setQuizIsLoading] = useState(false);
   const [quizIsSubmitting, setQuizIsSubmitting] = useState(false);
@@ -43,6 +46,8 @@ export function useQuiz({
   const [quizConfigExcludeMastered, setQuizConfigExcludeMastered] = useState<boolean>(false);
   const [quizConfigFeedbackMode, setQuizConfigFeedbackMode] = useState<"tutor" | "board">("tutor");
   const [quizConfigStep, setQuizConfigStep] = useState<1 | 2 | 3>(1);
+  // Practice by subject/topic (shared list across past papers and the bank); used instead of categories when set.
+  const [practiceScope, setPracticeScope] = useState<PracticeScope>(EMPTY_SCOPE);
   const [quizTimerCountdown, setQuizTimerCountdown] = useState<number>(0);
 
   // Summary and timer state
@@ -60,17 +65,30 @@ export function useQuiz({
   const [explanationLoading, setExplanationLoading] = useState(false);
   const [explanationError, setExplanationError] = useState<string | null>(null);
 
-  const isReviewNavigation = useRef(false);
+  // Set before switching to the quiz view with a session already loaded, so the
+  // "entering quiz view resets to the builder" effect below leaves it alone.
+  const skipNextQuizReset = useRef(false);
+  // The filters of the last session started with startQuizWith (past papers, "Do all"), so the
+  // results screen can offer "Continue with the next batch" and "Missed only".
+  const [lastRun, setLastRun] = useState<{
+    filters: Record<string, unknown>;
+    label: string;
+    returnTo?: string;
+    total: number;   // questions in the whole selection
+    unseen: number;  // of those, never answered before this batch
+    batch: number;   // questions in this batch
+  } | null>(null);
 
   // Reset quiz state on entering quiz view
   useEffect(() => {
     if (activeView === "quiz") {
-      if (isReviewNavigation.current) {
-        isReviewNavigation.current = false;
+      if (skipNextQuizReset.current) {
+        skipNextQuizReset.current = false;
         return;
       }
       setQuizStep("config");
       setQuizSelectedAnswers({});
+      setQuizConfidence({});
       setQuizCurrentIdx(0);
       setQuizSecondsElapsed(0);
       setQuizTimerActive(false);
@@ -102,8 +120,11 @@ export function useQuiz({
     return () => clearInterval(interval);
   }, [quizTimerActive]);
 
-  // On-demand explanation fetcher
+  // On-demand explanation fetcher. Only the latest request may fill the panel: a slow answer for an earlier
+  // question must not appear under the one now on screen.
+  const latestExplainId = useRef<number | null>(null);
   const fetchExplanation = async (mcqId: number) => {
+    latestExplainId.current = mcqId;
     setExplanationMCQId(mcqId);
     setExplanationLoading(true);
     setExplanationError(null);
@@ -118,15 +139,16 @@ export function useQuiz({
         throw new Error("Failed to generate clinical explanation from textbook library.");
       }
       const data = await res.json();
+      if (latestExplainId.current !== mcqId) return;
       setExplanationData({
         answer_markdown: data.answer_markdown,
         citations: data.citations || [],
         figures: data.figures || [],
       });
     } catch (err: any) {
-      setExplanationError(err.message || "Failed to load explanation.");
+      if (latestExplainId.current === mcqId) setExplanationError(err.message || "Failed to load explanation.");
     } finally {
-      setExplanationLoading(false);
+      if (latestExplainId.current === mcqId) setExplanationLoading(false);
     }
   };
 
@@ -139,6 +161,7 @@ export function useQuiz({
     const formattedAnswers = Object.entries(quizSelectedAnswers).map(([mcqId, option]) => ({
       mcq_id: parseInt(mcqId),
       selected_option: option,
+      confidence: quizConfidence[parseInt(mcqId)] ?? "sure",
     }));
 
     try {
@@ -151,8 +174,23 @@ export function useQuiz({
         credentials: "include",
         body: JSON.stringify({ answers: formattedAnswers }),
       });
+      if (res.status === 404) {
+        // The attempt no longer exists on the server (e.g. data was reset); retrying can't help.
+        toast.error("This practice session no longer exists on the server, so its answers can't be saved.", {
+          description: "Start a new session from Practice.",
+          duration: Infinity,
+        });
+        setQuizAttemptId(null);
+        setQuizStep("config");
+        return;
+      }
       if (!res.ok) {
-        throw new Error("Failed to finalize results on server.");
+        const detail = await res.json().then((d) => d?.detail).catch(() => null);
+        throw new Error(
+          typeof detail === "string" && detail
+            ? `Couldn't save results: ${detail}`
+            : `Couldn't save results (server error ${res.status}). Your answers are kept; try Submit again.`
+        );
       }
       setQuizStep("summary");
       setSummaryReviewIdx(0);
@@ -219,6 +257,17 @@ export function useQuiz({
     setLastSelectedChoice(key);
     setIsCorrectSelection(isCorrect);
 
+    // Save it now, not only at Finish: a session left halfway still counts (Stats, "seen", re-tests).
+    if (quizAttemptId) {
+      fetch(`${API}/api/quizzes/${quizAttemptId}/answer`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ mcq_id: currentMCQ.id, selected_option: key,
+                               confidence: quizConfidence[currentMCQ.id] ?? "sure" }),
+      }).catch(() => {});   // Finish sends every answer again, so a lost request is recovered there
+    }
+
     if (quizConfigFeedbackMode !== "board" && !isCorrect) {
       fetchExplanation(currentMCQ.id);
     }
@@ -226,6 +275,7 @@ export function useQuiz({
 
   // Launch quiz attempt
   const handleStartQuiz = async () => {
+    setLastRun(null);
     setQuizIsLoading(true);
     try {
       const res = await fetch(`${API}/api/quizzes/start`, {
@@ -236,8 +286,12 @@ export function useQuiz({
         },
         credentials: "include",
         body: JSON.stringify({
-          categories: quizConfigCategories.length === 0 ? null : quizConfigCategories,
-          sub_categories: quizConfigSubCategories.length === 0 ? null : quizConfigSubCategories,
+          ...(scopeActive(practiceScope)
+            ? { scope: practiceScope }
+            : {
+                categories: quizConfigCategories.length === 0 ? null : quizConfigCategories,
+                sub_categories: quizConfigSubCategories.length === 0 ? null : quizConfigSubCategories,
+              }),
           num_questions: quizConfigNumQuestions,
           exclude_mastered: quizConfigExcludeMastered,
           timer_mode: quizConfigTimerMode,
@@ -254,6 +308,7 @@ export function useQuiz({
       setQuizAttemptId(data.quiz_attempt_id);
       setQuizCurrentIdx(0);
       setQuizSelectedAnswers({});
+      setQuizConfidence({});
       setQuizStep("taker");
       setQuizSecondsElapsed(0);
 
@@ -297,7 +352,7 @@ export function useQuiz({
       setQuizSecondsElapsed(0);
       setQuizTimerActive(false);
       setQuizStep("summary");
-      isReviewNavigation.current = true;
+      skipNextQuizReset.current = true;
       setActiveView("quiz");
     } catch (err: any) {
       toast.error(err.message || "Failed to load quiz attempt details.", { duration: Infinity });
@@ -324,11 +379,11 @@ export function useQuiz({
       const optionKeys = Object.keys(currentMCQ.options).sort();
 
       if (!isAnswered) {
-        if (["A", "B", "C", "D"].includes(key)) {
+        if (["A", "B", "C", "D", "E"].includes(key)) {
           if (optionKeys.includes(key)) {
             handleSelectOption(key);
           }
-        } else if (["1", "2", "3", "4"].includes(key)) {
+        } else if (["1", "2", "3", "4", "5"].includes(key)) {
           const idx = parseInt(key) - 1;
           if (idx >= 0 && idx < optionKeys.length) {
             handleSelectOption(optionKeys[idx]);
@@ -400,6 +455,7 @@ export function useQuiz({
       setQuizAttemptId(data.quiz_attempt_id);
       setQuizCurrentIdx(0);
       setQuizSelectedAnswers({});
+      setQuizConfidence({});
       setQuizStep("taker");
       setQuizSecondsElapsed(0);
       if (data.timer_mode === "session") setQuizTimerCountdown(data.timer_value * 60);
@@ -445,10 +501,15 @@ export function useQuiz({
       setQuizAttemptId(data.quiz_attempt_id);
       setQuizCurrentIdx(0);
       setQuizSelectedAnswers({});
+      setQuizConfidence({});
       setQuizStep("taker");
       setQuizSecondsElapsed(0);
       setQuizTimerActive(true);
-      setActiveView("quiz");
+      setLastRun(null);
+      if (activeView !== "quiz") {
+        skipNextQuizReset.current = true;
+        setActiveView("quiz");
+      }
       toast.success("AI Practice Quiz Initialized", {
         description: `${data.mcqs.length} custom MCQs prepared for your practice session.`,
       });
@@ -459,7 +520,47 @@ export function useQuiz({
     }
   };
 
+  // Launch a practice quiz from explicit filters (e.g. past papers: exam, years, subject/topic tags)
+  const startQuizWith = async (filters: Record<string, unknown>, label = "Practice", returnTo?: string) => {
+    setQuizIsLoading(true);
+    try {
+      const res = await fetch(`${API}/api/quizzes/start`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ timer_mode: "none", timer_value: 0, exclude_mastered: false, feedback_mode: "tutor", label, ...filters }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail || "No questions match these filters.");
+      }
+      const data = await res.json();
+      setQuizMCQs(data.mcqs);
+      setQuizAttemptId(data.quiz_attempt_id);
+      setQuizCurrentIdx(0);
+      setQuizSelectedAnswers({});
+      setQuizConfidence({});
+      setQuizStep("taker");
+      setQuizSecondsElapsed(0);
+      setQuizTimerCountdown(0);
+      setQuizTimerActive(true);
+      setLastRun({ filters, label, returnTo, total: data.total_in_scope ?? 0, unseen: data.unseen_in_scope ?? 0, batch: data.mcqs.length });
+      if (activeView !== "quiz") {
+        skipNextQuizReset.current = true;
+        setActiveView("quiz");
+      }
+      toast.success(label, { description: `${data.mcqs.length} questions loaded.` });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to start the quiz.");
+    } finally {
+      setQuizIsLoading(false);
+    }
+  };
+
   return {
+    startQuizWith,
+    lastRun,
+    setLastRun,
     // core
     quizStep,
     setQuizStep,
@@ -469,12 +570,16 @@ export function useQuiz({
     setQuizCurrentIdx,
     quizSelectedAnswers,
     setQuizSelectedAnswers,
+    quizConfidence,
+    setQuizConfidence,
     quizAttemptId,
     setQuizAttemptId,
     quizIsLoading,
     quizIsSubmitting,
     // config
     quizConfigCategories,
+    practiceScope,
+    setPracticeScope,
     setQuizConfigCategories,
     quizConfigSubCategories,
     setQuizConfigSubCategories,

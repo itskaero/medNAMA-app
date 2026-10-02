@@ -11,7 +11,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import SessionLocal
+from app.database import get_db
 from app.models import User
 
 logger = logging.getLogger(__name__)
@@ -101,15 +101,6 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
-def get_db():
-    """DB dependency helper."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """Validate token and resolve user from DB."""
     credentials_exception = HTTPException(
@@ -128,6 +119,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(User).filter(User.username == username).first()
     if user is None:
         raise credentials_exception
+    if user.is_active is False:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account is disabled.")
     return user
 
 

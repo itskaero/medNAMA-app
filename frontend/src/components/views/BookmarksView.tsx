@@ -8,6 +8,7 @@ import ExplanationPanel from "@/components/ExplanationPanel";
 import { API } from "@/lib/constants";
 import { downloadAuthenticatedCSV } from "@/lib/downloadCSV";
 import { toast } from "sonner";
+import { CiteLink } from "@/components/CiteLink";
 
 interface BookmarksViewProps {
   bookmarkedMcqs: any[];
@@ -306,7 +307,7 @@ export default function BookmarksView({
                         fontFamily: "var(--font-serif)",
                       }}
                     >
-                      {item.book_title} {item.page_number ? `p. ${item.page_number}` : ""}
+                      {item.book_title} {item.page_number ? <CiteLink bookTitle={item.book_title} page={item.page_number}>p. {item.page_number}</CiteLink> : ""}
                     </span>
                   )}
                 </div>

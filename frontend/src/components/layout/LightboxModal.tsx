@@ -4,6 +4,7 @@ import React from "react";
 import { X } from "lucide-react";
 import { Figure } from "@/types";
 import { API } from "@/lib/constants";
+import { CiteLink } from "@/components/CiteLink";
 
 interface LightboxModalProps {
   lightboxFig: Figure | null;
@@ -26,11 +27,17 @@ export default function LightboxModal({ lightboxFig, setLightboxFig, token }: Li
         <div className="modal-header">
           <span className="modal-title">
             {lightboxFig.figure_label}
-            {lightboxFig.page_number && (
+            {lightboxFig.book_title || lightboxFig.page_number ? (
               <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
-                · p. {lightboxFig.page_number}
+                · {lightboxFig.book_title}
+                {lightboxFig.page_number ? (
+                  <>
+                    {lightboxFig.book_title ? ", " : ""}
+                    <CiteLink bookTitle={lightboxFig.book_title} page={lightboxFig.page_number}>p. {lightboxFig.page_number}</CiteLink>
+                  </>
+                ) : null}
               </span>
-            )}
+            ) : null}
           </span>
           <button
             className="modal-close-btn"
@@ -42,7 +49,7 @@ export default function LightboxModal({ lightboxFig, setLightboxFig, token }: Li
         </div>
         <div className="modal-img-area">
           <img
-            src={`${API}/api/figures/${lightboxFig.id}?token=${token ?? ""}`}
+            src={`${API}/api/figures/${lightboxFig.id}`}
             alt={lightboxFig.figure_label}
           />
         </div>

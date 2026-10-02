@@ -21,6 +21,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
 
+  // The rewrite proxy drops requests after 30 s by default, which cut off
+  // AI chat answers and quiz generation mid-flight ("Failed to fetch").
+  experimental: {
+    proxyTimeout: 180_000,
+  },
+
   async rewrites() {
     return [
       {
