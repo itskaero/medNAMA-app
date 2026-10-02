@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>medNAMA — Learn from the source. Practice with purpose.</title>
+  <meta name="description" content="medNAMA answers medical questions from trusted textbooks, with the page to prove it, then turns what you learn into focused FCPS Part 1 practice.">
+  <meta name="theme-color" content="#000912">
+  <meta property="og:title" content="medNAMA — Learn from the source. Practice with purpose.">
+  <meta property="og:description" content="Textbook-grounded answers with page references, recalled past papers, smart re-tests and progress you can trust, for FCPS Part 1.">
+  <meta property="og:image" content="assets/film-poster.jpg">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&family=Fragment+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="nav" id="top">
+    <a class="brand" href="#top" aria-label="medNAMA home"><span class="mark">mN</span><span class="word">med<i>NAMA</i></span></a>
+    <nav class="links" aria-label="Sections">
+      <a href="#film">Film</a>
+      <a href="#features">Features</a>
+      <a href="#why">Why medNAMA</a>
+      <a href="#access">Access</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-ghost" href="https://github.com/itskaero/medNAMA/issues/new?title=Invite%20request&amp;body=Name%3A%0AMedical%20college%20%2F%20year%3A%0AExam%20and%20sitting%3A">Request an invite</a>
+  </header>
+
+  <!-- Hero: dusk sky over hills, as calm as an early study session -->
+  <section class="hero">
+    <div class="sky" aria-hidden="true"></div>
+    <svg class="hills" viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 210 C 180 150, 330 170, 480 205 S 780 260, 960 210 S 1260 150, 1440 190 L1440 320 L0 320 Z" fill="#2b2a2c"/>
+      <path d="M0 250 C 220 200, 420 230, 620 255 S 980 300, 1180 250 S 1380 220, 1440 235 L1440 320 L0 320 Z" fill="#1b1d20"/>
+      <path d="M0 290 C 260 260, 520 280, 760 292 S 1200 300, 1440 280 L1440 320 L0 320 Z" fill="#0d1014"/>
+    </svg>
+    <div class="hero-inner">
+      <span class="pill">FCPS Part 1 · textbook-grounded study</span>
+      <h1>Learn from the source.<br>Practice with purpose.</h1>
+      <p class="lede">medNAMA answers your medical questions from trusted textbooks, with the page to prove it, then turns what you learn into focused board-exam practice.</p>
+      <div class="cta-row">
+        <a class="btn btn-light" href="#film">Watch the film</a>
+        <a class="btn btn-ghost" href="#features">See what&rsquo;s inside</a>
+      </div>
+    </div>
+    <div class="frame" id="film">
+      <div class="frame-bar"><span></span><span></span><span></span><em>medNAMA</em></div>
+      <video controls preload="metadata" playsinline poster="assets/film-poster.jpg" aria-label="medNAMA in 45 seconds">
+        <source src="assets/medNAMA-film.mp4" type="video/mp4">
+        Your browser can&rsquo;t play this video. <a href="assets/medNAMA-film.mp4">Download it</a>.
+      </video>
+    </div>
+  </section>
+
+  <!-- Statement: words light up as you scroll -->
+  <section class="statement">
+    <p class="reveal-words">Most question banks tell you the answer. medNAMA shows you where it&rsquo;s written: the book, the page, the passage. Then it asks you again, just before you&rsquo;d forget.</p>
+  </section>
+
+  <!-- Core features, one tab at a time -->
+  <section class="section" id="features">
+    <div class="split-head">
+      <div>
+        <span class="pill dot">Core features</span>
+        <h2>One place to understand,<br><span class="dim">practise and remember.</span></h2>
+      </div>
+      <p>Ask a question, read the cited answer, practise the recalled papers, and let medNAMA bring back what you got wrong. No switching between apps, notes and PDFs.</p>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Features">
+      <button role="tab" aria-selected="true" aria-controls="tab-ask" id="t-ask">Ask</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-practise" id="t-practise">Practise</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-review" id="t-review">Review</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-progress" id="t-progress">Progress</button>
+    </div>
+
+    <div class="panel" role="tabpanel" id="tab-ask" aria-labelledby="t-ask">
+      <div class="panel-copy">
+        <span class="eyebrow">Dr MedNama</span>
+        <h3>Ask anything.<br>Get the page.</h3>
+        <p>Answers come from your textbooks, with every fact cited as [Book, Page] and the relevant figures alongside. Anything the books don&rsquo;t cover is clearly labelled as AI knowledge.</p>
+        <ul class="ticks">
+          <li>Inline textbook citations you can check</li>
+          <li>&ldquo;Tutor me&rdquo;: one question at a time, corrected from the books</li>
+          <li>Pitched for MBBS, FCPS-I or FCPS-II</li>
+        </ul>
+      </div>
+      <figure class="shot"><img src="assets/shots/answer.jpg" alt="Dr MedNama answering with textbook citations" loading="lazy" width="1600" height="856"></figure>
+    </div>
+
+    <div class="panel" role="tabpanel" id="tab-practise" aria-labelledby="t-practise" hidden>
+      <div class="panel-copy">
+        <span class="eyebrow">Past papers &amp; practice</span>
+        <h3>Every recalled question,<br>by year and topic.</h3>
+        <p>More than 25,000 recalled FCPS Part 1 questions from 2016 to 2026, by year, sitting, subject or topic, with timed papers and a weekly mock everyone sits.</p>
+        <ul class="ticks">
+          <li>Harder versions that keep the fact, not the wording</li>
+          <li>New-angle twists, checked against the textbooks</li>
+          <li>Questions you&rsquo;ve seen don&rsquo;t come back too soon</li>
+        </ul>
+      </div>
+      <figure class="shot"><img src="assets/shots/pastpapers.jpg" alt="Past papers by year and sitting" loading="lazy" width="1600" height="1368"></figure>
+    </div>
+
+    <div class="panel" role="tabpanel" id="tab-review" aria-labelledby="t-review" hidden>
+      <div class="panel-copy">
+        <span class="eyebrow">Explanations &amp; re-tests</span>
+        <h3>Wrong answers<br>become lessons.</h3>
+        <p>Each explanation shows why the key is right and where the textbook says so. A miss becomes a concept card that comes back as a different question, right before you&rsquo;d forget it.</p>
+        <ul class="ticks">
+          <li>Spaced re-tests timed by FSRS</li>
+          <li>Look-alike pairs for the mix-ups you keep making</li>
+          <li>Export your cards to Anki</li>
+        </ul>
+      </div>
+      <figure class="shot"><img src="assets/shots/explain.jpg" alt="A question with its textbook explanation" loading="lazy" width="1600" height="1091"></figure>
+    </div>
+
+    <div class="panel" role="tabpanel" id="tab-progress" aria-labelledby="t-progress" hidden>
+      <div class="panel-copy">
+        <span class="eyebrow">Readiness</span>
+        <h3>Know where<br>you stand.</h3>
+        <p>A Paper 1 forecast that weights each subject by how often past papers ask it, a daily target from your exam date, and a weekly mock with rank and percentile.</p>
+        <ul class="ticks">
+          <li>Forecast with a likely range, not a single number</li>
+          <li>How others did, once enough students take part</li>
+          <li>Subjects ordered weakest first</li>
+        </ul>
+      </div>
+      <figure class="shot"><img src="assets/shots/dashboard.jpg" alt="Dashboard with readiness and Paper 1 forecast" loading="lazy" width="1600" height="931"></figure>
+    </div>
+  </section>
+
+  <!-- Why: cards in the two-column style -->
+  <section class="section" id="why">
+    <div class="split-head">
+      <div>
+        <span class="pill dot">Why medNAMA</span>
+        <h2>Built the way students<br><span class="dim">actually study.</span></h2>
+      </div>
+      <p>Early mornings, short breaks between wards, a long bus ride. medNAMA is designed around how revision really happens, and around one rule: show the source.</p>
+    </div>
+
+    <article class="card">
+      <div class="card-copy">
+        <span class="eyebrow">Your library, not the internet</span>
+        <h3>Every answer has<br>a page number.</h3>
+        <p>medNAMA reads only the textbooks in its library: 20 standard references across the basic sciences and clinical subjects, more than 21,000 pages. A citation that doesn&rsquo;t match a passage it actually read is removed before you see it.</p>
+        <span class="foot">+ Sources you can open and check</span>
+      </div>
+      <figure class="card-shot"><img src="assets/shots/library.jpg" alt="The medNAMA textbook library, grouped by subject" loading="lazy" width="1600" height="970"></figure>
+    </article>
+
+    <article class="card">
+      <div class="card-copy">
+        <span class="eyebrow">Tutor me</span>
+        <h3>Be asked,<br>not just told.</h3>
+        <p>Switch Dr MedNama to Tutor me and it works through a topic with you like a good viva examiner: one question, your answer, a correction from the book, the next question. The full answer comes at the end.</p>
+        <span class="foot">+ Active recall, built into every chat</span>
+      </div>
+      <figure class="card-shot"><img src="assets/shots/tutor.jpg" alt="Dr MedNama in Tutor me mode asking a guiding question" loading="lazy" width="1600" height="1196"></figure>
+    </article>
+
+    <article class="card">
+      <div class="card-copy">
+        <span class="eyebrow">Offline pack</span>
+        <h3>Practise with<br>no signal.</h3>
+        <p>Download a pack of questions with their keys and explanations while you&rsquo;re connected. Answer on the bus or in the ward; your answers wait on your phone and sync the moment you&rsquo;re back online.</p>
+        <span class="foot">+ Nothing lost, nothing counted twice</span>
+      </div>
+      <figure class="card-shot"><img src="assets/shots/offline.jpg" alt="Offline pack answering with no connection" loading="lazy" width="1120" height="900"></figure>
+    </article>
+  </section>
+
+  <!-- Numbers -->
+  <section class="numbers" aria-label="medNAMA in numbers">
+    <div><b data-count="20">20</b><span>textbooks</span></div>
+    <div><b data-count="21000" data-plus>21,000+</b><span>textbook pages</span></div>
+    <div><b data-count="25000" data-plus>25,000+</b><span>recalled past-paper questions</span></div>
+    <div><b data-count="70000" data-plus>70,000+</b><span>practice questions</span></div>
+  </section>
+
+  <!-- Access -->
+  <section class="section" id="access">
+    <div class="split-head">
+      <div>
+        <span class="pill dot">Access</span>
+        <h2>Free while in beta.<br><span class="dim">Invite only.</span></h2>
+      </div>
+      <p>medNAMA is opening to a small group of students first, so every answer can be checked and every report read. Ask for an invite code and you&rsquo;re in.</p>
+    </div>
+    <div class="plans">
+      <div class="plan">
+        <span class="eyebrow">Beta</span>
+        <h3>Free</h3>
+        <p class="muted">For invited FCPS Part 1 candidates.</p>
+        <ul class="ticks">
+          <li>Dr MedNama with citations and Tutor me</li>
+          <li>All recalled past papers and practice</li>
+          <li>Daily Dose, re-tests and Anki export</li>
+          <li>Weekly mock, forecast and offline packs</li>
+        </ul>
+        <a class="btn btn-light" href="https://github.com/itskaero/medNAMA/issues/new?title=Invite%20request&amp;body=Name%3A%0AMedical%20college%20%2F%20year%3A%0AExam%20and%20sitting%3A">Request an invite</a>
+      </div>
+      <div class="plan plan-quiet">
+        <span class="eyebrow">Colleges &amp; study groups</span>
+        <h3>Let&rsquo;s talk</h3>
+        <p class="muted">Bring medNAMA to your batch with shared invite codes and a weekly mock for the whole group.</p>
+        <ul class="ticks">
+          <li>One code for your whole group</li>
+          <li>Group weekly mock and leaderboard</li>
+          <li>Feedback goes straight to the team</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://github.com/itskaero/medNAMA/issues/new?title=Group%20access">Get in touch</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq">
+    <div class="split-head">
+      <div>
+        <span class="pill dot">FAQ</span>
+        <h2>Answers to the questions<br><span class="dim">that come up most.</span></h2>
+      </div>
+    </div>
+    <div class="faq">
+      <details><summary>Who is medNAMA for?</summary><p>Candidates preparing for FCPS Part 1, the basic sciences paper. It&rsquo;s also useful for MBBS revision, and Dr MedNama can pitch answers for FCPS-II.</p></details>
+      <details><summary>Where do the answers come from?</summary><p>From a library of standard medical textbooks. Every textbook fact is cited with the book and page; anything beyond the books is labelled as AI knowledge, so you always know which is which.</p></details>
+      <details><summary>Can it be wrong?</summary><p>Yes. Any AI can make mistakes, which is why medNAMA shows its sources and puts a Report button on every answer and question. Answer keys that the textbooks contradict are flagged and reviewed.</p></details>
+      <details><summary>Are the past papers official?</summary><p>No. They are questions recalled by candidates after each sitting, collected and matched across years. They show what tends to be asked, not CPSP&rsquo;s official papers.</p></details>
+      <details><summary>Does it work on my phone?</summary><p>Yes, in your phone&rsquo;s browser. Offline packs let you keep practising with no connection; your answers sync when you&rsquo;re back online.</p></details>
+      <details><summary>Who can see my progress?</summary><p>Only you. Other students see a shortened version of your name on a weekly mock leaderboard, and &ldquo;how others did&rdquo; only appears once enough students take part, so no single person can be singled out.</p></details>
+      <details><summary>What does it cost?</summary><p>Nothing during the invite-only beta.</p></details>
+    </div>
+  </section>
+
+  <!-- Closing call to action -->
+  <section class="closing">
+    <div class="sky sky-end" aria-hidden="true"></div>
+    <div class="closing-inner">
+      <span class="wordmark">med<i>NAMA</i></span>
+      <h2>Your next question is<br>one tap away.</h2>
+      <a class="btn btn-light" href="https://github.com/itskaero/medNAMA/issues/new?title=Invite%20request&amp;body=Name%3A%0AMedical%20college%20%2F%20year%3A%0AExam%20and%20sitting%3A">Request an invite</a>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span class="word">med<i>NAMA</i></span>
+    <span>Learn from the source. Practice with purpose.</span>
+    <span class="muted">medNAMA can make mistakes. Check the cited sources. Recalled past papers are not official CPSP papers.</span>
+    <span class="muted">&copy; 2026 medNAMA</span>
+  </footer>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

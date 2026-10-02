@@ -61,3 +61,13 @@ mcqs/
 
 # 0-byte file from a stray shell redirect
 /joined-explorer-no
+
+# Kept local, never pushed: data, database dumps, the NAS deploy setup and compose files.
+data/
+NAS/
+mednama-nas-deploy/
+mcqs/
+*.sql
+*.dump
+docker-compose*.yml
+docker-compose*.yaml
