@@ -12,8 +12,6 @@ interface UseStatsParams {
 export function useStats({ token, getHeaders, activeView }: UseStatsParams) {
   const [stats, setStats] = useState<any>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
-  const [detailedStats, setDetailedStats] = useState<any>(null);
-  const [isLoadingDetailedStats, setIsLoadingDetailedStats] = useState(false);
 
   const fetchStats = useCallback(async () => {
     if (!token) return;
@@ -31,24 +29,6 @@ export function useStats({ token, getHeaders, activeView }: UseStatsParams) {
     }
   }, [token, getHeaders]);
 
-  const fetchDetailedStats = useCallback(() => {
-    const savedToken = localStorage.getItem("token") || token;
-    if (!savedToken) return;
-    setIsLoadingDetailedStats(true);
-
-    fetch(`${API}/api/dashboard/detailed-stats`, {
-      headers: { Authorization: `Bearer ${savedToken}` },
-      credentials: "include",
-    })
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error("Failed to load detailed stats");
-      })
-      .then((data) => setDetailedStats(data))
-      .catch((err) => console.error(err))
-      .finally(() => setIsLoadingDetailedStats(false));
-  }, [token]);
-
   // Refresh stats when dashboard becomes active
   useEffect(() => {
     if (token && activeView === "dashboard") {
@@ -60,9 +40,6 @@ export function useStats({ token, getHeaders, activeView }: UseStatsParams) {
     stats,
     isLoadingStats,
     setIsLoadingStats,
-    detailedStats,
-    isLoadingDetailedStats,
     fetchStats,
-    fetchDetailedStats,
   };
 }

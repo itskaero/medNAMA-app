@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { parseMarkdown } from "@/utils/markdown";
 import { shareCard } from "@/lib/shareCard";
+import QuestionPlayer, { QuestionNavigator } from "@/components/QuestionPlayer";
+import SessionSummary, { NextAction } from "@/components/SessionSummary";
+import { AppLinks, askAboutQuestion } from "@/lib/nav";
 
 interface DuelQuestion {
   id: number;
@@ -35,7 +38,7 @@ function shareOnWhatsApp(text: string) {
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
 }
 
-export default function DuelView({ token, initialCode }: { token: string | null; initialCode?: string | null }) {
+export default function DuelView({ token, initialCode, links }: { token: string | null; initialCode?: string | null; links?: AppLinks }) {
   const [code, setCode] = useState<string | null>(initialCode || null);
   const [joinInput, setJoinInput] = useState("");
   const [subject, setSubject] = useState("Mixed");
@@ -196,28 +199,38 @@ export default function DuelView({ token, initialCode }: { token: string | null;
         toast.error(`Could not make the card (${e instanceof Error ? e.message : String(e)}).`);
       }
     };
+    const missedQs = duel.questions.filter((q) => !me || q.picks?.[me.username] !== q.correct_option);
+    const resultActions: NextAction[] = [];
+    if (links && missedQs.length) {
+      resultActions.push({ primary: true, label: `Practise the ${missedQs.length} I missed`,
+        onClick: () => links.practise({ mcq_ids: missedQs.map((q) => q.id), num_questions: missedQs.length, prefer_unseen: false }, `${duel.title || "Duel"} · missed`) });
+      resultActions.push({ label: "Ask Dr MedNama about a miss", onClick: () => links.ask(askAboutQuestion({ ...missedQs[0], correct_option: missedQs[0].correct_option ?? null })) });
+    }
+    resultActions.push({ label: "Copy link", icon: <Copy size={12} />, onClick: copyLink });
+    resultActions.push({ label: "Share on WhatsApp", icon: <Share2 size={12} />,
+      onClick: () => shareOnWhatsApp(`I scored ${me?.score ?? "?"}/${duel.total} on this medNAMA FCPS duel (${duel.title}). Can you beat me? ${duelLink(duel.code)}`) });
+    resultActions.push({ label: "Result card", icon: <ImageDown size={12} />, onClick: shareResultCard });
+    resultActions.push({ label: "New duel", onClick: () => { setCode(null); setDuel(null); } });
     return (
       <div className="dashboard-view" style={{ maxWidth: "760px", margin: "0 auto" }}>
-        <div className="dashboard-header">
-          <h1 className="dashboard-title" style={{ display: "flex", gap: "8px", alignItems: "center" }}><Trophy size={20} style={{ color: "#f59e0b" }} /> {duel.title}</h1>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "var(--sp-4)" }}>
-          {duel.players.map((p, i) => (
-            <div key={p.username} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderRadius: "10px", border: `1px solid ${p.is_you ? "var(--sky)" : "var(--border)"}` }}>
-              <span>{i === 0 ? "🥇 " : i === 1 ? "🥈 " : ""}{p.username}{p.is_you ? " (you)" : ""}</span>
-              <span style={{ fontWeight: 700 }}>{p.score}/{duel.total}{p.time_ms ? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> · {Math.round(p.time_ms / 1000)}s</span> : null}</span>
-            </div>
-          ))}
-          {duel.players.length < 2 ? <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Waiting for a friend to play — share the link below.</div> : null}
-        </div>
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "var(--sp-4)" }}>
-          <button className="btn-workspace" onClick={copyLink}><Copy size={12} /> Copy link</button>
-          <button className="btn-workspace" onClick={() => shareOnWhatsApp(`I scored ${me?.score ?? "?"}/${duel.total} on this medNAMA FCPS duel (${duel.title}). Can you beat me? ${duelLink(duel.code)}`)}>
-            <Share2 size={12} /> Share on WhatsApp
-          </button>
-          <button className="btn-workspace" onClick={shareResultCard}><ImageDown size={12} /> Result card</button>
-          <button className="btn-workspace" onClick={() => { setCode(null); setDuel(null); }}>New duel</button>
-        </div>
+        <SessionSummary
+          kicker={<><Trophy size={12} style={{ verticalAlign: -1, color: "#f59e0b" }} /> Challenge</>}
+          title={duel.title || "Duel"}
+          right={me?.score ?? 0} total={duel.total}
+          note="Tap a question below to see who picked what."
+          actions={resultActions}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {duel.players.map((p, i) => (
+              <div key={p.username} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderRadius: "10px", border: `1px solid ${p.is_you ? "var(--sky)" : "var(--border)"}` }}>
+                <span>{i === 0 ? "🥇 " : i === 1 ? "🥈 " : ""}{p.username}{p.is_you ? " (you)" : ""}</span>
+                <span style={{ fontWeight: 700 }}>{p.score}/{duel.total}{p.time_ms ? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> · {Math.round(p.time_ms / 1000)}s</span> : null}</span>
+              </div>
+            ))}
+            {duel.players.length < 2 ? <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Waiting for a friend to play: share the link.</div> : null}
+          </div>
+        </SessionSummary>
+        <div style={{ height: "var(--sp-4)" }} />
         {duel.questions.map((q, i) => {
           const mine = me ? q.picks?.[me.username] : undefined;
           const right = mine === q.correct_option;
@@ -262,20 +275,10 @@ export default function DuelView({ token, initialCode }: { token: string | null;
       </div>
       <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginBottom: "8px" }}>Question {idx + 1} of {duel.total} · {answered} answered · answers are revealed after you submit</div>
       {q ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {q.figure_id ? <img src={`${API}/api/figures/${q.figure_id}`} alt="Question figure" style={{ maxHeight: "300px", objectFit: "contain" }} /> : null}
-          <p style={{ fontSize: "1rem", lineHeight: 1.6, margin: 0 }}>{q.question_text}</p>
-          {Object.keys(q.options).sort().map((k) => (
-            <button key={k} type="button" onClick={() => setAnswers((a) => ({ ...a, [String(q.id)]: k }))}
-              style={{
-                display: "flex", gap: "10px", textAlign: "left", padding: "10px 12px", borderRadius: "10px", cursor: "pointer",
-                border: `1px solid ${answers[String(q.id)] === k ? "var(--sky)" : "var(--border-light)"}`,
-                background: answers[String(q.id)] === k ? "rgba(48,197,255,0.08)" : "var(--surface-3)", color: "var(--text-primary)",
-              }}>
-              <span className="option-badge">{k}</span><span>{q.options[k]}</span>
-            </button>
-          ))}
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px" }}>
+        <QuestionPlayer mcq={q} token={token} selected={answers[String(q.id)]}
+          onSelect={(k) => setAnswers((a) => ({ ...a, [String(q.id)]: k }))}
+          kicker={<QuestionNavigator count={duel.total} current={idx} onJump={setIdx} answered={(i) => !!answers[String(duel.questions[i]?.id)]} />}>
+          <div className="qp-bar">
             <button className="btn-workspace" disabled={idx === 0} onClick={() => setIdx((i) => i - 1)}>Previous</button>
             {idx + 1 < duel.total ? (
               <button className="btn-workspace" onClick={() => setIdx((i) => i + 1)}>Next</button>
@@ -285,7 +288,7 @@ export default function DuelView({ token, initialCode }: { token: string | null;
               </button>
             )}
           </div>
-        </div>
+        </QuestionPlayer>
       ) : null}
     </div>
   );

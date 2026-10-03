@@ -263,6 +263,9 @@ class Flashcard(Base):
     last_reviewed: Mapped[datetime | None] = mapped_column(default=None)
     next_due: Mapped[datetime | None] = mapped_column(default=None)
     review_count: Mapped[int] = mapped_column(default=0)
+    # FSRS state (app/fsrs.py, migration b3c5d7e9f1a2); None until the first review
+    stability: Mapped[float | None] = mapped_column(nullable=True, default=None)
+    difficulty: Mapped[float | None] = mapped_column(nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     user: Mapped["User"] = relationship()

@@ -44,7 +44,8 @@ export default function BookmarksView({
   explanationError,
   token,
   onFigureClick,
-}: BookmarksViewProps) {
+  onPractise,
+}: BookmarksViewProps & { onPractise?: (filters: Record<string, unknown>, label: string) => void }) {
   return (
     <div className="dashboard-view" role="region" aria-label="Bookmarks">
       <div className="dashboard-header">
@@ -66,6 +67,13 @@ export default function BookmarksView({
           <Download size={12} />
           Export
         </button>
+        {onPractise && bookmarkedMcqs.length ? (
+          <button className="btn-primary" style={{ marginTop: "var(--sp-2)", marginLeft: "8px", padding: "6px 14px", fontSize: "0.78rem" }}
+            onClick={() => onPractise({ mcq_ids: bookmarkedMcqs.slice(0, 100).map((m) => m.id), num_questions: Math.min(100, bookmarkedMcqs.length), prefer_unseen: false },
+              "Bookmarked questions")}>
+            Practise these {Math.min(100, bookmarkedMcqs.length)}
+          </button>
+        ) : null}
       </div>
 
       <div

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from app import fsrs
 from app.models import User, MCQ, Note, Flashcard
 from app.auth import require_student_or_admin
 from app.deps import get_db
@@ -257,11 +258,10 @@ def review_flashcard(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student_or_admin),
 ):
-    """Applies bounded spaced repetition (Leitner-style) after a card flip.
+    """Schedules the card with FSRS (app/fsrs.py, the scheduler concept re-tests use) after a flip.
 
-    Boxes 0..3 map to intervals of ~Incorrect / 1d / 3d / 7d. Ratings again/hard
-    demote or hold; good/easy promote. Intervals are deliberately modest so the
-    reviewer re-trips the biggest gaps within a week.
+    Again brings it back in 10 minutes; Hard/Good/Easy set the next review when recall is predicted to fall
+    to 90%. `box` (0..3) is kept as a coarse label for the list: again, under 3 days, under 2 weeks, longer.
     """
     if req.rating not in (0, 1, 2, 3):
         raise HTTPException(status_code=400, detail="rating must be 0 (again), 1 (hard), 2 (good), or 3 (easy).")
@@ -272,16 +272,19 @@ def review_flashcard(
         raise HTTPException(status_code=404, detail="Flashcard not found.")
 
     now = datetime.utcnow()
-    if req.rating == 0:  # forgot it — back to box 0
+    g = req.rating + 1                                   # 0..3 -> FSRS Again/Hard/Good/Easy (1..4)
+    if card.stability is None or card.difficulty is None:
+        card.stability, card.difficulty = fsrs.initial(g)
+    else:
+        elapsed = (now - (card.last_reviewed or now)).total_seconds() / 86400
+        card.stability, card.difficulty = fsrs.review(card.stability, card.difficulty, elapsed, g)
+    if g == fsrs.AGAIN:
         card.box = 0
         card.next_due = now + timedelta(minutes=10)
-    elif req.rating == 1:  # hard — same box, sooner
-        card.box = max(card.box - 1, 0)
-        card.next_due = now + timedelta(days=1)
     else:
-        card.box = min(card.box + 1, 3)
-        interval_days = {1: 1, 2: 3, 3: 7}[card.box]
-        card.next_due = now + timedelta(days=interval_days)
+        days = fsrs.interval_days(card.stability)
+        card.box = 1 if days < 3 else 2 if days < 14 else 3
+        card.next_due = now + timedelta(days=days)
 
     card.last_reviewed = now
     card.review_count = (card.review_count or 0) + 1

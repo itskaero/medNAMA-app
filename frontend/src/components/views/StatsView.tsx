@@ -94,11 +94,13 @@ export default function StatsView({
   onReviewQuiz,
   onOpenPaper,
   onPractise,
+  onRevise,
 }: {
   token: string | null;
   onReviewQuiz: (attemptId: number) => void;
   onOpenPaper: (mockId: number) => void;
   onPractise: (filters: Record<string, unknown>, label: string) => void;
+  onRevise?: (topic: string) => void;
 }) {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -255,6 +257,10 @@ export default function StatsView({
                     <PlayCircle size={12} /> {s.subject} · {pct(s.accuracy)}
                   </button>
                 ))}
+                {onRevise ? data.weakest.slice(0, 2).map((s) => (
+                  <button key={`rev-${s.subject}`} className="btn-workspace" style={{ padding: "4px 10px", fontSize: "0.76rem" }}
+                    onClick={() => onRevise(s.subject)}>Revise {s.subject}</button>
+                )) : null}
               </div>
             </div>
           ) : null}
@@ -262,7 +268,7 @@ export default function StatsView({
       </div>
 
       <div style={{ marginBottom: "var(--sp-5)" }}>
-        <MasteryMap token={token} onPractise={onPractise} />
+        <MasteryMap token={token} onPractise={onPractise} onRevise={onRevise} />
       </div>
 
       <section style={card}>

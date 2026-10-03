@@ -43,6 +43,9 @@ import ExplanationPanel from "@/components/ExplanationPanel";
 import BasicDropdown from "@/components/ui/basic-dropdown";
 import { PaperYears, QuestionMedia } from "@/components/QuestionMedia";
 import { ArchiveBadges, PastPaperExtras } from "@/components/PastPaperExtras";
+import QuestionPlayer, { ConfidenceRow } from "@/components/QuestionPlayer";
+import SessionSummary, { NextAction } from "@/components/SessionSummary";
+import { AppLinks, VIEW_LABEL, ViewId, askAboutQuestion } from "@/lib/nav";
 import HardenPanel, { HARDEN_MAX_QUESTIONS, HARDEN_STORAGE_KEY, HardenLevel, hardenBlockReason, previewLine, useHardenPreview } from "@/components/HardenPanel";
 import PracticePicker, { EMPTY_SCOPE, PracticeScope, describeScope, scopeActive } from "@/components/PracticePicker";
 
@@ -122,6 +125,7 @@ interface QuizViewProps {
   isAdmin?: boolean;                 // shared sets can only be deleted by an admin
   toggleBookmarkMCQ: (mcqId: number) => void;
   setActiveView: (view: any) => void;
+  links?: AppLinks;
   onFigureClick: (fig: Figure) => void;
   books?: Book[];
   getHeaders?: () => HeadersInit;
@@ -198,6 +202,14 @@ function groupCategories(categories: any[]): { title: string; items: any[] }[] {
   return groups.filter((g, k) => k === 0 || g.items.length);
 }
 
+function BookmarkToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className={`qp-icon-btn ${on ? "on" : ""}`} onClick={onClick} title={on ? "Bookmarked" : "Bookmark question"}>
+      <Bookmark size={14} fill={on ? "currentColor" : "none"} />
+    </button>
+  );
+}
+
 export default function QuizView({
   quizStep,
   setQuizStep,
@@ -253,6 +265,7 @@ export default function QuizView({
   isAdmin = false,
   toggleBookmarkMCQ,
   setActiveView,
+  links,
   onFigureClick,
   books = [],
   getHeaders,
@@ -1890,84 +1903,29 @@ export default function QuizView({
         <div className={`quiz-split-layout ${explanationMCQId !== null ? "has-explanation" : ""}`}>
           <div className="quiz-question-col">
             <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--r-xl)", padding: "var(--sp-6)", display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-light)", paddingBottom: "12px" }}>
-                <span style={{ display: "inline-flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "0.72rem", color: "var(--sky)", background: "var(--sky-dim)", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
-                    {currentMCQ.sub_category || currentMCQ.main_category || "Board MCQ"}
-                  </span>
+              <QuestionPlayer
+                mcq={currentMCQ}
+                token={token}
+                selected={selectedChoice}
+                onSelect={handleSelectOption}
+                correct={isAnswered && quizConfigFeedbackMode !== "board" ? currentMCQ.correct_option : null}
+                locked={isAnswered}
+                keys={false}
+                animate
+                onFigureClick={onFigureClick}
+                kicker={<>
+                  <span className="qp-tag">{currentMCQ.sub_category || currentMCQ.main_category || "Board MCQ"}</span>
                   <PaperYears years={currentMCQ.paper_years} />
                   <ArchiveBadges mcq={currentMCQ} />
-                </span>
-                <button type="button" className="chat-delete-btn"
-                  style={{ position: "static", opacity: 1, color: bookmarkedMcqs.some(b => b.id === currentMCQ.id) ? "var(--teal)" : "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
-                  onClick={() => toggleBookmarkMCQ(currentMCQ.id)} title="Bookmark Question">
-                  <Bookmark size={14} fill={bookmarkedMcqs.some(b => b.id === currentMCQ.id) ? "currentColor" : "none"} />
-                </button>
-              </div>
-
-              <p style={{ fontSize: "1.05rem", fontWeight: 500, lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-line" }}>
-                {currentMCQ.question_text}
-              </p>
-              <QuestionMedia ids={currentMCQ.media} token={token} />
-
-              <div className="quiz-options-list" role="radiogroup">
-                {optionKeys.map((key, index) => {
-                  const isCorrect = key === currentMCQ.correct_option;
-                  const isSelected = key === selectedChoice;
-                  let optClass = "option-button option-cascade-item";
-                  if (isAnswered) {
-                    if (quizConfigFeedbackMode === "board") {
-                      if (isSelected) optClass += " selected-board-mode";
-                    } else {
-                      if (isCorrect) {
-                        optClass += " correct";
-                        if (lastSelectedChoice === key && isCorrectSelection) optClass += " pop-correct";
-                      } else if (isSelected) {
-                        optClass += " selected-wrong";
-                        if (lastSelectedChoice === key && !isCorrectSelection) optClass += " shake-incorrect";
-                      }
-                    }
-                  }
-                  return (
-                    <button key={`${quizCurrentIdx}-${key}`} className={optClass} role="radio" aria-checked={isSelected} disabled={isAnswered}
-                      onClick={() => handleSelectOption(key)}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left", animationDelay: `${index * 50}ms` }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
-                        <span className="option-badge">{key}</span>
-                        <span style={{ lineHeight: 1.4, color: "var(--text-primary)" }}>{currentMCQ.options[key]}</span>
-                      </div>
-                      {isAnswered && isCorrect && quizConfigFeedbackMode !== "board" && <Check size={14} style={{ color: "var(--success)", flexShrink: 0, marginLeft: "8px" }} />}
-                      {isAnswered && isSelected && !isCorrect && quizConfigFeedbackMode !== "board" && <X size={14} style={{ color: "var(--error)", flexShrink: 0, marginLeft: "8px" }} />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Confidence tap: a correct guess is still re-tested by the retention engine */}
-              {setQuizConfidence ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "var(--sp-3)", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>How sure are you?</span>
-                  {(["sure", "unsure", "guess"] as const).map((c) => {
-                    const active = (quizConfidence[currentMCQ.id] ?? "sure") === c;
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setQuizConfidence((prev) => ({ ...prev, [currentMCQ.id]: c }))}
-                        title={c === "guess" ? "Guessed answers come back for review even if correct" : undefined}
-                        style={{
-                          padding: "2px 10px", borderRadius: "999px", fontSize: "0.72rem", cursor: "pointer",
-                          border: `1px solid ${active ? "var(--sky)" : "var(--border-light)"}`,
-                          background: active ? "rgba(48,197,255,0.12)" : "transparent",
-                          color: active ? "var(--sky)" : "var(--text-secondary)",
-                        }}
-                      >
-                        {c === "sure" ? "Sure" : c === "unsure" ? "Unsure" : "Guess"}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
+                </>}
+                aside={<BookmarkToggle on={bookmarkedMcqs.some(b => b.id === currentMCQ.id)} onClick={() => toggleBookmarkMCQ(currentMCQ.id)} />}
+              >
+                {/* Confidence tap: a correct guess is still re-tested by the retention engine */}
+                {setQuizConfidence && !isAnswered ? (
+                  <ConfidenceRow value={quizConfidence[currentMCQ.id] ?? "sure"}
+                    onPick={(c) => setQuizConfidence((prev) => ({ ...prev, [currentMCQ.id]: c }))} />
+                ) : null}
+              </QuestionPlayer>
 
               {/* Past-paper question: other archives' versions, textbook check when keys disagree, Twists */}
               {isAnswered && quizConfigFeedbackMode !== "board" ? (
@@ -2022,13 +1980,13 @@ export default function QuizView({
                     <AlertTriangle size={20} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)" }}>Quit Practice Session?</h3>
-                    <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "2px" }}>Confirmation required</p>
+                    <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)" }}>Leave this session?</h3>
+                    <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "2px" }}>Your answers are saved</p>
                   </div>
                 </div>
 
                 <p style={{ fontSize: "0.86rem", color: "var(--text-secondary)", lineHeight: "1.5", marginBottom: "20px" }}>
-                  Are you sure you want to exit? Your current progress and unanswered questions in this practice exam will be lost.
+                  Every answer so far is saved: it counts in Progress and Mistakes. Pick the session up again from Today → Continue.
                 </p>
 
                 <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
@@ -2045,10 +2003,9 @@ export default function QuizView({
                     onClick={() => {
                       setShowQuitModal(false);
                       setQuizStep("config");
-                      setActiveView("dashboard");
-                      toast.info("Practice Session Exited", {
-                        description: "Your session was ended and progress reset.",
-                      });
+                      const origin = (lastRun?.returnTo as ViewId) || "dashboard";
+                      if (links) links.back(origin); else setActiveView(origin);
+                      toast.info("Session paused", { description: "Your answers are saved. Continue it from Today." });
                     }}
                     style={{
                       padding: "8px 18px",
@@ -2063,7 +2020,7 @@ export default function QuizView({
                       transition: "transform 0.15s ease",
                     }}
                   >
-                    Yes, Exit Session
+                    Leave session
                   </button>
                 </div>
               </motion.div>
@@ -2081,143 +2038,91 @@ export default function QuizView({
       return acc + (choice === q.correct_option ? 1 : 0);
     }, 0);
     const totalCount = quizMCQs.length;
-    const finalAccuracy = Math.round((correctCount / totalCount) * 100);
+    const answeredCount = quizMCQs.filter((q) => quizSelectedAnswers[q.id] !== undefined).length;
     const reviewIdx = summaryReviewIdx !== null ? summaryReviewIdx : 0;
     const reviewMCQ = quizMCQs[reviewIdx];
+    const missed = quizMCQs.filter((q) => quizSelectedAnswers[q.id] !== q.correct_option);
+    const origin = ((lastRun?.returnTo as ViewId) || "dashboard");
+    // The topic with the most misses this session, for "Revise …".
+    const missTopic = (() => {
+      const n: Record<string, number> = {};
+      for (const q of missed) { const t = q.sub_category || q.main_category; if (t) n[t] = (n[t] || 0) + 1; }
+      return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    })();
+    const leftInRun = lastRun ? Math.max(0, lastRun.unseen - Math.min(lastRun.batch, lastRun.unseen)) : 0;
+    // A selection worked through batch by batch (not an explicit list such as missed or bookmarked questions)
+    const isRun = !!lastRun && Object.keys(lastRun.filters).length > 0 && !lastRun.filters.mcq_ids;
+    const actions: NextAction[] = [];
+    if (lastRun && isRun && startQuizWith && leftInRun > 0) {
+      // A run through a whole selection (past papers, "Do all"): keep going batch by batch.
+      const size = Number(lastRun.filters.num_questions) || lastRun.batch || 50;
+      actions.push({ primary: true, label: `Continue: next ${Math.min(size, leftInRun)} (${leftInRun.toLocaleString()} left of ${lastRun.total.toLocaleString()})`,
+        onClick: () => startQuizWith({ ...lastRun.filters, drill_wrong: false }, lastRun.label, lastRun.returnTo) });
+    }
+    if (missed.length && startQuizWith) actions.push({ primary: !actions.length, label: `Practise the ${missed.length} I missed`,
+      onClick: () => startQuizWith({ mcq_ids: missed.map((q) => q.id), num_questions: missed.length, prefer_unseen: false, drill_wrong: false },
+        `${lastRun?.label || "Practice"} · missed`, lastRun?.returnTo) });
+    if (missTopic && links) actions.push({ label: `Revise ${missTopic}`, onClick: () => links.revise(missTopic) });
+    if (missed[0] && links) actions.push({ label: "Ask Dr MedNama about a miss", onClick: () => links.ask(askAboutQuestion(missed[0])) });
+    actions.push({ label: "New session", onClick: () => setQuizStep("config") });
+    actions.push({ label: `Back to ${VIEW_LABEL[origin] || "Today"}`, onClick: () => (links ? links.back(origin) : setActiveView(origin)) });
 
     return (
       <div className="dashboard-view" role="region" aria-label="Practice Results">
-        <div className="dashboard-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div className="dashboard-eyebrow"><GraduationCap size={12} style={{ marginRight: 6 }} />Practice Scoreboard</div>
-            <h1 className="dashboard-title">Practice Results Summary</h1>
-          </div>
-          <button className="btn-workspace" onClick={() => setActiveView("dashboard")}>Return to Dashboard</button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-6)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--sp-4)" }}>
-            <div className="stat-card" style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", padding: "var(--sp-5)" }}>
-              <div className="score-badge-circle" style={{ borderColor: finalAccuracy >= 70 ? "var(--sea-green)" : "var(--teal)" }}>
-                <span style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{finalAccuracy}%</span>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 2 }}>Accuracy</span>
-              </div>
-            </div>
-            <div className="stat-card" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-              <span className="stat-label">Score Metrics</span>
-              <span className="stat-value" style={{ fontSize: "2rem" }}>
-                {correctCount} <span style={{ fontSize: "1rem", color: "var(--text-muted)", fontWeight: 400 }}>/ {totalCount} Correct</span>
-              </span>
-              <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>Completed in {formatTime(quizSecondsElapsed)}</span>
-            </div>
-            <div className="stat-card" style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: "var(--sp-3)" }}>
-              {lastRun && startQuizWith ? (
-                <>
-                  {/* A run through a whole selection (past papers, "Do all"): keep going batch by batch. */}
-                  {(() => {
-                    const left = Math.max(0, lastRun.unseen - Math.min(lastRun.batch, lastRun.unseen));
-                    const size = Number(lastRun.filters.num_questions) || lastRun.batch || 50;
-                    return left > 0 ? (
-                      <button className="btn-primary" style={{ width: "100%" }}
-                        onClick={() => startQuizWith({ ...lastRun.filters, drill_wrong: false }, lastRun.label, lastRun.returnTo)}>
-                        Continue: next {Math.min(size, left)} ({left.toLocaleString()} unanswered left of {lastRun.total.toLocaleString()})
-                      </button>
-                    ) : (
-                      <div style={{ fontSize: "0.82rem", color: "var(--sea-green)", fontWeight: 600, textAlign: "center" }}>
-                        You have answered every question in this selection ({lastRun.total.toLocaleString()}).
-                      </div>
-                    );
-                  })()}
-                  {correctCount < totalCount ? (
-                    <button className="btn-workspace" style={{ width: "100%" }}
-                      onClick={() => startQuizWith({ ...lastRun.filters, drill_wrong: true }, `${lastRun.label} · missed`, lastRun.returnTo)}>
-                      Practise my missed questions
-                    </button>
-                  ) : null}
-                  {lastRun.returnTo ? (
-                    <button className="btn-workspace" onClick={() => setActiveView(lastRun.returnTo!)} style={{ width: "100%" }}>
-                      Back to {lastRun.returnTo === "pastpapers" ? "past papers" : "dashboard"}
-                    </button>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <button className="btn-primary" onClick={() => setQuizStep("config")} style={{ width: "100%" }}>Start New Session</button>
-                  <button className="btn-workspace" onClick={() => setActiveView("dashboard")} style={{ width: "100%" }}>Back to Dashboard</button>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "var(--sp-5)", marginTop: "var(--sp-2)" }}>
-            <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "var(--sp-5)" }}>
-              <h3 className="practice-title" style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: "var(--sp-2)" }}>Clinical Review Grid</h3>
-              <p className="practice-subtitle" style={{ marginBottom: "var(--sp-4)" }}>Click a question number to review your choices and load citations</p>
-              <div className="review-grid" role="list">
-                {quizMCQs.map((q, idx) => {
-                  const ans = quizSelectedAnswers[q.id];
-                  const isRight = ans === q.correct_option;
-                  const isActive = idx === reviewIdx;
-                  return (
-                    <button key={idx} className={`review-circle-btn ${isRight ? "correct" : "incorrect"} ${isActive ? "active" : ""}`} role="listitem" onClick={() => setSummaryReviewIdx(idx)}>
-                      {idx + 1}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
+          <SessionSummary
+            kicker={<><GraduationCap size={12} style={{ verticalAlign: -1 }} /> {lastRun?.label || "Practice"}</>}
+            title={correctCount === totalCount ? "Every question right" : missed.length === 1 ? "One to look at again" : `${missed.length} to look at again`}
+            right={correctCount} total={totalCount} answered={answeredCount}
+            stats={[{ label: "Time", value: formatTime(quizSecondsElapsed) }]}
+            note={isRun && lastRun && lastRun.total > 0 && leftInRun <= 0
+              ? `You have answered every question in this selection (${lastRun.total.toLocaleString()}). Tap a number to review it.` : "Tap a number to review that question."}
+            cells={quizMCQs.map((q, idx) => ({
+              key: q.id,
+              state: quizSelectedAnswers[q.id] === undefined ? "skipped" : quizSelectedAnswers[q.id] === q.correct_option ? "right" : "wrong",
+              active: idx === reviewIdx,
+              onClick: () => setSummaryReviewIdx(idx),
+            }))}
+            actions={actions}
+          />
 
             {reviewMCQ && (
               <div className={`quiz-split-layout ${explanationMCQId !== null ? "has-explanation" : ""}`}>
                 <div className="quiz-question-col">
                   <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--r-xl)", padding: "var(--sp-6)", display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-light)", paddingBottom: "12px", marginBottom: "12px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ fontSize: "0.72rem", color: "var(--sky)", background: "var(--sky-dim)", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
-                          {reviewMCQ.sub_category || reviewMCQ.main_category || "Board MCQ"}
+                    <QuestionPlayer
+                      mcq={reviewMCQ}
+                      token={token}
+                      selected={quizSelectedAnswers[reviewMCQ.id]}
+                      onSelect={() => {}}
+                      correct={reviewMCQ.correct_option}
+                      locked
+                      keys={false}
+                      onFigureClick={onFigureClick}
+                      kicker={<>
+                        <span className="qp-tag">{reviewMCQ.sub_category || reviewMCQ.main_category || "Board MCQ"}</span>
+                        <span className={`qp-tag ${quizSelectedAnswers[reviewMCQ.id] === reviewMCQ.correct_option ? "ok" : "bad"}`}>
+                          {quizSelectedAnswers[reviewMCQ.id] === undefined ? "Not answered" : quizSelectedAnswers[reviewMCQ.id] === reviewMCQ.correct_option ? "Correct" : "Incorrect"}
                         </span>
-                        <span style={{ fontSize: "0.72rem", fontWeight: 600, color: quizSelectedAnswers[reviewMCQ.id] === reviewMCQ.correct_option ? "var(--success)" : "#ef4444", background: quizSelectedAnswers[reviewMCQ.id] === reviewMCQ.correct_option ? "rgba(76, 217, 100, 0.1)" : "rgba(239, 68, 68, 0.1)", padding: "2px 8px", borderRadius: "10px" }}>
-                          {quizSelectedAnswers[reviewMCQ.id] === reviewMCQ.correct_option ? "Correct" : "Incorrect"}
-                        </span>
-                      </div>
-                      <button type="button" className="chat-delete-btn"
-                        style={{ position: "static", opacity: 1, color: bookmarkedMcqs.some(b => b.id === reviewMCQ.id) ? "var(--teal)" : "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
-                        onClick={() => toggleBookmarkMCQ(reviewMCQ.id)} title="Bookmark Question">
-                        <Bookmark size={14} fill={bookmarkedMcqs.some(b => b.id === reviewMCQ.id) ? "currentColor" : "none"} />
-                      </button>
-                    </div>
+                      </>}
+                      aside={<BookmarkToggle on={bookmarkedMcqs.some(b => b.id === reviewMCQ.id)} onClick={() => toggleBookmarkMCQ(reviewMCQ.id)} />}
+                    />
 
-                    <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "var(--text-primary)", fontWeight: 500 }}>{reviewMCQ.question_text}</p>
-
-                    <div className="quiz-options-list">
-                      {Object.keys(reviewMCQ.options).sort().map((key) => {
-                        const isCorrect = key === reviewMCQ.correct_option;
-                        const isSelected = key === quizSelectedAnswers[reviewMCQ.id];
-                        let optClass = "option-button";
-                        if (isCorrect) optClass += " correct";
-                        else if (isSelected) optClass += " selected-wrong";
-                        return (
-                          <button key={key} className={optClass} disabled={true} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
-                              <span className="option-badge">{key}</span>
-                              <span style={{ lineHeight: 1.4 }}>{reviewMCQ.options[key]}</span>
-                            </div>
-                            {isCorrect && <Check size={14} style={{ color: "var(--success)", flexShrink: 0, marginLeft: "8px" }} />}
-                            {isSelected && !isCorrect && <X size={14} style={{ color: "var(--error)", flexShrink: 0, marginLeft: "8px" }} />}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div style={{ display: "flex", justifyContent: "flex-start", borderTop: "1px solid var(--border-light)", paddingTop: "var(--sp-4)", marginTop: "var(--sp-2)" }}>
+                    <div className="qp-bar" style={{ justifyContent: "flex-start" }}>
                       <button className="btn-workspace" style={{ borderColor: "var(--teal)", color: "var(--teal)", display: "flex", alignItems: "center", gap: "6px" }} onClick={() => fetchExplanation(reviewMCQ.id)}>
                         <GraduationCap size={14} />
-                        Clinical Explanation
+                        Explain this question
                       </button>
+                      {quizSelectedAnswers[reviewMCQ.id] !== reviewMCQ.correct_option && links ? (
+                        <button className="btn-workspace" style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                          onClick={() => links.ask(askAboutQuestion(reviewMCQ))}>
+                          <Stethoscope size={14} /> Ask Dr MedNama
+                        </button>
+                      ) : null}
                       {quizSelectedAnswers[reviewMCQ.id] !== reviewMCQ.correct_option ? (
                         <button
                           className="btn-workspace"
-                          style={{ marginLeft: "8px", display: "flex", alignItems: "center", gap: "6px" }}
+                          style={{ display: "flex", alignItems: "center", gap: "6px" }}
                           disabled={flashcardSavedIds.includes(reviewMCQ.id)}
                           onClick={() => handleMakeFlashcard(reviewMCQ)}
                           title="Save this missed question to Study Corner flashcards (spaced repetition)"
@@ -2232,7 +2137,6 @@ export default function QuizView({
                 <ExplanationPanel forMCQId={reviewMCQ?.id} explanationMCQId={explanationMCQId} setExplanationMCQId={setExplanationMCQId} explanationLoading={explanationLoading} explanationError={explanationError} explanationData={explanationData} token={token} onFigureClick={onFigureClick} />
               </div>
             )}
-          </div>
         </div>
       </div>
     );

@@ -9,6 +9,8 @@ import { ConceptCard, ConceptCardData } from "@/components/ConceptCard";
 import { PairCard, PairData } from "@/components/PairCard";
 import { StudyMCQ, StudyQuestion } from "@/components/StudyQuestion";
 import { shareCard } from "@/lib/shareCard";
+import SessionSummary, { NextAction } from "@/components/SessionSummary";
+import { AppLinks, askAboutQuestion } from "@/lib/nav";
 
 type ItemType = "review" | "new" | "image" | "pearl" | "pair" | "flash" | "sprint";
 
@@ -53,15 +55,18 @@ export default function DailyDoseView({
   token,
   onFigureClick,
   mode = "dose",
+  links,
 }: {
   token: string | null;
   onFigureClick: (f: Figure) => void;
   mode?: StudyMode;
+  links?: AppLinks;
 }) {
   const [dose, setDose] = useState<DoseData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState(0);
   const [answered, setAnswered] = useState(false);
+  const [examDate, setExamDate] = useState("");
 
   const headers = useCallback((): HeadersInit => {
     const t = (typeof window !== "undefined" && localStorage.getItem("token")) || token;
@@ -156,8 +161,28 @@ export default function DailyDoseView({
           Opens in the last {dose.unlocks_days_before ?? 7} days before your exam: your weakest concepts, rapid re-tests and the look-alikes you still mix up, in about 30 minutes a day.
         </p>
         <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-          {dose.days_left == null ? "Set your exam date on the dashboard to unlock it on time." : `Your exam is in ${dose.days_left} days.`}
+          {dose.days_left == null ? "Set your exam date so it opens on time." : `Your exam is in ${dose.days_left} days.`}
         </p>
+        <form style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginTop: "var(--sp-3)" }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const res = await fetch(`${API}/api/study/exam-date`, {
+              method: "PUT", headers: { ...headers(), "Content-Type": "application/json" }, credentials: "include",
+              body: JSON.stringify({ exam_date: examDate || null }),
+            }).catch(() => null);
+            if (res && res.ok) { toast.success("Exam date saved."); load(); } else toast.error("Could not save the exam date.");
+          }}>
+          <label style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+            Exam date <input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} required style={{ background: "var(--surface-3)", border: "1px solid var(--border-light)", borderRadius: "6px", color: "var(--text-primary)", padding: "4px 8px" }} />
+          </label>
+          <button className="btn-workspace" type="submit" disabled={!examDate}>Save</button>
+        </form>
+        {links ? (
+          <div className="next-actions" style={{ justifyContent: "center", marginTop: "var(--sp-4)" }}>
+            <button className="btn-workspace" onClick={() => links.go("daily")}>Today&apos;s Daily Dose</button>
+            <button className="btn-workspace" onClick={() => links.go("exams")}>A timed mock</button>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -165,6 +190,19 @@ export default function DailyDoseView({
   const total = dose.items.length;
   const doneCount = dose.items.filter((i) => i.done).length;
   const item = dose.items[current];
+  const questions = dose.items.filter((i) => i.mcq);
+  const misses = questions.filter((i) => i.done && !i.correct && i.mcq);
+  const doneActions: NextAction[] = [];
+  if (links) {
+    const m = misses[0]?.mcq;
+    if (m) doneActions.push({ primary: true, label: "Ask Dr MedNama about a miss", onClick: () => links.ask(askAboutQuestion(m)) });
+    if (m?.sub_category) doneActions.push({ label: `Revise ${m.sub_category}`, onClick: () => links.revise(m.sub_category!) });
+    if (misses.some((i) => i.type === "pair")) doneActions.push({ label: "Look-alikes", onClick: () => links.go("lookalikes") });
+    doneActions.push({ primary: !m, label: "Practise more", onClick: () => links.go("quiz") });
+    doneActions.push({ label: "All my mistakes", onClick: () => links.go("mistakes") });
+    doneActions.push({ label: "Back to Today", onClick: () => links.go("dashboard") });
+  }
+  if (dose.streak && dose.streak.current > 0) doneActions.push({ label: "Share my streak", icon: <Share2 size={12} />, onClick: shareStreak });
 
   return (
     <div className="dashboard-view" role="region" aria-label={title} style={{ maxWidth: "760px", margin: "0 auto" }}>
@@ -205,25 +243,17 @@ export default function DailyDoseView({
             : "Nothing to study yet: generate or practise a few MCQs first, then come back."}
         </p>
       ) : !item ? (
-        <div style={{ textAlign: "center", padding: "var(--sp-6)", border: "1px solid var(--border-light)", borderRadius: "14px" }}>
-          <CheckCircle2 size={36} style={{ color: "var(--sea-green)" }} />
-          <h2 style={{ margin: "10px 0 4px" }}>{title} complete</h2>
-          {dose.streak ? (
-            <>
-              <p style={{ color: "var(--text-secondary)", margin: 0 }}>
-                <Flame size={14} style={{ color: "#f59e0b" }} /> Streak: {dose.streak.current} day{dose.streak.current === 1 ? "" : "s"} (best {dose.streak.best}).
-                Concepts you missed today will come back as new questions in a day.
-              </p>
-              {dose.streak.current > 0 ? (
-                <button className="btn-workspace" onClick={shareStreak} style={{ marginTop: "12px" }}>
-                  <Share2 size={12} /> Share my streak
-                </button>
-              ) : null}
-            </>
-          ) : (
-            <p style={{ color: "var(--text-secondary)", margin: 0 }}>Come back tomorrow for a fresh sprint built from what is still weak.</p>
-          )}
-        </div>
+        <SessionSummary
+          kicker={<><CheckCircle2 size={12} style={{ verticalAlign: -1 }} /> {title}</>}
+          title={`${title} complete`}
+          right={questions.filter((i) => i.correct).length}
+          total={questions.length || undefined}
+          note={dose.streak
+            ? <><Flame size={13} style={{ color: "#f59e0b", verticalAlign: -2 }} /> Streak: {dose.streak.current} day{dose.streak.current === 1 ? "" : "s"} (best {dose.streak.best}). Concepts you missed come back as new questions in a day.</>
+            : "Come back tomorrow for a fresh set built from what is still weak."}
+          cells={questions.map((i) => ({ key: i.index, state: !i.done ? "skipped" : i.correct ? "right" : "wrong" }))}
+          actions={doneActions}
+        />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
           <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
@@ -265,6 +295,7 @@ export default function DailyDoseView({
                 }}
                 onNext={next}
                 nextLabel={current + 1 >= total ? "Finish" : "Next"}
+                keys
                 afterResult={item.type === "pair" && item.pair ? <PairCard pair={item.pair} /> : null}
               />
             </>

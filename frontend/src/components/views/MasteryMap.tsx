@@ -35,9 +35,10 @@ function AccBar({ value, passLine, accent }: { value: number | null; passLine: n
   );
 }
 
-function TopicRow({ subject, t, passLine, onPractise }: {
+function TopicRow({ subject, t, passLine, onPractise, onRevise }: {
   subject: string; t: Topic; passLine: number;
   onPractise: (filters: Record<string, unknown>, label: string) => void;
+  onRevise?: (topic: string) => void;
 }) {
   const weak = t.answered >= 4 && (t.accuracy ?? 101) < passLine;
   const untried = t.answered === 0;
@@ -54,6 +55,10 @@ function TopicRow({ subject, t, passLine, onPractise }: {
             `Practice · ${subject} · ${t.topic}`)}>
           <PlayCircle size={11} /> Practice
         </button>
+        {weak && onRevise ? (
+          <button className="btn-workspace" style={{ padding: "3px 9px", fontSize: "0.72rem", whiteSpace: "nowrap" }}
+            onClick={() => onRevise(t.topic)} title={`A revision sheet on ${t.topic} from your textbooks`}>Revise</button>
+        ) : null}
       </div>
       <div style={{ marginTop: "6px" }}>
         <AccBar value={t.accuracy} passLine={passLine} accent={weak ? "var(--error)" : "var(--sky)"} />
@@ -67,9 +72,10 @@ function TopicRow({ subject, t, passLine, onPractise }: {
 }
 
 /** Topic-level coverage of the practice bank: which subjects and topics are weak or untouched. */
-export default function MasteryMap({ token, onPractise }: {
+export default function MasteryMap({ token, onPractise, onRevise }: {
   token: string | null;
   onPractise: (filters: Record<string, unknown>, label: string) => void;
+  onRevise?: (topic: string) => void;
 }) {
   const [data, setData] = useState<Mastery | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +155,10 @@ export default function MasteryMap({ token, onPractise }: {
                 <PlayCircle size={12} /> {f.subject} · {f.topic} · {pct(f.accuracy)}
               </button>
             ))}
+            {onRevise ? data.focus.slice(0, 3).map((f) => (
+              <button key={`rev-${f.subject}::${f.topic}`} className="btn-workspace" style={{ padding: "4px 10px", fontSize: "0.76rem" }}
+                onClick={() => onRevise(f.topic)}>Revise {f.topic}</button>
+            )) : null}
           </div>
         </div>
       ) : null}
@@ -186,7 +196,7 @@ export default function MasteryMap({ token, onPractise }: {
                       `Practice · ${s.subject}`)}>
                     <PlayCircle size={11} /> Practice the subject
                   </button>
-                  {visible.map((t) => <TopicRow key={t.topic} subject={s.subject} t={t} passLine={passLine} onPractise={onPractise} />)}
+                  {visible.map((t) => <TopicRow onRevise={onRevise} key={t.topic} subject={s.subject} t={t} passLine={passLine} onPractise={onPractise} />)}
                   {s.topics.length > 10 ? (
                     <button className="btn-workspace" style={{ padding: "3px 8px", fontSize: "0.72rem", marginTop: "6px" }}
                       onClick={() => setShowAll({ ...showAll, [s.subject]: !showAll[s.subject] })}>

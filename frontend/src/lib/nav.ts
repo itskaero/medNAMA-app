@@ -79,3 +79,21 @@ export function fromHash(hash: string): { view: ViewId; params: NavParams } | nu
   new URLSearchParams(m[2] || "").forEach((v, k) => { params[k] = v; });
   return { view: m[1] as ViewId, params };
 }
+
+/** The cross-links every view can use (built once in app/page.tsx): no view needs to know how another opens. */
+export interface AppLinks {
+  go: (view: ViewId, params?: NavParams) => void;
+  back: (fallback?: ViewId) => void;
+  /** Dr MedNama with this question in the box. */
+  ask: (question: string) => void;
+  /** A revision sheet on this topic. */
+  revise: (topic: string) => void;
+  /** A practice session; its summary leads back to the view it was started from. */
+  practise: (filters: Record<string, unknown>, label: string) => void;
+}
+
+/** The text Dr MedNama gets when a student asks about a question they missed. */
+export function askAboutQuestion(q: { question_text: string; options: Record<string, string>; correct_option?: string | null }): string {
+  const answer = q.correct_option ? q.options?.[q.correct_option] : null;
+  return answer ? `Explain why the answer is "${answer}": ${q.question_text}` : `Explain this question: ${q.question_text}`;
+}

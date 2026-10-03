@@ -83,6 +83,11 @@ export default function StudyView({
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editingCardId, setEditingCardId] = useState<number | null>(null);
   const [flipped, setFlipped] = useState<Set<number>>(new Set());
+  // "Due now": only the cards FSRS has scheduled for today (and new ones), the way a review session works.
+  const [dueOnly, setDueOnly] = useState(false);
+  const isDue = (c: Flashcard) => !c.next_due || new Date(c.next_due).getTime() <= Date.now();
+  const dueCount = flashcards.filter(isDue).length;
+  const shownCards = dueOnly ? flashcards.filter(isDue) : flashcards;
 
   // Note editor state
   const [noteTitle, setNoteTitle] = useState("");
@@ -384,6 +389,13 @@ export default function StudyView({
               New Flashcard
             </button>
           )}
+          {flashcards.length ? (
+            <div className="next-actions">
+              <button className={`practice-chip ${!dueOnly ? "active" : ""}`} onClick={() => setDueOnly(false)}>All · {flashcards.length}</button>
+              <button className={`practice-chip ${dueOnly ? "active" : ""}`} onClick={() => setDueOnly(true)}>Due now · {dueCount}</button>
+              <span className="tile-text">Rate each card after flipping it; the next review is set by FSRS, the scheduler Anki uses.</span>
+            </div>
+          ) : null}
 
           {isLoadingFlashcards ? (
             <div className="chat-history-loading" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -396,7 +408,10 @@ export default function StudyView({
             </div>
           ) : (
             <div className="config-sub-pills-list" style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-              {flashcards.map((c) => {
+              {dueOnly && !shownCards.length ? (
+                <div style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>Nothing due. Cards come back when you are about to forget them.</div>
+              ) : null}
+              {shownCards.map((c) => {
                 const isFlipped = flipped.has(c.id);
                 const isEditing = editingCardId === c.id;
                 return (

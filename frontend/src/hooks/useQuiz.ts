@@ -478,7 +478,7 @@ export function useQuiz({
   };
 
   // Launch custom AI-generated quiz set
-  const startAiCustomQuiz = async (quizSetId: string) => {
+  const startAiCustomQuiz = async (quizSetId: string, label = "AI questions", returnTo?: string) => {
     setQuizIsLoading(true);
     try {
       const res = await fetch(`${API}/api/quizzes/start`, {
@@ -510,7 +510,8 @@ export function useQuiz({
       setQuizStep("taker");
       setQuizSecondsElapsed(0);
       setQuizTimerActive(true);
-      setLastRun(null);
+      // No "continue" for a generated set; the summary's Back returns to where it was started (Revise, Chat).
+      setLastRun({ filters: {}, label, returnTo, total: data.mcqs.length, unseen: 0, batch: data.mcqs.length });
       if (activeView !== "quiz") {
         skipNextQuizReset.current = true;
         setActiveView("quiz");

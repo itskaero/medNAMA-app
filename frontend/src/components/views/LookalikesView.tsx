@@ -6,6 +6,7 @@ import { API } from "@/lib/constants";
 import { Figure } from "@/types";
 import { PairCard, PairData } from "@/components/PairCard";
 import { StudyMCQ, StudyQuestion } from "@/components/StudyQuestion";
+import { AppLinks } from "@/lib/nav";
 
 interface UserPair extends PairData {
   times_confused: number;
@@ -16,7 +17,7 @@ interface UserPair extends PairData {
 }
 
 /** The look-alike concepts this student mixes up, each with a comparison and a two-question drill. */
-export default function LookalikesView({ token, onFigureClick }: { token: string | null; onFigureClick: (f: Figure) => void }) {
+export default function LookalikesView({ token, onFigureClick, links }: { token: string | null; onFigureClick: (f: Figure) => void; links?: AppLinks }) {
   const [pairs, setPairs] = useState<UserPair[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [drill, setDrill] = useState<{ pairId: number; step: number } | null>(null);
@@ -75,6 +76,7 @@ export default function LookalikesView({ token, onFigureClick }: { token: string
         <p style={{ color: "var(--text-secondary)" }}>
           None yet. When you pick an option that resembles the right answer (afferent for efferent, Crohn&apos;s for UC),
           the pair appears here with a comparison and two questions to tell them apart.
+          {links ? <>{" "}<button className="btn-workspace" onClick={() => links.go("quiz")} style={{ marginLeft: 4 }}>Practise</button></> : null}
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
@@ -107,6 +109,13 @@ export default function LookalikesView({ token, onFigureClick }: { token: string
                 ) : (
                   <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>{p.term_a} vs {p.term_b}</div>
                 )}
+                {links && !drilling ? (
+                  <div className="next-actions">
+                    <button className="btn-workspace" onClick={() => links.ask(`How do I tell ${p.term_a} from ${p.term_b}? Give the distinguishing features an FCPS question would test.`)}>
+                      Ask Dr MedNama</button>
+                    <button className="btn-workspace" onClick={() => links.revise(`${p.term_a} vs ${p.term_b}`)}>Revise {p.term_a} vs {p.term_b}</button>
+                  </div>
+                ) : null}
                 {drilling && q ? (
                   <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "10px" }}>
                     <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}>

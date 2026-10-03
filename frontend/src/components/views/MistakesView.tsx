@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BookOpenCheck, GitCompareArrows, GraduationCap, Stethoscope } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, GitCompareArrows, GraduationCap, Lightbulb, Loader2, Stethoscope } from "lucide-react";
+import { ConceptCard, ConceptCardData } from "@/components/ConceptCard";
+import type { Figure } from "@/types";
 import { API } from "@/lib/constants";
 import PageShell from "@/components/layout/PageShell";
-import type { ViewId } from "@/lib/nav";
+import { askAboutQuestion, type ViewId } from "@/lib/nav";
 
 interface Miss {
   id: number; question_text: string; options: Record<string, string>; correct_option: string; selected: string | null;
@@ -19,7 +21,9 @@ const SOURCE: Record<string, string> = { quiz: "Practice", dose: "Daily Dose", r
 
 /** Review > Mistakes: every question still missed (its latest answer was wrong), from every feature, in one list.
  *  From here: practise them again, ask Dr MedNama, revise the topic, or open the look-alike pairs. */
-export default function MistakesView({ getHeaders, onPractise, onAsk, onRevise, onNavigate }: {
+export default function MistakesView({ getHeaders, token, onFigureClick, onPractise, onAsk, onRevise, onNavigate }: {
+  token?: string | null;
+  onFigureClick?: (f: Figure) => void;
   getHeaders: () => HeadersInit;
   onPractise: (filters: Record<string, unknown>, label: string) => void;
   onAsk: (question: string) => void;
@@ -29,6 +33,15 @@ export default function MistakesView({ getHeaders, onPractise, onAsk, onRevise, 
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [subject, setSubject] = useState<string | null>(null);
+  // The concept card written for a missed question (open: the mcq id; null card = none yet)
+  const [cards, setCards] = useState<Record<number, ConceptCardData | null | "loading">>({});
+  const toggleCard = async (id: number) => {
+    if (id in cards) { setCards((c) => { const n = { ...c }; delete n[id]; return n; }); return; }
+    setCards((c) => ({ ...c, [id]: "loading" }));
+    const r = await fetch(`${API}/api/concepts/by-mcq/${id}`, { headers: getHeaders(), credentials: "include" }).catch(() => null);
+    const body = r && r.status === 200 ? await r.json().catch(() => null) : null;
+    setCards((c) => ({ ...c, [id]: body?.concept ?? null }));
+  };
   const load = useCallback(async () => {
     setError(null);
     try {
@@ -82,10 +95,16 @@ export default function MistakesView({ getHeaders, onPractise, onAsk, onRevise, 
               Answer <b style={{ color: "var(--success, #2fb36a)" }}>{m.correct_option}. {m.options?.[m.correct_option]}</b>
             </span>
             <span className="next-actions">
-              <button className="btn-workspace" onClick={() => onAsk(`Explain why the answer is "${m.options?.[m.correct_option]}": ${m.question_text}`)}>
+              <button className="btn-workspace" onClick={() => onAsk(askAboutQuestion(m))}>
                 <Stethoscope size={12} /> Ask Dr MedNama</button>
               <button className="btn-workspace" onClick={() => onRevise(m.topic || m.subject)}><BookOpenCheck size={12} /> Revise {m.topic || m.subject}</button>
+              <button className="btn-workspace" onClick={() => toggleCard(m.id)}>
+                {cards[m.id] === "loading" ? <Loader2 size={12} className="animate-spin" /> : <Lightbulb size={12} />} {m.id in cards ? "Hide concept" : "Concept card"}</button>
             </span>
+            {m.id in cards && cards[m.id] !== "loading" ? (
+              cards[m.id] ? <ConceptCard card={cards[m.id] as ConceptCardData} token={token ?? null} onFigureClick={onFigureClick} />
+                : <span className="tile-text">No concept card for this question yet: one is written when you miss it in practice or the Daily Dose.</span>
+            ) : null}
           </article>
         ))}
         {shown.length > 150 ? <div className="tile-text">Showing the latest 150 of {shown.length}.</div> : null}

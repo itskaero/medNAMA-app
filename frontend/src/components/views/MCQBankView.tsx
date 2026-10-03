@@ -51,7 +51,8 @@ export default function MCQBankView({
   explanationError,
   token,
   onFigureClick,
-}: MCQBankViewProps) {
+  onPractise,
+}: MCQBankViewProps & { onPractise?: (filters: Record<string, unknown>, label: string) => void }) {
   const categories = stats?.categories || [];
   // Browse with answers hidden (active recall); reveal one question at a time.
   const [hideAnswers, setHideAnswers] = useState(false);
@@ -76,6 +77,13 @@ export default function MCQBankView({
           {mcqTotal != null ? (
             <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-secondary)" }}>
               Showing {mcqsList.length.toLocaleString()} of {mcqTotal.toLocaleString()} questions
+              {onPractise && mcqsList.length ? (
+                <button className="btn-workspace" style={{ marginLeft: "10px", padding: "3px 10px", fontSize: "0.74rem" }}
+                  onClick={() => onPractise({ mcq_ids: mcqsList.slice(0, 50).map((m) => m.id), num_questions: Math.min(50, mcqsList.length), prefer_unseen: false },
+                    mcqSearchText ? `Bank · "${mcqSearchText}"` : mcqFilterCategory !== "all" ? `Bank · ${mcqFilterCategory}` : "Bank")}>
+                  Practise these {Math.min(50, mcqsList.length)}
+                </button>
+              ) : null}
             </p>
           ) : null}
         </div>

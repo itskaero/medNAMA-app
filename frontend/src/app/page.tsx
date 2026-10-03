@@ -53,7 +53,8 @@ import MistakesView from "@/components/views/MistakesView";
 import ReportsView from "@/components/views/ReportsView";
 import ContentView from "@/components/views/ContentView";
 import { useNav } from "@/hooks/useNav";
-import { hubOf, ViewId, ADMIN_VIEWS } from "@/lib/nav";
+import InstallHint from "@/components/InstallHint";
+import { hubOf, ViewId, ADMIN_VIEWS, AppLinks } from "@/lib/nav";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
@@ -178,7 +179,7 @@ export default function Home() {
     return t ? { Authorization: `Bearer ${t}` } : {};
   }, [token]);
 
-  const { stats, isLoadingStats, isLoadingDetailedStats, detailedStats, fetchStats, fetchDetailedStats } =
+  const { stats, isLoadingStats, fetchStats } =
     useStats({ token, getHeaders, activeView });
 
   const {
@@ -320,10 +321,6 @@ export default function Home() {
       if (bookmarkedMcqs.length === 0 && bookmarkedConcepts.length === 0) {
         fetchBookmarks();
       }
-    } else if (activeView === "stats") {
-      if (detailedStats === null) {
-        fetchDetailedStats();
-      }
     }
   }, [
     activeView,
@@ -334,11 +331,9 @@ export default function Home() {
     mcqsList.length,
     bookmarkedMcqs.length,
     bookmarkedConcepts.length,
-    detailedStats,
     fetchConversations,
     fetchMcqs,
     fetchBookmarks,
-    fetchDetailedStats,
   ]);
 
   // Clear messages/inputValue on logout (token becomes null)
@@ -383,6 +378,18 @@ export default function Home() {
     );
   }
 
+  // Cross-links shared by every view: ask Dr MedNama, revise a topic, practise a set, go somewhere, go back.
+  const links: AppLinks = {
+    go: (v, params) => nav.navigate(v, params),
+    back: (fallback) => nav.back(fallback),
+    ask: (question) => { setInputValue(question); nav.navigate("chat"); },
+    revise: (topic) => {
+      try { localStorage.setItem("mednama_revise_topic", topic); } catch { /* storage unavailable */ }
+      nav.navigate("revise");
+    },
+    practise: (filters, label) => quiz.startQuizWith(filters, label, activeView === "quiz" ? quiz.lastRun?.returnTo : activeView),
+  };
+
   // ── renderMainContent ──────────────────────────────────────────────────────
   const renderMainContent = () => {
     if (activeView === "dashboard") {
@@ -414,12 +421,11 @@ export default function Home() {
       return (
         <MistakesView
           getHeaders={getHeaders}
+          token={token}
+          onFigureClick={setLightboxFig}
           onPractise={(filters, label) => quiz.startQuizWith(filters, label, "mistakes")}
-          onAsk={(question) => { setInputValue(question); nav.navigate("chat"); }}
-          onRevise={(topic) => {
-            try { localStorage.setItem("mednama_revise_topic", topic); } catch { /* storage unavailable */ }
-            nav.navigate("revise");
-          }}
+          onAsk={links.ask}
+          onRevise={links.revise}
           onNavigate={(v) => nav.navigate(v)}
         />
       );
@@ -443,6 +449,7 @@ export default function Home() {
           isAdmin={isAdmin}
           toggleBookmarkMCQ={toggleBookmarkMCQ}
           setActiveView={setActiveView}
+          links={links}
           onFigureClick={setLightboxFig}
           books={books}
           getHeaders={getHeaders}
@@ -453,6 +460,7 @@ export default function Home() {
     if (activeView === "mcq-bank") {
       return (
         <MCQBankView
+          onPractise={links.practise}
           stats={stats}
           mcqsList={mcqsList}
           mcqTotal={mcqTotal}
@@ -479,6 +487,7 @@ export default function Home() {
     if (activeView === "bookmarks") {
       return (
         <BookmarksView
+          onPractise={links.practise}
           bookmarkedMcqs={bookmarkedMcqs}
           bookmarkedConcepts={bookmarkedConcepts}
           isLoadingBookmarks={isLoadingBookmarks}
@@ -505,12 +514,13 @@ export default function Home() {
           onReviewQuiz={quiz.handleReviewPreviousQuiz}
           onOpenPaper={openPaper}
           onPractise={(filters, label) => quiz.startQuizWith(filters, label, "stats")}
+          onRevise={links.revise}
         />
       );
     }
 
     if (activeView === "duel") {
-      return <DuelView token={token} initialCode={(nav.params.code as string) || duelCode} />;
+      return <DuelView token={token} initialCode={(nav.params.code as string) || duelCode} links={links} />;
     }
 
     if (activeView === "referee" && isAdmin) {
@@ -521,12 +531,17 @@ export default function Home() {
       return (
         <LibraryView books={books} isLoading={isLoadingBooks} error={booksError} onRetry={() => fetchBooks(true)}
           isAdmin={isAdmin} uploading={uploading} uploadError={uploadError} onUpload={handleFileUpload}
-          onDelete={handleDeleteBook} fileRef={fileRef} />
+          onDelete={handleDeleteBook} fileRef={fileRef}
+          onAsk={(bookId) => { setChatScope({ book_id: bookId, chapter: null }); fetchChatChapters(bookId); nav.navigate("chat"); }}
+          onRevise={(bookId) => {
+            try { localStorage.setItem("mednama_revise_scope", JSON.stringify({ book_ids: [bookId], chapter: null, topic: "", length: "quick" })); } catch { /* storage unavailable */ }
+            nav.navigate("revise");
+          }} />
       );
     }
 
     if (activeView === "offline") {
-      return <OfflineView getHeaders={getHeaders} username={username} />;
+      return <OfflineView getHeaders={getHeaders} username={username} links={links} />;
     }
 
     if (activeView === "users" && isAdmin) {
@@ -534,15 +549,15 @@ export default function Home() {
     }
 
     if (activeView === "daily") {
-      return <DailyDoseView key="dose" token={token} onFigureClick={setLightboxFig} />;
+      return <DailyDoseView key="dose" token={token} onFigureClick={setLightboxFig} links={links} />;
     }
 
     if (activeView === "sprint") {
-      return <DailyDoseView key="sprint" mode="sprint" token={token} onFigureClick={setLightboxFig} />;
+      return <DailyDoseView key="sprint" mode="sprint" token={token} onFigureClick={setLightboxFig} links={links} />;
     }
 
     if (activeView === "mock") {
-      return <WeeklyMockView token={token} />;
+      return <WeeklyMockView token={token} links={links} />;
     }
 
     if (activeView === "pastpapers" || (activeView === "paper" && !timedMockId)) {
@@ -580,17 +595,17 @@ export default function Home() {
           isAdmin={isAdmin}
           onBack={() => nav.back("dashboard")}
           onFigureClick={setLightboxFig}
-          onTestMe={(quizSetId, label) => quiz.startAiCustomQuiz(quizSetId)}
+          onTestMe={(quizSetId, label) => quiz.startAiCustomQuiz(quizSetId, label, "revise")}
         />
       );
     }
 
     if (activeView === "paper" && timedMockId) {
-      return <WeeklyMockView key={`paper-${timedMockId}`} token={token} mockId={timedMockId} onExit={() => nav.back("pastpapers")} />;
+      return <WeeklyMockView key={`paper-${timedMockId}`} token={token} mockId={timedMockId} onExit={() => nav.back("pastpapers")} links={links} />;
     }
 
     if (activeView === "lookalikes") {
-      return <LookalikesView token={token} onFigureClick={setLightboxFig} />;
+      return <LookalikesView token={token} onFigureClick={setLightboxFig} links={links} />;
     }
 
     if (activeView === "study") {
@@ -631,6 +646,7 @@ export default function Home() {
     // Default: Chat view
     return (
       <ChatView
+        onStartQuizSet={(id, label) => quiz.startAiCustomQuiz(id, label, "chat")}
         messages={messages}
         inputValue={inputValue}
         setInputValue={setInputValue}
@@ -733,6 +749,7 @@ export default function Home() {
             transition={{ duration: 0.25, ease: "easeOut" }}
             style={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden" }}
           >
+            <InstallHint />
             <HubBar view={activeView} isAdmin={isAdmin} previous={nav.previous}
               onNavigate={(v) => nav.navigate(v)} onBack={() => nav.back()}
               hidden={activeView === "chat" || (activeView === "quiz" && quiz.quizStep === "taker")} />

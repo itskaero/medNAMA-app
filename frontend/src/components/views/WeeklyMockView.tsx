@@ -7,6 +7,9 @@ import { API } from "@/lib/constants";
 import { parseMarkdown } from "@/utils/markdown";
 import { shareCard } from "@/lib/shareCard";
 import { ExplainOnDemand } from "@/components/ExplainOnDemand";
+import QuestionPlayer, { QuestionNavigator } from "@/components/QuestionPlayer";
+import SessionSummary, { NextAction } from "@/components/SessionSummary";
+import { AppLinks, askAboutQuestion } from "@/lib/nav";
 import { QuestionMedia } from "@/components/QuestionMedia";
 
 type Part = "p1" | "p2";
@@ -67,11 +70,13 @@ export default function WeeklyMockView({
   token,
   mockId = null,
   onExit,
+  links,
 }: {
   token: string | null;
   /** A specific paper (e.g. a personal timed past paper) instead of this week's shared papers. */
   mockId?: number | null;
   onExit?: () => void;
+  links?: AppLinks;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [paper, setPaper] = useState<Paper | null>(null);
@@ -313,42 +318,12 @@ export default function WeeklyMockView({
             <Timer size={15} /> {fmt(remaining)}
           </span>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "var(--sp-4)" }} aria-label="Question navigator">
-          {paper.questions.map((x, i) => {
-            const ans = answers[String(x.id)];
-            return (
-              <button key={x.id} type="button" onClick={() => setCurrent(i)} aria-label={`Question ${i + 1}`}
-                style={{
-                  width: "30px", height: "28px", borderRadius: "6px", fontSize: "0.7rem", cursor: "pointer", position: "relative",
-                  border: `1px solid ${i === current ? "var(--sky)" : "var(--border-light)"}`,
-                  background: ans?.option ? "rgba(48,197,255,0.18)" : "var(--surface-3)", color: "var(--text-primary)",
-                }}>
-                {i + 1}
-                {ans?.flagged ? <span style={{ position: "absolute", top: "-3px", right: "-3px", width: "8px", height: "8px", borderRadius: "50%", background: "#f59e0b" }} /> : null}
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-          Question {current + 1} of {paper.questions.length}
-        </div>
-        <p style={{ fontSize: "1rem", lineHeight: 1.6, fontWeight: 500, margin: "8px 0 12px", whiteSpace: "pre-line" }}>{q.question_text}</p>
-        <QuestionMedia ids={q.media} token={token} />
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {Object.keys(q.options).sort().map((key) => (
-            <button key={key} type="button" onClick={() => setAnswer(q.id, { option: key })}
-              style={{
-                display: "flex", gap: "10px", textAlign: "left", padding: "10px 12px", borderRadius: "10px", cursor: "pointer",
-                border: `1px solid ${a.option === key ? "var(--sky)" : "var(--border-light)"}`,
-                background: a.option === key ? "rgba(48,197,255,0.10)" : "var(--surface-3)", color: "var(--text-primary)",
-              }}>
-              <span className="option-badge">{key}</span>
-              <span style={{ lineHeight: 1.4 }}>{q.options[key]}</span>
-            </button>
-          ))}
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "var(--sp-4)" }}>
+        <QuestionNavigator count={paper.questions.length} current={current} onJump={setCurrent}
+          answered={(i) => !!answers[String(paper.questions[i].id)]?.option}
+          flagged={(i) => !!answers[String(paper.questions[i].id)]?.flagged} />
+        <QuestionPlayer mcq={q} token={token} selected={a.option} onSelect={(key) => setAnswer(q.id, { option: key })}
+          kicker={<>Question {current + 1} of {paper.questions.length}</>}>
+        <div className="qp-bar">
           <button className="btn-workspace" onClick={() => setAnswer(q.id, { flagged: !a.flagged })}
             style={{ color: a.flagged ? "#d97706" : undefined }} title="Flagged answers count as 'unsure' for your review schedule">
             <Flag size={12} /> {a.flagged ? "Flagged for review" : "Flag for review"}
@@ -368,6 +343,7 @@ export default function WeeklyMockView({
             </button>
           </div>
         </div>
+        </QuestionPlayer>
       </div>
     );
   }
@@ -396,28 +372,39 @@ export default function WeeklyMockView({
   // ── result ──
   if (result) {
     const shown = result.review.filter((r) => reviewFilter === "all" || !r.is_correct);
+    const missedIds = result.review.filter((r) => !r.is_correct).map((r) => r.id);
+    // Weakest first; Paper 2 groups by faculty or topic, which are not practice subjects.
+    const weakest = result.subjects.find((x) => x.total && x.correct / x.total < result.pass_line)?.subject
+      || result.subjects[0]?.subject;
+    const bySubject = mockId || part === "p1";
+    const firstMiss = result.review.find((r) => !r.is_correct);
+    const resultActions: NextAction[] = [];
+    if (links && missedIds.length) resultActions.push({ primary: true, label: `Practise the ${Math.min(missedIds.length, 100)} I missed`,
+      onClick: () => links.practise({ mcq_ids: missedIds.slice(0, 100), num_questions: Math.min(missedIds.length, 100), prefer_unseen: false }, `${result.title} · missed`) });
+    if (links && weakest && bySubject) {
+      resultActions.push({ label: `Practise ${weakest}`, onClick: () => links.practise({ scope: { subjects: [weakest] }, num_questions: 20 }, `Practice · ${weakest}`) });
+      resultActions.push({ label: `Revise ${weakest}`, onClick: () => links.revise(weakest) });
+    }
+    if (links && firstMiss) resultActions.push({ label: "Ask Dr MedNama about a miss", onClick: () => links.ask(askAboutQuestion(firstMiss)) });
+    resultActions.push({ label: "Share my result", icon: <Share2 size={12} />, onClick: shareResult });
+    if (onExit) resultActions.push({ label: "Back", onClick: onExit });
+    else if (links) resultActions.push({ label: "Back to Exams", onClick: () => links.back("exams") });
     return (
       <div className="dashboard-view" role="region" aria-label="Weekly mock result" style={{ maxWidth: "860px", margin: "0 auto" }}>
         {mockId ? null : picker}
-        {onExit ? (
-          <button className="btn-workspace" onClick={onExit} style={{ marginBottom: "var(--sp-3)" }}>Back to past papers</button>
-        ) : null}
-        <div className="dashboard-header">
-          <h1 className="dashboard-title">{result.title}</h1>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px", marginBottom: "var(--sp-4)" }}>
-          <Stat label="Score" value={`${result.score} / ${result.total}`} sub={`${Math.round(result.fraction * 100)}%`} color={result.passed ? "var(--sea-green)" : "#d97706"} />
-          <Stat label="Pass line" value="75%" sub={result.passed ? "Above it" : `${Math.max(0, Math.ceil(result.pass_line * result.total) - result.score)} more to pass`} />
-          {mockId ? null : (
-            <Stat label="Rank" value={`${result.rank} of ${result.candidates}`}
-              sub={result.percentile != null ? `Percentile ${result.percentile}` : "Percentile shows from 3 candidates"} />
-          )}
-          <Stat label="Time" value={`${result.time_taken_min} min`} sub={result.overtime ? "Submitted after time" : mockId ? "Within the time limit" : `Average score ${result.average ?? "-"}`} />
-        </div>
-        <button className="btn-workspace" onClick={shareResult} style={{ marginBottom: "var(--sp-4)" }}>
-          <Share2 size={12} /> Share my result
-        </button>
-
+        <SessionSummary
+          kicker={<><Trophy size={12} style={{ verticalAlign: -1 }} /> {mockId ? "Timed paper" : "Weekly mock"}</>}
+          title={result.title}
+          right={result.score} total={result.total}
+          answered={result.review.filter((r) => r.selected).length}
+          note={result.passed ? "Above the 75% pass line." : `${Math.max(0, Math.ceil(result.pass_line * result.total) - result.score)} more to reach the 75% pass line.`}
+          stats={[
+            ...(mockId ? [] : [{ label: "Rank", value: `${result.rank} of ${result.candidates}`,
+              sub: result.percentile != null ? `Percentile ${result.percentile}` : "Percentile shows from 3 candidates" }]),
+            { label: "Time", value: `${result.time_taken_min} min`, sub: result.overtime ? "Submitted after time" : mockId ? "Within the time limit" : `Average score ${result.average ?? "-"}` },
+          ]}
+          actions={resultActions}
+        />
         {!mockId && result.leaderboard && result.leaderboard.length > 1 ? (
           <div style={{ marginBottom: "var(--sp-5)" }}>
             <h2 style={{ fontSize: "0.95rem", margin: "0 0 8px" }}>This week&apos;s leaderboard</h2>

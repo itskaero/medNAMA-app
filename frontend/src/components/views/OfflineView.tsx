@@ -5,6 +5,9 @@ import { Check, CloudOff, CloudUpload, Download, Loader2, Wifi, X } from "lucide
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { parseMarkdown } from "@/utils/markdown";
+import QuestionPlayer from "@/components/QuestionPlayer";
+import SessionSummary, { NextAction } from "@/components/SessionSummary";
+import { AppLinks } from "@/lib/nav";
 
 interface PackQuestion {
   id: number; question_text: string; options: Record<string, string>; correct_option: string;
@@ -34,7 +37,7 @@ function write(key: string, value: unknown) {
 
 /** Offline pack: download questions with their keys and explanations, answer them with no connection, and
  *  send the answers to medNAMA when back online. Everything waits on this device until it is synced. */
-export default function OfflineView({ getHeaders, username }: { getHeaders: () => HeadersInit; username: string | null }) {
+export default function OfflineView({ getHeaders, username, links }: { getHeaders: () => HeadersInit; username: string | null; links?: AppLinks }) {
   const packKey = `mednama.offline.pack.${username || "me"}`;
   const queueKey = `mednama.offline.queue.${username || "me"}`;
   const [pack, setPack] = useState<Pack | null>(null);
@@ -128,6 +131,15 @@ export default function OfflineView({ getHeaders, username }: { getHeaders: () =
   const go = (d: number) => pack && savePack({ ...pack, pos: Math.max(0, Math.min(pack.questions.length - 1, pack.pos + d)) });
 
   const secure = typeof window !== "undefined" && window.isSecureContext;
+  const packDone = !!pack && pack.questions.length > 0 && score.answered >= pack.questions.length;
+  const packMissed = pack ? pack.questions.filter((x) => pack.picks[x.id] && pack.picks[x.id] !== x.correct_option) : [];
+  const packActions: NextAction[] = [];
+  if (online) {
+    packActions.push({ primary: true, label: "Download a new pack", onClick: download });
+    if (links && packMissed.length) packActions.push({ label: `Practise the ${packMissed.length} I missed`,
+      onClick: () => links.practise({ mcq_ids: packMissed.map((x) => x.id), num_questions: packMissed.length, prefer_unseen: false }, "Offline pack · missed") });
+    if (links) packActions.push({ label: "Back to Today", onClick: () => links.go("dashboard") });
+  }
 
   return (
     <div className="dashboard-view" style={{ maxWidth: "900px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
@@ -176,30 +188,21 @@ export default function OfflineView({ getHeaders, username }: { getHeaders: () =
           No pack on this device yet. Download one while you are connected: questions you have not answered, weighted toward your weakest subject.
         </div>
       ) : q ? (
+        <>
+        {packDone && pack ? (
+          <SessionSummary kicker="Offline pack" title="Pack finished" right={score.right} total={pack.questions.length}
+            note={online ? (queue.length ? "Your answers are being sent to medNAMA." : "Every answer has reached medNAMA.") : "Your answers are kept on this device and sent when you are back online."}
+            cells={pack.questions.map((x, i) => ({ key: x.id, state: !pack.picks[x.id] ? "skipped" : pack.picks[x.id] === x.correct_option ? "right" : "wrong",
+              active: i === pack.pos, onClick: () => savePack({ ...pack, pos: i }) }))}
+            actions={packActions} />
+        ) : null}
         <div style={{ padding: "18px", borderRadius: "14px", border: "1px solid var(--border-light)", background: "var(--surface-1, transparent)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "10px" }}>
             <span>Question {pack.pos + 1} of {pack.questions.length}{q.subject ? ` · ${q.subject}` : ""}{q.topic ? ` · ${q.topic}` : ""}</span>
             <span>{score.answered} answered · {score.right} right</span>
           </div>
-          <p style={{ fontSize: "1.02rem", fontWeight: 500, lineHeight: 1.6, whiteSpace: "pre-line" }}>{q.question_text}</p>
-          <div className="quiz-options-list" role="radiogroup">
-            {Object.keys(q.options).sort().map((key) => {
-              const isCorrect = key === q.correct_option;
-              const cls = "option-button" + (picked ? (isCorrect ? " correct" : key === picked ? " selected-wrong" : "") : "");
-              return (
-                <button key={`${q.id}-${key}`} className={cls} role="radio" aria-checked={picked === key} disabled={!!picked}
-                  onClick={() => choose(key)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left" }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <span className="option-badge">{key}</span>
-                    <span style={{ lineHeight: 1.4 }}>{q.options[key]}</span>
-                  </span>
-                  {picked && isCorrect ? <Check size={14} style={{ color: "var(--success)" }} /> : null}
-                  {picked === key && !isCorrect ? <X size={14} style={{ color: "var(--error)" }} /> : null}
-                </button>
-              );
-            })}
-          </div>
+          <QuestionPlayer mcq={q} token={null} selected={picked} onSelect={choose}
+            correct={picked ? q.correct_option : null} locked={!!picked} />
           {picked && q.explanation_markdown ? (
             <div className="prose" style={{ marginTop: "14px", fontSize: "0.86rem" }}
               dangerouslySetInnerHTML={{ __html: parseMarkdown(q.explanation_markdown) }} />
@@ -209,12 +212,11 @@ export default function OfflineView({ getHeaders, username }: { getHeaders: () =
             {pack.pos + 1 < pack.questions.length ? (
               <button className="btn-primary" onClick={() => go(1)} style={{ padding: "8px 18px" }}>Next question</button>
             ) : (
-              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-                End of the pack: {score.right} of {score.answered} right. Download a new one when you are online.
-              </span>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Last question of the pack.</span>
             )}
           </div>
         </div>
+        </>
       ) : null}
     </div>
   );

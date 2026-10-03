@@ -7,9 +7,9 @@ import { Figure } from "@/types";
 import { parseMarkdown } from "@/utils/markdown";
 import { ConceptCard, ConceptCardData } from "@/components/ConceptCard";
 import { ExplainOnDemand } from "@/components/ExplainOnDemand";
-import { QuestionMedia } from "@/components/QuestionMedia";
+import QuestionPlayer, { Confidence, ConfidenceRow } from "@/components/QuestionPlayer";
 
-export type Confidence = "sure" | "unsure" | "guess";
+export type { Confidence };
 export type MistakeType = "confusion" | "misconception" | "gap";
 
 export interface StudyMCQ {
@@ -31,8 +31,6 @@ export interface AnswerResult {
   concept: ConceptCardData | null;
   mistake_type?: MistakeType | null;
 }
-
-const CONFIDENCE_LABEL: Record<Confidence, string> = { sure: "Sure", unsure: "Unsure", guess: "Guess" };
 
 export const MISTAKE_NOTE: Record<MistakeType, { label: string; text: string; color: string }> = {
   confusion: {
@@ -62,6 +60,7 @@ export function StudyQuestion({
   onNext,
   nextLabel = "Next",
   afterResult,
+  keys = false,
 }: {
   mcq: StudyMCQ;
   token: string | null;
@@ -71,6 +70,8 @@ export function StudyQuestion({
   onNext?: () => void;
   nextLabel?: string;
   afterResult?: React.ReactNode;
+  /** A–E shortcuts: only where this is the one question on screen (Daily Dose, sprint). */
+  keys?: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [result, setResult] = useState<AnswerResult | null>(null);
@@ -145,68 +146,14 @@ export function StudyQuestion({
   const note = result && !result.is_correct && result.mistake_type ? MISTAKE_NOTE[result.mistake_type] : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-      {mcq.figure_id ? (
-        <button
-          type="button"
-          onClick={() => onFigureClick({ id: mcq.figure_id!, figure_label: "Textbook figure" })}
-          style={{ border: "1px solid var(--border-light)", borderRadius: "12px", padding: 0, background: "#0d0f13", cursor: "zoom-in", overflow: "hidden" }}
-          aria-label="Enlarge figure"
-        >
-          <img
-            src={`${API}/api/figures/${mcq.figure_id}`}
-            alt="Identify what this textbook figure shows"
-            style={{ width: "100%", maxHeight: "360px", objectFit: "contain", display: "block" }}
-          />
-        </button>
-      ) : null}
-      <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "var(--text-primary)", fontWeight: 500, margin: 0, whiteSpace: "pre-line" }}>{mcq.question_text}</p>
-      <QuestionMedia ids={mcq.media} token={token} />
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {Object.keys(mcq.options).sort().map((key) => {
-          const isCorrect = result && key === result.correct_option;
-          const isWrongPick = result && key === selected && !result.is_correct;
-          return (
-            <button
-              key={key}
-              type="button"
-              disabled={!!result}
-              onClick={() => setSelected(key)}
-              style={{
-                display: "flex", gap: "10px", alignItems: "flex-start", textAlign: "left", padding: "10px 12px",
-                borderRadius: "10px", cursor: result ? "default" : "pointer",
-                border: `1px solid ${isCorrect ? "var(--sea-green)" : isWrongPick ? "var(--error)" : selected === key ? "var(--sky)" : "var(--border-light)"}`,
-                background: isCorrect ? "rgba(92,148,110,0.12)" : isWrongPick ? "rgba(248,113,113,0.1)" : selected === key ? "rgba(48,197,255,0.08)" : "var(--surface-3)",
-                color: "var(--text-primary)",
-              }}
-            >
-              <span className="option-badge">{key}</span>
-              <span style={{ lineHeight: 1.4 }}>{mcq.options[key]}</span>
-            </button>
-          );
-        })}
-      </div>
-
+    <QuestionPlayer mcq={mcq} token={token} selected={selected} onSelect={setSelected}
+      correct={result?.correct_option ?? null} locked={!!result || submitting} keys={keys && !result} onFigureClick={onFigureClick}>
       {error ? <p style={{ color: "var(--error)", margin: 0, fontSize: "0.82rem" }}>{error}</p> : null}
 
       {!result ? (
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
-            {selected ? "How sure are you?" : "Pick an answer, then tell us how sure you are."}
-          </span>
-          {(Object.keys(CONFIDENCE_LABEL) as Confidence[]).map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="btn-workspace"
-              disabled={!selected || submitting}
-              onClick={() => submit(c)}
-              title={c === "guess" ? "A lucky guess is treated as not known yet, so it comes back for review" : undefined}
-              style={{ padding: "5px 12px", fontSize: "0.78rem" }}
-            >
-              {CONFIDENCE_LABEL[c]}
-            </button>
-          ))}
+          <ConfidenceRow onSubmit={submit} disabled={!selected || submitting}
+            label={selected ? "How sure are you?" : "Pick an answer, then tell us how sure you are."} />
           {submitting ? <Loader2 size={14} className="animate-spin" /> : null}
         </div>
       ) : (
@@ -240,6 +187,6 @@ export function StudyQuestion({
           ) : null}
         </>
       )}
-    </div>
+    </QuestionPlayer>
   );
 }

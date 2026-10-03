@@ -104,6 +104,15 @@ export default function ReviseView({
               localStorage.removeItem("mednama_revise_open");
             }
           }
+          // "Revise <topic>" from Mistakes, Today or Stats: that topic across the chosen books (all of them if none)
+          const linked = localStorage.getItem("mednama_revise_topic");
+          if (linked) {
+            localStorage.removeItem("mednama_revise_topic");
+            setTopic(linked);
+            setChapter(null);
+            setBookIds((cur) => (cur.length ? cur : list.map((b) => b.id)));
+            openRef.current = true;
+          }
         } catch {
           /* storage unavailable */
         }
@@ -314,7 +323,7 @@ export default function ReviseView({
             )}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: "12px" }}>
+          <div className="revise-grid">
             <div>
               <label style={{ fontSize: "0.78rem", fontWeight: 700, display: "block", marginBottom: "6px" }}>
                 Chapter or section

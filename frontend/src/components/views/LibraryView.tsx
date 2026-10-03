@@ -17,7 +17,7 @@ function byline(b: Book): string {
 
 /** The textbooks Dr MedNama answers from, grouped by subject (was a long list squeezed into the sidebar). */
 export default function LibraryView({
-  books, isLoading, error, onRetry, isAdmin, uploading, uploadError, onUpload, onDelete, fileRef,
+  books, isLoading, error, onRetry, isAdmin, uploading, uploadError, onUpload, onDelete, fileRef, onAsk, onRevise,
 }: {
   books: Book[];
   isLoading: boolean;
@@ -29,6 +29,10 @@ export default function LibraryView({
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDelete: (id: number, title: string) => void;
   fileRef: React.RefObject<HTMLInputElement | null>;
+  /** Dr MedNama scoped to this book. */
+  onAsk?: (bookId: number) => void;
+  /** Revise with this book chosen. */
+  onRevise?: (bookId: number) => void;
 }) {
   const [q, setQ] = useState("");
   const groups = useMemo(() => {
@@ -106,6 +110,12 @@ export default function LibraryView({
                       ) : null}
                       {b.total_pages ? <span>{b.total_pages.toLocaleString()} pages</span> : null}
                     </div>
+                    {b.status === "ready" && (onAsk || onRevise) ? (
+                      <div style={{ display: "flex", gap: "6px", marginTop: "8px", flexWrap: "wrap" }}>
+                        {onAsk ? <button className="btn-workspace" style={{ padding: "3px 10px", fontSize: "0.72rem" }} onClick={() => onAsk(b.id)}>Ask this book</button> : null}
+                        {onRevise ? <button className="btn-workspace" style={{ padding: "3px 10px", fontSize: "0.72rem" }} onClick={() => onRevise(b.id)}>Revise a chapter</button> : null}
+                      </div>
+                    ) : null}
                   </div>
                   {isAdmin ? (
                     <button className="book-delete-btn" style={{ opacity: 0.6 }} onClick={() => onDelete(b.id, b.title)}

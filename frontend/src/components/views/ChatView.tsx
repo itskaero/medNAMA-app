@@ -57,6 +57,8 @@ interface ChatViewProps {
   startResizing: (e: React.MouseEvent) => void;
   setIsChatMinimized: (v: boolean) => void;
   setActiveView: (view: any) => void;
+  /** Start a generated question set straight away (Quiz me on this chapter). */
+  onStartQuizSet?: (quizSetId: string, label: string) => void;
   token: string | null;
   messagesEndRef: RefObject<HTMLDivElement | null>;
   inputRef: RefObject<HTMLTextAreaElement | null>;
@@ -92,7 +94,7 @@ function ChapterStudyActions({
   chapter: string;
   token: string | null;
   sendQuery: (q: string) => void;
-  onOpenQuiz?: () => void;
+  onOpenQuiz?: (quizSetId: string | null, label: string) => void;
 }) {
   const [quizBusy, setQuizBusy] = useState(false);
 
@@ -115,8 +117,8 @@ function ChapterStudyActions({
         const res = await fetch(`${API}/api/chat/generate-ai-quiz/jobs/${started.job_id}`, { headers, credentials: "include" });
         const job = await res.json().catch(() => null);
         if (job?.status === "done") {
-          toast.success(`${job.result?.total_questions ?? 10} chapter questions ready — find them in Practice → Quiz History.`, {
-            action: onOpenQuiz ? { label: "Open", onClick: onOpenQuiz } : undefined,
+          toast.success(`${job.result?.total_questions ?? 10} chapter questions ready.`, {
+            action: onOpenQuiz ? { label: "Start now", onClick: () => onOpenQuiz(job.result?.quiz_set_id ?? null, `Chapter · ${chapter}`) } : undefined,
           });
           return;
         }
@@ -166,6 +168,7 @@ export default function ChatView({
   startResizing,
   setIsChatMinimized,
   setActiveView,
+  onStartQuizSet,
   token,
   messagesEndRef,
   inputRef,
@@ -181,6 +184,10 @@ export default function ChatView({
   tutor = false,
   setTutor,
 }: ChatViewProps) {
+  // Phones: the history is a drawer opened from the bar above the conversation.
+  const [mobileHistory, setMobileHistory] = useState(false);
+  const wide = isSidebarHovered || isSidebarResizing || isSidebarLocked || mobileHistory;
+
   // Scroll to bottom whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -192,10 +199,14 @@ export default function ChatView({
       <div
         className={`chat-history-sidebar ${isSidebarLocked ? "locked" : ""} ${
           isSidebarHovered || isSidebarResizing ? "expanded" : "collapsed"
-        } ${isSidebarResizing ? "resizing" : ""}`}
+        } ${isSidebarResizing ? "resizing" : ""} ${mobileHistory ? "mobile-open" : ""}`}
         style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}
         onMouseEnter={() => setIsSidebarHovered(true)}
         onMouseLeave={() => setIsSidebarHovered(false)}
+        onClick={(e) => {
+          // Picking a conversation or starting a new one closes the phone drawer.
+          if (mobileHistory && (e.target as HTMLElement).closest(".chat-history-item, .new-chat-btn")) setMobileHistory(false);
+        }}
       >
         <div
           className="chat-sidebar-expanded-content"
@@ -210,7 +221,7 @@ export default function ChatView({
             boxSizing: "border-box",
           }}
         >
-          {isSidebarHovered || isSidebarResizing || isSidebarLocked ? (
+          {wide ? (
             <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%" }}>
               <button className="new-chat-btn" onClick={handleNewChat} style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden" }}>
                 <Plus size={14} style={{ flexShrink: 0 }} />
@@ -250,13 +261,13 @@ export default function ChatView({
                 }}
               >
                 <MessageSquare size={16} style={{ opacity: 0.3 }} />
-                {(isSidebarHovered || isSidebarResizing || isSidebarLocked) && (
+                {wide && (
                   <span>No recent discussions</span>
                 )}
               </div>
             ) : (
               (() => {
-                const isExpanded = isSidebarHovered || isSidebarResizing || isSidebarLocked;
+                const isExpanded = wide;
                 const getMonogram = (title: string): string => {
                   if (!title) return "CH";
                   const words = title.trim().split(/\s+/);
@@ -357,8 +368,14 @@ export default function ChatView({
         />
       </div>
 
+      {mobileHistory ? <div className="chat-drawer-backdrop" onClick={() => setMobileHistory(false)} aria-hidden /> : null}
+
       {/* Chat Active Screen (Right) */}
       <div className="chat-active-panel" style={{ position: "relative" }}>
+        <div className="chat-mobile-bar">
+          <button className="btn-workspace" onClick={() => setMobileHistory(true)}><MessageSquare size={13} /> History</button>
+          <button className="btn-workspace" onClick={handleNewChat}><Plus size={13} /> New chat</button>
+        </div>
         {/* Minimize Button */}
         <button
           className="chat-minimize-btn"
@@ -564,7 +581,7 @@ export default function ChatView({
                     chapter={scope.chapter}
                     token={token}
                     sendQuery={sendQuery}
-                    onOpenQuiz={setActiveView ? () => setActiveView("quiz") : undefined}
+                    onOpenQuiz={(id, label) => (id && onStartQuizSet ? onStartQuizSet(id, label) : setActiveView("quiz"))}
                   />
                 ) : null}
               </>
