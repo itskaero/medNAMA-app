@@ -192,6 +192,11 @@ export function useQuiz({
             : `Couldn't save results (server error ${res.status}). Your answers are kept; try Submit again.`
         );
       }
+      // Board (exam) mode gets the answer keys only now, for the review screen.
+      const done = await res.json().catch(() => null);
+      if (done?.keys) {
+        setQuizMCQs((prev) => prev.map((m) => (done.keys[String(m.id)] ? { ...m, correct_option: done.keys[String(m.id)] } : m)));
+      }
       setQuizStep("summary");
       setSummaryReviewIdx(0);
       fetchStats();
@@ -557,8 +562,88 @@ export function useQuiz({
     }
   };
 
+  // A timed exam: board mode (keys come back at Finish), one countdown for the whole paper, unseen first.
+  const startExam = async (preset: { questions: number; minutes: number; label: string; scope?: PracticeScope }) => {
+    setQuizIsLoading(true);
+    try {
+      const res = await fetch(`${API}/api/quizzes/start`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...(preset.scope ? { scope: preset.scope } : { scope: { sources: ["past", "bank"], subjects: [], topics: [], years: [] } }),
+          num_questions: preset.questions, timer_mode: "session", timer_value: preset.minutes,
+          feedback_mode: "board", exclude_mastered: false, prefer_unseen: true, label: preset.label,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail || "Couldn't start the exam.");
+      }
+      const data = await res.json();
+      setQuizConfigTimerMode("session");
+      setQuizConfigTimerValue(preset.minutes);
+      setQuizConfigFeedbackMode("board");
+      setQuizMCQs(data.mcqs);
+      setQuizAttemptId(data.quiz_attempt_id);
+      setQuizCurrentIdx(0);
+      setQuizSelectedAnswers({});
+      setQuizConfidence({});
+      setQuizStep("taker");
+      setQuizSecondsElapsed(0);
+      setQuizTimerCountdown(preset.minutes * 60);
+      setQuizTimerActive(true);
+      setLastRun({ filters: {}, label: preset.label, returnTo: "exams", total: data.mcqs.length, unseen: data.unseen_in_scope ?? 0, batch: data.mcqs.length });
+      if (activeView !== "quiz") {
+        skipNextQuizReset.current = true;
+        setActiveView("quiz");
+      }
+      toast.success(preset.label, { description: `${data.mcqs.length} questions · ${preset.minutes} min · answers at the end.` });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Couldn't start the exam.");
+    } finally {
+      setQuizIsLoading(false);
+    }
+  };
+
+  // Continue an unfinished session from its first unanswered question (answers were saved as they were given).
+  const resumeQuiz = async (attemptId: number) => {
+    setQuizIsLoading(true);
+    try {
+      const res = await fetch(`${API}/api/quizzes/${attemptId}/resume`, { headers: getHeaders(), credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Couldn't reopen that session.");
+      const answers: Record<number, string> = {};
+      for (const [k, v] of Object.entries(data.answers || {})) answers[Number(k)] = String(v);
+      const first = data.mcqs.findIndex((m: { id: number }) => answers[m.id] === undefined);
+      setQuizConfigTimerMode("none");
+      setQuizConfigFeedbackMode(data.feedback_mode === "board" ? "board" : "tutor");
+      setQuizMCQs(data.mcqs);
+      setQuizAttemptId(data.quiz_attempt_id);
+      setQuizSelectedAnswers(answers);
+      setQuizConfidence({});
+      setQuizCurrentIdx(first < 0 ? data.mcqs.length - 1 : first);
+      setQuizStep("taker");
+      setQuizSecondsElapsed(0);
+      setQuizTimerCountdown(0);
+      setQuizTimerActive(true);
+      setLastRun(null);
+      if (activeView !== "quiz") {
+        skipNextQuizReset.current = true;
+        setActiveView("quiz");
+      }
+      toast.success(`Continuing: ${data.label || "Practice"}`, { description: `${Object.keys(answers).length} of ${data.mcqs.length} answered.` });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Couldn't reopen that session.");
+    } finally {
+      setQuizIsLoading(false);
+    }
+  };
+
   return {
     startQuizWith,
+    startExam,
+    resumeQuiz,
     lastRun,
     setLastRun,
     // core

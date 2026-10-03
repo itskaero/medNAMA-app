@@ -156,8 +156,10 @@ def explain_mcq_endpoint(
             "figures": mcq.explanation_figures or []
         }
 
-    # Generate and cache explanation
+    # Generate and cache explanation (a failure is returned but never cached, so the next try regenerates)
     explanation_data = generate_mcq_explanation(db, mcq)
+    if explanation_data.get("status") == "error":
+        return explanation_data
     
     # Save cache back to DB
     mcq.explanation_markdown = explanation_data.get("answer_markdown")
@@ -413,6 +415,7 @@ class StartQuizRequest(BaseModel):
     tags: dict[str, list[str]] | None = None      # {"subject": [...], "topic": [...], "specialty": [...]}
     twists: bool = False                          # with past-paper filters: their twists instead (app/twists.py)
     include_ids: list[int] | None = None         # with quiz_set_id: also these questions (a harder set's fill)
+    mcq_ids: list[int] | None = None             # practise exactly these questions (bookmarks, mistakes, a bank page)
     scope: dict | None = None                     # a Practice selection (app/practice_scope.py): sources, subjects,
                                                   # subject|topic pairs, years; with twists=True, their twists
     label: str | None = None                      # the session's name in Stats ("Past papers · FCPS Part 1 · 2024")
@@ -440,6 +443,8 @@ def start_quiz_endpoint(
     # Private (recall-derived) questions are served only through the Daily Dose; restricted
     # (imported past-paper) questions only to users allowed by PAST_PAPERS_ACCESS.
     query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user)
+    if req.mcq_ids:
+        query = query.filter(MCQ.id.in_(req.mcq_ids[:500]))
     if req.scope is not None:
         from app.practice_scope import restrict
 
@@ -459,17 +464,9 @@ def start_quiz_endpoint(
     
     # Drill mode: only previously-missed questions (user-scoped by construct)
     if req.drill_wrong:
-        wrong_ids = (
-            db.query(AttemptAnswer.mcq_id)
-            .join(QuizAttempt, QuizAttempt.id == AttemptAnswer.quiz_attempt_id)
-            .filter(
-                QuizAttempt.user_id == current_user.id,
-                AttemptAnswer.is_correct.is_(False),
-            )
-            .distinct()
-            .subquery()
-        )
-        query = query.filter(MCQ.id.in_(wrong_ids))
+        # Still missed: the latest answer, from any feature (practice, Dose, mocks, duels), was wrong.
+        from app.routers.hub import missed_ids
+        query = query.filter(MCQ.id.in_(missed_ids(db, current_user.id) or [-1]))
 
     # Topic filters
     if req.quiz_set_id:
@@ -560,7 +557,8 @@ def start_quiz_endpoint(
             "id": m.id,
             "question_text": m.question_text,
             "options": m.options,
-            "correct_option": m.correct_option,
+            # Board (exam) mode: keys come back with /submit, not before the student answers.
+            "correct_option": None if attempt.feedback_mode == "board" else m.correct_option,
             "main_category": m.main_category,
             "sub_category": m.sub_category,
             "media": media.get(m.id, []),
@@ -598,7 +596,9 @@ def save_answer_endpoint(
     existing = db.query(AttemptAnswer).filter(AttemptAnswer.quiz_attempt_id == attempt.id,
                                               AttemptAnswer.mcq_id == ans.mcq_id).first()
     if existing:
-        return {"saved": False, "is_correct": existing.is_correct}
+        key = db.query(MCQ.correct_option).filter(MCQ.id == ans.mcq_id).scalar()
+        return {"saved": False, "is_correct": existing.is_correct,
+                "correct_option": None if attempt.feedback_mode == "board" else key}
     mcq = db.get(MCQ, ans.mcq_id)
     if mcq is None:
         raise HTTPException(status_code=400, detail=f"Question with ID {ans.mcq_id} is invalid or not found.")
@@ -613,7 +613,8 @@ def save_answer_endpoint(
     except Exception:
         logger.exception("Retention logging failed for MCQ %s", mcq.id)
         db.rollback()
-    return {"saved": True, "is_correct": is_correct}
+    return {"saved": True, "is_correct": is_correct,
+            "correct_option": None if attempt.feedback_mode == "board" else mcq.correct_option}
 
 
 @router.post("/api/quizzes/{attempt_id}/submit")
@@ -645,7 +646,8 @@ def submit_quiz_endpoint(
         
     # Answers are saved as they are given (POST .../answer); Finish records only the rest.
     already = {mid for (mid,) in db.query(AttemptAnswer.mcq_id).filter(AttemptAnswer.quiz_attempt_id == attempt.id)}
-    req.answers = [a for a in req.answers if a.mcq_id not in already]
+    served = set(attempt.mcq_ids or [])
+    req.answers = [a for a in req.answers if a.mcq_id not in already and (not served or a.mcq_id in served)]
 
     # Build a lookup dictionary of MCQs involved in the attempt to minimize DB queries
     mcq_ids = [ans.mcq_id for ans in req.answers]
@@ -700,10 +702,13 @@ def submit_quiz_endpoint(
                 logger.exception("Retention logging failed for MCQ %s", ans.mcq_id)
                 db.rollback()
     
+    key_ids = list(served) or [a.mcq_id for a in req.answers] + list(already)
+    keys = {str(i): k for i, k in db.query(MCQ.id, MCQ.correct_option).filter(MCQ.id.in_(key_ids or [-1]))}
     return {
         "score": attempt.score,
         "total_questions": attempt.total_questions,
-        "completed_at": attempt.completed_at
+        "completed_at": attempt.completed_at,
+        "keys": keys,   # board mode had none until now; the review screen shows them
     }
 
 @router.get("/api/quizzes/{attempt_id}")

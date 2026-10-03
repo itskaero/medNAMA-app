@@ -454,11 +454,11 @@ def generate_mcq_explanation(session: Session, mcq) -> dict:
     except LLMNotConfigured:
         return {
             "answer_markdown": f"Explanation cannot be generated: DEEPSEEK_API_KEY is not configured.\n\nCorrect Option was: **{mcq.correct_option}**",
-            "citations": [], "figures": [],
+            "citations": [], "figures": [], "status": "error",
         }
     except Exception as e:
         logger.error(f"Error generating MCQ explanation: {e}")
         return {
             "answer_markdown": f"Failed to generate explanation due to an internal error.\n\nCorrect Option was: **{mcq.correct_option}**",
-            "citations": [], "figures": [],
+            "citations": [], "figures": [], "status": "error",
         }

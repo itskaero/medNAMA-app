@@ -4,128 +4,68 @@ import React from "react";
 import {
   Stethoscope,
   LogOut,
-  BookMarked,
-  Bookmark,
-  GraduationCap,
-  TrendingUp,
-  LayoutDashboard,
   Moon,
   Sun,
   Compass,
   Sunset,
-  NotebookPen,
-  Flame,
-  Scale,
-  Users,
   KeyRound,
-  CloudOff,
-  Library,
-  Swords,
-  Trophy,
-  GitCompareArrows,
-  Zap,
-  History,
+  Sun as TodayIcon,
   BookOpenCheck,
+  GraduationCap,
+  History,
+  Shield,
 } from "lucide-react";
-import { Book } from "@/types";
+import { HUBS, hubOf, HubId, ViewId } from "@/lib/nav";
 
 interface AppSidebarProps {
-  activeView: string;
-  setActiveView: (view: any) => void;
+  activeView: ViewId;
+  onNavigate: (view: ViewId) => void;
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (v: boolean) => void;
   username: string | null;
-  role: string | null;
   isAdmin: boolean;
-  books: Book[];
-  isLoadingBooks: boolean;
-  booksError?: string | null;
-  onRetryBooks?: () => void;
-  uploading: boolean;
-  uploadError: string | null;
+  bookCount: number;
+  dueCount?: number;
   theme: "dark" | "light" | "balanced" | "warm";
   setTheme: (v: "dark" | "light" | "balanced" | "warm") => void;
   handleLogout: () => void;
-  handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleDeleteBook: (bookId: number, title: string) => void;
-  fileRef: React.RefObject<HTMLInputElement | null>;
-  setSelectedTopic: (topic: any) => void;
-  fetchMcqs: (category?: string, search?: string) => void;
-  fetchBookmarks: () => void;
-  fetchDetailedStats: () => void;
-  mcqFilterCategory: string;
-  mcqSearchText: string;
   onChangePassword?: () => void;
 }
 
-interface NavItem { view: string; label: string; icon: React.ReactNode; active: string[]; title?: string }
+const HUB_ICON: Record<HubId, React.ReactNode> = {
+  today: <TodayIcon size={15} style={{ color: "#f59e0b" }} />,
+  learn: <BookOpenCheck size={15} style={{ color: "var(--sea-green)" }} />,
+  practise: <GraduationCap size={15} style={{ color: "var(--sky)" }} />,
+  review: <History size={15} />,
+  admin: <Shield size={15} />,
+};
 
-/** Sidebar: today, ways to practise, ways to learn, review, and (admins) tools. The textbook list lives on its
- *  own Library page: squeezed under a long menu it shrank to nothing on phones. */
-function navGroups(isAdmin: boolean, bookCount: number): { title: string; items: NavItem[] }[] {
-  const item = (view: string, label: string, icon: React.ReactNode, extra: Partial<NavItem> = {}): NavItem =>
-    ({ view, label, icon, active: [view], ...extra });
-  return [
-    { title: "Today", items: [
-      item("dashboard", "Dashboard", <LayoutDashboard size={14} />),
-      item("daily", "Daily Dose", <Flame size={14} style={{ color: "#f59e0b" }} />),
-    ] },
-    { title: "Practise", items: [
-      item("quiz", "Practice", <GraduationCap size={14} />, { title: "Build a session: subjects and topics from past papers and the bank, any difficulty" }),
-      item("pastpapers", "Past papers", <History size={14} />, { active: ["pastpapers", "paper"] }),
-      item("mock", "Weekly mock", <Trophy size={14} />),
-      item("duel", "Challenge a friend", <Swords size={14} />),
-      item("offline", "Offline pack", <CloudOff size={14} />, { title: "Download questions to answer with no connection; answers sync when you are back" }),
-      item("sprint", "Final sprint", <Zap size={14} />, { title: "Opens in the last 7 days before your exam" }),
-    ] },
-    { title: "Learn", items: [
-      item("chat", "Dr MedNama", <Stethoscope size={14} style={{ color: "var(--sky)" }} />, { title: "Ask, or be tutored, from your textbooks" }),
-      item("revise", "Revise from books", <BookOpenCheck size={14} style={{ color: "var(--sea-green)" }} />,
-        { title: "A one-page summary of a topic, written from your own books" }),
-      item("lookalikes", "Look-alikes", <GitCompareArrows size={14} />),
-      item("study", "Study Corner", <NotebookPen size={14} />),
-      item("library", `Library${bookCount ? ` · ${bookCount}` : ""}`, <Library size={14} />, { title: "The textbooks every answer comes from" }),
-    ] },
-    { title: "Review", items: [
-      item("stats", "Stats", <TrendingUp size={14} />),
-      item("bookmarks", "Bookmarks", <Bookmark size={14} />),
-      item("mcq-bank", "MCQ Bank", <BookMarked size={14} />),
-    ] },
-    ...(isAdmin ? [{ title: "Admin", items: [
-      item("users", "Users", <Users size={14} />, { title: "Accounts, invite codes and password resets" }),
-      item("referee", "Answer-Key Referee", <Scale size={14} />, { title: "Check recall answers and MCQ keys against the textbooks" }),
-    ] }] : []),
-  ];
-}
-
+/** Sidebar: four hubs (Today, Learn, Practise, Review) plus Admin. The current hub's tabs are listed under it, so
+ *  every screen is two clicks away at most; the same tabs sit above the page in the hub bar. */
 export default function AppSidebar({
   activeView,
-  setActiveView,
+  onNavigate,
   mobileMenuOpen,
   setMobileMenuOpen,
   username,
-  role,
   isAdmin,
-  books,
-  isLoadingBooks,
-  booksError,
-  onRetryBooks,
-  uploading,
-  uploadError,
+  bookCount,
+  dueCount,
   theme,
   setTheme,
   handleLogout,
-  handleFileUpload,
-  handleDeleteBook,
-  fileRef,
-  setSelectedTopic,
-  fetchMcqs,
-  fetchBookmarks,
-  fetchDetailedStats,
-  mcqFilterCategory,
-  mcqSearchText,
   onChangePassword,
 }: AppSidebarProps) {
+  const current = hubOf(activeView).id;
+  const lastTab = (hub: HubId): ViewId => {
+    try {
+      const v = localStorage.getItem(`mednama_hub_${hub}`) as ViewId | null;
+      const h = HUBS.find((x) => x.id === hub)!;
+      if (v && h.tabs.some((t) => t.view === v)) return v;
+      return h.tabs[0].view;
+    } catch { return HUBS.find((x) => x.id === hub)!.tabs[0].view; }
+  };
+  const go = (v: ViewId) => { onNavigate(v); setMobileMenuOpen(false); };
   const initials = username ? username.slice(0, 2).toUpperCase() : "DR";
 
   return (
@@ -135,8 +75,7 @@ export default function AppSidebar({
         className="sidebar-brand"
         style={{ cursor: "pointer" }}
         onClick={() => {
-          setActiveView("dashboard");
-          setMobileMenuOpen(false);
+          go("dashboard");
         }}
       >
         <div className="brand-logo" aria-hidden>
@@ -203,30 +142,31 @@ export default function AppSidebar({
         </button>
       </div>
 
-      {/* Workspace navigation, in groups */}
-      <nav aria-label="Main" style={{ padding: "var(--sp-2) var(--sp-3)", display: "flex", flexDirection: "column", gap: "2px", borderBottom: "1px solid var(--border)" }}>
-        {navGroups(isAdmin, books.length).map((group) => (
-          <div key={group.title} role="group" aria-label={group.title} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            <div style={{ fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", padding: "8px 10px 2px" }}>
-              {group.title}
-            </div>
-            {group.items.map((item) => (
-              <button
-                key={item.view}
-                className={`btn-workspace-nav ${item.active.includes(activeView) ? "active" : ""}`}
-                title={item.title}
-                onClick={() => {
-                  if (item.view === "quiz") setSelectedTopic(null);
-                  setActiveView(item.view);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                {item.icon}
-                {item.label}
+      {/* Hubs; the current one lists its tabs */}
+      <nav aria-label="Main" className="hub-nav">
+        {HUBS.filter((h) => !h.admin || isAdmin).map((h) => {
+          const on = h.id === current;
+          return (
+            <div key={h.id} role="group" aria-label={h.label}>
+              <button className={`btn-workspace-nav hub-item ${on ? "active" : ""}`} title={h.blurb}
+                aria-expanded={on} onClick={() => go(on ? h.tabs[0].view : lastTab(h.id))}>
+                {HUB_ICON[h.id]}
+                <span style={{ flex: 1 }}>{h.label}</span>
+                {h.id === "today" && dueCount ? <span className="hub-badge" title="Re-tests due">{dueCount}</span> : null}
               </button>
-            ))}
-          </div>
-        ))}
+              {on ? (
+                <div className="hub-subnav">
+                  {h.tabs.map((t) => (
+                    <button key={t.view} className={`hub-subitem ${t.view === activeView ? "active" : ""}`} title={t.title}
+                      onClick={() => go(t.view)}>
+                      {t.label}{t.view === "library" && bookCount ? <span className="hub-count">{bookCount}</span> : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </nav>
 
       {/* Sidebar Theme Switcher Footer */}

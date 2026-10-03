@@ -942,7 +942,9 @@ def readiness(db: Session, user: User) -> dict[str, Any]:
     days_left = (user.exam_date - date.today()).days if user.exam_date else None
     daily_target = None
     if days_left and days_left > 0:
-        answered_total = db.query(func.count(AnswerEvent.id)).filter(AnswerEvent.user_id == user.id).scalar() or 0
+        # distinct questions answered (re-tests and repeats count once)
+        answered_total = db.query(func.count(func.distinct(AnswerEvent.mcq_id))).filter(
+            AnswerEvent.user_id == user.id, AnswerEvent.mcq_id.isnot(None)).scalar() or 0
         bank = db.query(func.count(MCQ.id)).filter(MCQ.status == "ready").scalar() or 0
         remaining_new = max(0, bank - answered_total)
         daily_target = int(min(80, max(15, math.ceil(remaining_new / days_left) + math.ceil(due_week / 7))))

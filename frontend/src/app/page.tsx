@@ -27,7 +27,6 @@ import LightboxModal from "@/components/layout/LightboxModal";
 import MinimizedChatWidget from "@/components/layout/MinimizedChatWidget";
 
 // ─── View Components ─────────────────────────────────────────────────────────
-import DashboardView from "@/components/views/DashboardView";
 import MCQBankView from "@/components/views/MCQBankView";
 import BookmarksView from "@/components/views/BookmarksView";
 import StatsView from "@/components/views/StatsView";
@@ -47,20 +46,34 @@ import PastPapersView from "@/components/views/PastPapersView";
 import RapidReviewView, { ReviewScope } from "@/components/views/RapidReviewView";
 import ReviseView from "@/components/views/ReviseView";
 import PageViewer from "@/components/PageViewer";
+import HubBar from "@/components/layout/HubBar";
+import TodayView from "@/components/views/TodayView";
+import ExamsView from "@/components/views/ExamsView";
+import MistakesView from "@/components/views/MistakesView";
+import ReportsView from "@/components/views/ReportsView";
+import ContentView from "@/components/views/ContentView";
+import { useNav } from "@/hooks/useNav";
+import { hubOf, ViewId, ADMIN_VIEWS } from "@/lib/nav";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
-  const [activeView, setActiveView] = useState<
-    "dashboard" | "chat" | "quiz" | "mcq-bank" | "bookmarks" | "stats" | "study" | "daily" | "referee" | "users" | "offline" | "library" | "duel" | "mock" | "lookalikes" | "sprint" | "pastpapers" | "paper" | "review" | "revise"
-  >("dashboard");
+  // The current screen lives in the URL hash (#/view?params): refresh keeps it, Back returns to the origin.
+  const nav = useNav();
+  const activeView = nav.view;
+  const setActiveView = nav.setActiveView;
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
-  const [timedMockId, setTimedMockId] = useState<number | null>(null);
-  const [reviewScope, setReviewScope] = useState<ReviewScope | null>(null);
-  const openRapidReview = (scope: ReviewScope) => {
-    setReviewScope(scope);
-    setActiveView("review");
-  };
+  const timedMockId = nav.view === "paper" && nav.params.id ? Number(nav.params.id) : null;
+  const reviewScope: ReviewScope | null = (() => {
+    if (nav.view !== "review" || !nav.params.scope) return null;
+    try { return JSON.parse(String(nav.params.scope)) as ReviewScope; } catch { return null; }
+  })();
+  const openRapidReview = (scope: ReviewScope) => nav.navigate("review", { scope: JSON.stringify(scope) });
+  const openPaper = (id: number) => nav.navigate("paper", { id });
+  // Remember the last tab used in each hub (the sidebar reopens it).
+  useEffect(() => {
+    try { localStorage.setItem(`mednama_hub_${hubOf(activeView).id}`, activeView); } catch { /* storage unavailable */ }
+  }, [activeView]);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [quickReplyVal, setQuickReplyVal] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -80,7 +93,7 @@ export default function Home() {
       const code = new URLSearchParams(window.location.search).get("duel");
       if (code) {
         setDuelCode(code);
-        setActiveView("duel");
+        nav.navigate("duel", { code });
       }
     }, 0);
     return () => clearTimeout(timer);
@@ -156,7 +169,7 @@ export default function Home() {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   // Opened with no connection (an installed app on the bus): go straight to the Offline pack.
   useEffect(() => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) setActiveView("offline");
+    if (typeof navigator !== "undefined" && !navigator.onLine) nav.navigate("offline");
   }, []);
 
   // getHeaders — needed by multiple hooks
@@ -337,17 +350,6 @@ export default function Home() {
     }
   }, [token]);
 
-  // Persist and restore activeView to survive page refresh
-  useEffect(() => {
-    const savedView = localStorage.getItem("activeView") as any;
-    if (savedView) {
-      setActiveView(savedView);
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("activeView", activeView);
-  }, [activeView]);
 
   // ── Render: init screen ────────────────────────────────────────────────────
   if (!mounted || (isAuthLoading && !token)) {
@@ -385,27 +387,50 @@ export default function Home() {
   const renderMainContent = () => {
     if (activeView === "dashboard") {
       return (
-        <DashboardView
-          username={username}
-          stats={stats}
-          isLoadingStats={isLoadingStats}
-          openAccordionCategory={openAccordionCategory}
-          setOpenAccordionCategory={setOpenAccordionCategory}
-          setActiveView={setActiveView}
-          setSelectedTopic={setSelectedTopic}
-          handleReviewPreviousQuiz={quiz.handleReviewPreviousQuiz}
-          isAdmin={isAdmin}
+        <TodayView
           token={token}
-          onDoAll={(main, sub, count) =>
-            quiz.startQuizWith(
-              { categories: [main], sub_categories: [sub], num_questions: 50, prefer_unseen: true },
-              `${sub} · all ${count}`,
-              "dashboard"
-            )
-          }
-          onRapidReview={(main, sub) => openRapidReview({ label: `${main} · ${sub}`, main, sub, returnTo: "dashboard" })}
+          username={username}
+          getHeaders={getHeaders}
+          onNavigate={(v, params) => nav.navigate(v, params)}
+          onPractise={(filters, label) => quiz.startQuizWith(filters, label, "dashboard")}
+          onPractiseScope={(scope) => { quiz.setPracticeScope(scope); setActiveView("quiz"); }}
+          onResume={quiz.resumeQuiz}
         />
       );
+    }
+
+    if (activeView === "exams") {
+      return (
+        <ExamsView
+          token={token}
+          onStartExam={quiz.startExam}
+          onOpenMock={() => nav.navigate("mock")}
+          onOpenPastPapers={() => nav.navigate("pastpapers")}
+        />
+      );
+    }
+
+    if (activeView === "mistakes") {
+      return (
+        <MistakesView
+          getHeaders={getHeaders}
+          onPractise={(filters, label) => quiz.startQuizWith(filters, label, "mistakes")}
+          onAsk={(question) => { setInputValue(question); nav.navigate("chat"); }}
+          onRevise={(topic) => {
+            try { localStorage.setItem("mednama_revise_topic", topic); } catch { /* storage unavailable */ }
+            nav.navigate("revise");
+          }}
+          onNavigate={(v) => nav.navigate(v)}
+        />
+      );
+    }
+
+    if (activeView === "reports" && isAdmin) {
+      return <ReportsView token={token} />;
+    }
+
+    if (activeView === "content" && isAdmin) {
+      return <ContentView getHeaders={getHeaders} books={books} onNavigate={(v) => nav.navigate(v)} />;
     }
 
     if (activeView === "quiz") {
@@ -478,17 +503,14 @@ export default function Home() {
         <StatsView
           token={token}
           onReviewQuiz={quiz.handleReviewPreviousQuiz}
-          onOpenPaper={(id) => {
-            setTimedMockId(id);
-            setActiveView("paper");
-          }}
+          onOpenPaper={openPaper}
           onPractise={(filters, label) => quiz.startQuizWith(filters, label, "stats")}
         />
       );
     }
 
     if (activeView === "duel") {
-      return <DuelView token={token} initialCode={duelCode} />;
+      return <DuelView token={token} initialCode={(nav.params.code as string) || duelCode} />;
     }
 
     if (activeView === "referee" && isAdmin) {
@@ -533,10 +555,7 @@ export default function Home() {
             quiz.setPracticeScope({ sources: ["past"], subjects: [], topics: [], years });
             setActiveView("quiz");
           }}
-          onTimedPaper={(id) => {
-            setTimedMockId(id);
-            setActiveView("paper");
-          }}
+          onTimedPaper={openPaper}
         />
       );
     }
@@ -549,7 +568,7 @@ export default function Home() {
           scope={reviewScope}
           isAdmin={isAdmin}
           onDrill={(filters, label) => quiz.startQuizWith(filters, label, reviewScope.returnTo)}
-          onBack={() => setActiveView((reviewScope.returnTo || "dashboard") as typeof activeView)}
+          onBack={() => nav.back((reviewScope.returnTo || "dashboard") as ViewId)}
         />
       );
     }
@@ -559,7 +578,7 @@ export default function Home() {
         <ReviseView
           token={token}
           isAdmin={isAdmin}
-          onBack={() => setActiveView("dashboard")}
+          onBack={() => nav.back("dashboard")}
           onFigureClick={setLightboxFig}
           onTestMe={(quizSetId, label) => quiz.startAiCustomQuiz(quizSetId)}
         />
@@ -567,7 +586,7 @@ export default function Home() {
     }
 
     if (activeView === "paper" && timedMockId) {
-      return <WeeklyMockView key={`paper-${timedMockId}`} token={token} mockId={timedMockId} onExit={() => setActiveView("pastpapers")} />;
+      return <WeeklyMockView key={`paper-${timedMockId}`} token={token} mockId={timedMockId} onExit={() => nav.back("pastpapers")} />;
     }
 
     if (activeView === "lookalikes") {
@@ -690,30 +709,15 @@ export default function Home() {
       {/* ── Sidebar ── */}
       <AppSidebar
         activeView={activeView}
-        setActiveView={setActiveView}
+        onNavigate={(v) => nav.navigate(v)}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
         username={username}
-        role={role}
         isAdmin={isAdmin}
-        books={books}
-        isLoadingBooks={isLoadingBooks}
-        booksError={booksError}
-        onRetryBooks={() => fetchBooks(true)}
-        uploading={uploading}
-        uploadError={uploadError}
+        bookCount={books.length}
         theme={theme}
         setTheme={setTheme}
         handleLogout={handleLogout}
-        handleFileUpload={handleFileUpload}
-        handleDeleteBook={handleDeleteBook}
-        fileRef={fileRef}
-        setSelectedTopic={setSelectedTopic}
-        fetchMcqs={fetchMcqs}
-        fetchBookmarks={fetchBookmarks}
-        fetchDetailedStats={fetchDetailedStats}
-        mcqFilterCategory={mcqFilterCategory}
-        mcqSearchText={mcqSearchText}
         onChangePassword={() => setShowPasswordDialog(true)}
       />
       {showPasswordDialog ? <ChangePasswordDialog getHeaders={getHeaders} onClose={() => setShowPasswordDialog(false)} /> : null}
@@ -729,7 +733,10 @@ export default function Home() {
             transition={{ duration: 0.25, ease: "easeOut" }}
             style={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden" }}
           >
-            {renderMainContent()}
+            <HubBar view={activeView} isAdmin={isAdmin} previous={nav.previous}
+              onNavigate={(v) => nav.navigate(v)} onBack={() => nav.back()}
+              hidden={activeView === "chat" || (activeView === "quiz" && quiz.quizStep === "taker")} />
+            {ADMIN_VIEWS.includes(activeView) && !isAdmin ? null : renderMainContent()}
           </motion.div>
         </AnimatePresence>
       </main>

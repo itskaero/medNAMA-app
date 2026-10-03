@@ -131,9 +131,16 @@ def concept_for_mcq(
     """Concept card for a question. 202 while it is still being written in the background."""
     from app.retention import concept_status_for_mcq, ensure_concept_async, serialize_card
 
+    from app.retention import can_see_mcq
+
+    mcq = db.get(MCQ, mcq_id)
+    if mcq is None or not can_see_mcq(current_user, mcq):
+        raise HTTPException(status_code=404, detail="Question not found.")
     state, card = concept_status_for_mcq(db, mcq_id)
     if state == "missing":
         raise HTTPException(status_code=404, detail="Question not found.")
+    if card is not None and card.visibility != "all" and current_user.role != "admin":
+        raise HTTPException(status_code=404, detail="Concept not found.")
     if state == "none":
         ensure_concept_async(mcq_id)
         state = "pending"
@@ -152,7 +159,7 @@ def get_concept(
     from app.retention import serialize_card
 
     card = db.get(ConceptCard, concept_id)
-    if card is None:
+    if card is None or (card.visibility != "all" and current_user.role != "admin"):
         raise HTTPException(status_code=404, detail="Concept not found.")
     return serialize_card(db, card)
 

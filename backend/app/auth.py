@@ -16,8 +16,13 @@ from app.models import User
 
 logger = logging.getLogger(__name__)
 
-# Config settings (fallbacks if not set in config.py)
-JWT_SECRET_KEY = getattr(settings, "jwt_secret_key", "medrag_secret_key_change_me_in_prod")
+# The signing secret is JWT_SECRET (settings.jwt_secret). This used to read a setting that does not exist, so every
+# token was signed with a hard-coded string that anyone could use to forge any account, admin included.
+WEAK_JWT_SECRETS = {"", "dev-secret-change-in-production", "change-this-jwt-secret", "medrag_secret_key_change_me_in_prod"}
+JWT_SECRET_KEY = settings.jwt_secret
+if JWT_SECRET_KEY in WEAK_JWT_SECRETS or len(JWT_SECRET_KEY) < 24:
+    logger.critical("JWT_SECRET is missing, short or a default value: anyone who knows it can sign in as any user. "
+                    "Set a long random JWT_SECRET in the environment.")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day expiration for convenience
 

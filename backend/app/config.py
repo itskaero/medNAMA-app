@@ -98,3 +98,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+# A plain postgresql:// URL means psycopg (v3) in SQLAlchemy 2.1+, but the image ships psycopg2: name the driver.
+if settings.database_url.startswith("postgresql://"):
+    settings.database_url = "postgresql+psycopg2://" + settings.database_url[len("postgresql://"):]

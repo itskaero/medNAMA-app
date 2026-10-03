@@ -114,7 +114,8 @@ def submit_duel(
     if db.query(DuelEntry.id).filter_by(duel_id=duel.id, user_id=current_user.id).first():
         return _duel_results(db, duel, current_user.id)
     mcqs = {m.id: m for m in db.query(MCQ).filter(MCQ.id.in_(duel.mcq_ids)).all()}
-    answers = {str(k): str(v).strip().upper()[:1] for k, v in (req.answers or {}).items() if int(k) in mcqs}
+    answers = {str(k): str(v).strip().upper()[:1] for k, v in (req.answers or {}).items()
+               if str(k).isdigit() and int(k) in mcqs}   # a malformed id is ignored, not a 500
     score = sum(1 for mid, m in mcqs.items() if answers.get(str(mid)) == (m.correct_option or "").upper())
     db.add(DuelEntry(duel_id=duel.id, user_id=current_user.id, answers=answers, score=score,
                      time_ms=req.time_ms if req.time_ms and req.time_ms > 0 else None))
