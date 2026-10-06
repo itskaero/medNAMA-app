@@ -61,7 +61,8 @@ class SheetRequest(BaseModel):
     book_ids: list[int] = []
     chapter: str | None = None                  # one chapter of those books
     topic: str | None = None                    # what to look for inside it
-    length: str = "full"                        # "quick" (~10 bullets) | "full" (~22)
+    length: str = "full"                        # cap: "quick" (<=10 bullets) | "full" (<=22)
+    level: str | None = None                    # exam programme (app/exam_levels.py); part of the cache key
     regenerate: bool = False                    # admins may rebuild a cached sheet
 
 
@@ -104,6 +105,8 @@ def study_revision_sheet(req: SheetRequest, db: Session = Depends(get_db),
     from app.models import TopicSummary
 
     scope = req.model_dump()
+    # The request may override for one sheet; otherwise the account's saved programme applies.
+    scope["level"] = scope.get("level") or getattr(current_user, "exam_level", None)
     if not scope_allowed(scope):
         raise HTTPException(status_code=400, detail="Pick a book and a chapter, or a book and a topic.")
     cached = get_cached(db, current_user, scope)

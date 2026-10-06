@@ -80,8 +80,18 @@ export function useAuth() {
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authUsername.trim() || !authPassword.trim()) {
+    const username = authUsername.trim();
+    if (!username || !authPassword.trim()) {
       setAuthError("Username and password are required.");
+      return;
+    }
+    // Same rule as the server (backend/app/deps.py USERNAME_RE), checked here only so the
+    // message appears without a round trip. Sign-in is not checked: an existing account
+    // created before this rule must still be able to log in.
+    if (isRegisterMode && !/^[A-Za-z0-9._-]{3,30}$/.test(username)) {
+      setAuthError(
+        "Pick a username of 3-30 characters using only letters, numbers, dot, underscore or hyphen - no spaces.",
+      );
       return;
     }
     setAuthError(null);
@@ -92,7 +102,7 @@ export function useAuth() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ username: authUsername, password: authPassword, role: authRole,
+          body: JSON.stringify({ username, password: authPassword, role: authRole,
                                  invite_code: authInvite.trim() || undefined }),
         });
         if (!res.ok) {

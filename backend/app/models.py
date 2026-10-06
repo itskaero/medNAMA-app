@@ -95,6 +95,9 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     # Daily loop (migration f2b4d6e8a0c1)
     exam_date: Mapped[date | None] = mapped_column(default=None)
+    # Which exam this student is sitting (migration c4d6e8f0a2b3; app/exam_levels.py).
+    # NULL = general exam prep. Set once, read by Chat, Revision, MCQ generation and Exams.
+    exam_level: Mapped[str | None] = mapped_column(Text, default=None)
     streak_freezes: Mapped[int] = mapped_column(server_default="2")
     # Accounts (migration f1a3c5e7b9d2): the admin can disable one; sign-up records the invite code used.
     is_active: Mapped[bool] = mapped_column(server_default="true", default=True)

@@ -179,12 +179,20 @@ class GenerateAiQuizRequest(BaseModel):
     page_number: int | None = None
     count: int | None = None
     difficulty: int | None = None  # 1 (easy) - 5 (hard); falls back to AI_MCQ_DIFFICULTY env
+    # FORMAT, not exam level: how many options and how long the vignette. Its 'usmle' value
+    # is a question shape; USMLE-the-programme is `level` below. The two are independent.
     exam_profile: str | None = None  # 'fcps' (A-E, default) | 'usmle' (A-E vignette) | 'quick' (A-D recall)
+    level: str | None = None       # exam programme (app/exam_levels.py): depth, emphasis, preferred books
     request_id: str | None = None  # client idempotency key; a retry returns the same set
     chapter: str | None = None     # restrict to one chapter of book_id (Study-a-chapter)
+    book_ids: list[int] | None = None  # source scope: a hard boundary across several books
 
-def _resolve_quiz_params(req: GenerateAiQuizRequest) -> dict:
-    """Validate a quiz request and resolve page / count / difficulty from the prompt and env."""
+def _resolve_quiz_params(req: GenerateAiQuizRequest, user: User | None = None) -> dict:
+    """Validate a quiz request and resolve page / count / difficulty from the prompt and env.
+
+    The exam programme falls back to the account's saved one (users.exam_level), so a client
+    that sends no level still gets questions pitched at the student's exam.
+    """
     import re
 
     prompt_text = req.prompt.strip()
@@ -230,6 +238,8 @@ def _resolve_quiz_params(req: GenerateAiQuizRequest) -> dict:
         "mcq_count": mcq_count,
         "difficulty": difficulty,
         "exam_profile": req.exam_profile,
+        "level": req.level or (getattr(user, "exam_level", None) if user else None),
+        "book_ids": req.book_ids or None,
         "request_id": req.request_id,
         "chapter": (req.chapter or None) if req.book_id else None,
     }
@@ -243,7 +253,7 @@ def generate_ai_quiz(
     """Generates MCQs synchronously (kept for API clients; the UI uses the job endpoints)."""
     from app.quiz_generation import QuizGenerationError, generate_quiz_set
 
-    params = _resolve_quiz_params(req)
+    params = _resolve_quiz_params(req, current_user)
     try:
         return generate_quiz_set(db, **params)
     except QuizGenerationError as e:
@@ -261,7 +271,7 @@ def start_ai_quiz_job(
     """
     from app.quiz_generation import start_quiz_job
 
-    params = _resolve_quiz_params(req)
+    params = _resolve_quiz_params(req, current_user)
     return start_quiz_job(params)
 
 @router.get("/api/chat/generate-ai-quiz/jobs/{job_id}")

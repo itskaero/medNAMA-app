@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   GraduationCap,
   Clock,
@@ -26,6 +26,7 @@ import {
   BookOpen,
   HelpCircle,
   ArrowRight,
+  Timer,
   ArrowLeft,
   AlertTriangle,
   RotateCcw,
@@ -41,6 +42,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import BasicDropdown from "@/components/ui/basic-dropdown";
+import { examLevelItems, fromLevelValue, levelHint, toLevelValue } from "@/lib/examLevels";
 import { PaperYears, QuestionMedia } from "@/components/QuestionMedia";
 import { ArchiveBadges, PastPaperExtras } from "@/components/PastPaperExtras";
 import QuestionPlayer, { ConfidenceRow } from "@/components/QuestionPlayer";
@@ -62,6 +64,12 @@ const MOCK_PRESETS = [
 const QUIZ_MAX_WAIT_MS = 6 * 60_000;
 
 interface QuizViewProps {
+  /** Exam programme, owned by the page so chat, revision and MCQs share one preference.
+   *  Distinct from `aiProfile` (option count/vignette length) and from difficulty 1-5. */
+  level?: string | null;
+  setLevel?: (level: string | null) => void;
+  /** Open a built paper by id, sat through the shared /api/mocks/{id}/* flow. */
+  onOpenPaper?: (mockId: number) => void;
   // quiz flow
   quizStep: "config" | "taker" | "summary";
   setQuizStep: (s: "config" | "taker" | "summary") => void;
@@ -211,6 +219,9 @@ function BookmarkToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
 }
 
 export default function QuizView({
+  level = null,
+  setLevel,
+  onOpenPaper,
   quizStep,
   setQuizStep,
   quizMCQs,
@@ -279,6 +290,59 @@ export default function QuizView({
   const [hardenLevel, setHardenLevel] = React.useState<HardenLevel>(0);
   // Practice by subject/topic: the picked scope, its size, and the "new angle" (twists) style.
   const scopeOn = scopeActive(practiceScope);
+
+  // What the current selection would actually give. Shown on the Confirm step so an
+  // impossible or thin selection is visible before the paper starts, rather than coming
+  // back short. Server-side counting (deduped by recall group) so it matches the paper.
+  const [mockPreview, setMockPreview] = useState<{
+    total: number; unseen: number; questions: number; notes: string[]; can_start: boolean;
+    by_subject: { subject: string; count: number }[];
+  } | null>(null);
+  const [buildingPaper, setBuildingPaper] = useState(false);
+  useEffect(() => {
+    if (quizConfigStep !== 3) return;
+    let alive = true;
+    setMockPreview(null);
+    fetch(`${API}/api/mocks/custom/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        scope: scopeOn ? practiceScope : null,
+        questions: quizConfigNumQuestions,
+        minutes: quizConfigTimerMode === "session" ? quizConfigTimerValue || 120 : 120,
+        unseen_only: false,
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) setMockPreview(d); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [quizConfigStep, scopeOn, practiceScope, quizConfigNumQuestions, quizConfigTimerMode, quizConfigTimerValue]);
+
+  const sitAsTimedPaper = async () => {
+    setBuildingPaper(true);
+    try {
+      const res = await fetch(`${API}/api/mocks/custom`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          scope: scopeOn ? practiceScope : null,
+          questions: quizConfigNumQuestions,
+          minutes: quizConfigTimerMode === "session" ? quizConfigTimerValue || 120 : 120,
+          label: scopeOn ? describeScope(practiceScope) : "Custom exam",
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.mock_id) throw new Error(body?.detail || "Could not build the paper.");
+      onOpenPaper?.(body.mock_id);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not build the paper.");
+    } finally {
+      setBuildingPaper(false);
+    }
+  };
   const [scopeCount, setScopeCount] = React.useState(0);
   const [newAngle, setNewAngle] = React.useState(false);
   const twistsAllowed = scopeOn && practiceScope.sources.includes("past");
@@ -542,6 +606,7 @@ export default function QuizView({
           difficulty: aiDifficulty,
           count: aiCount,
           exam_profile: aiProfile,
+          level,
           request_id: requestId,
         }),
       });
@@ -1431,9 +1496,9 @@ export default function QuizView({
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                               <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: "2px" }}>
-                                Style
+                                Format
                               </span>
-                              {([["fcps", "FCPS (A–E)", "CPSP single best answer, 5 options"], ["usmle", "USMLE (A–E)", "Long clinical vignette, 5 options"], ["quick", "Quick recall (A–D)", "Short rapid-recall drill, 4 options"]] as const).map(([val, label, hint]) => (
+                              {([["fcps", "5 options", "Single best answer, 5 options (A–E)"], ["usmle", "Vignette", "Long clinical vignette, 5 options (A–E)"], ["quick", "4 options", "Short rapid-recall drill, 4 options (A–D)"]] as const).map(([val, label, hint]) => (
                                 <button
                                   key={val}
                                   type="button"
@@ -1456,6 +1521,21 @@ export default function QuizView({
                                   {label}
                                 </button>
                               ))}
+                            </div>
+                            {/* Exam programme: depth, emphasis and which books are preferred.
+                                Separate from Format (option count) and from Difficulty. */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: "2px" }}>
+                                Level
+                              </span>
+                              <div style={{ width: "132px" }} title={levelHint(level) || "Sets how deep the questions go"}>
+                                <BasicDropdown
+                                  items={examLevelItems("")}
+                                  value={toLevelValue(level)}
+                                  onChange={(val) => setLevel?.(fromLevelValue(val))}
+                                  ariaLabel="Exam programme for generated questions"
+                                />
+                              </div>
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1760,11 +1840,39 @@ export default function QuizView({
                 ))}
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--sp-4)" }}>
+              {mockPreview ? (
+                <div style={{ marginTop: "var(--sp-3)", padding: "10px 12px", borderRadius: "10px", background: "var(--surface-3)", border: "1px solid var(--border-light)" }}>
+                  <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                    {mockPreview.total.toLocaleString()} questions match
+                    {mockPreview.unseen < mockPreview.total
+                      ? ` · ${mockPreview.unseen.toLocaleString()} you have not seen`
+                      : null}
+                  </div>
+                  {mockPreview.by_subject.length ? (
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "4px" }}>
+                      {mockPreview.by_subject.slice(0, 6).map((b: { subject: string; count: number }) => `${b.subject} ${b.count}`).join(" · ")}
+                      {mockPreview.by_subject.length > 6 ? " …" : ""}
+                    </div>
+                  ) : null}
+                  {mockPreview.notes.map((n: string) => (
+                    <div key={n} style={{ fontSize: "0.72rem", color: "var(--amber, #f59e0b)", marginTop: "4px" }}>{n}</div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--sp-4)", gap: "8px", flexWrap: "wrap" }}>
                 <button className="btn-workspace" onClick={() => setQuizConfigStep(2)} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                   <ArrowLeft size={16} />
                   <span>Back to Rules</span>
                 </button>
+                {hardenLevel || !onOpenPaper ? null : (
+                  <button className="btn-workspace" disabled={buildingPaper || mockPreview?.can_start === false}
+                    title="One timed paper, answers at the end, with a rank and a result page"
+                    onClick={sitAsTimedPaper} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    {buildingPaper ? <Loader2 size={14} className="animate-spin" /> : <Timer size={14} />}
+                    <span>Sit as timed exam</span>
+                  </button>
+                )}
                 {hardenLevel ? null : <button className="btn-primary" disabled={quizIsLoading} onClick={newAngle ? startTwists : handleStartQuiz} style={{ padding: "10px 28px" }}>
                   {quizIsLoading ? (
                     <Loader2 size={16} className="spinner" style={{ animation: "spin 1s linear infinite" }} />

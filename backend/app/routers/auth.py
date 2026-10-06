@@ -6,6 +6,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.config import settings
@@ -24,16 +25,19 @@ router = APIRouter()
 )
 def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
     """Registers a new user (defaults to student role)."""
-    # Check duplicate
-    existing = db.query(User).filter(User.username == user_in.username).first()
+    # Duplicate check. Case-insensitive on purpose: "Ali" and "ali" are the same person to
+    # everyone except the UNIQUE index, and two accounts a login cannot tell apart is worse
+    # than refusing the second one. UserRegister has already trimmed and validated the name,
+    # so the string checked here is the string stored below.
+    existing = db.query(User).filter(func.lower(User.username) == user_in.username.lower()).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is already taken.")
 
     if user_in.role not in ["student", "admin"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role specification.")
-    if len(user_in.username.strip()) < 3 or len(user_in.password) < 6:
+    if len(user_in.password) < 6:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Pick a username of at least 3 characters and a password of at least 6.")
+                            detail="Pick a password of at least 6 characters.")
 
     mode = (settings.registration_mode or "invite").lower()
     invite = None

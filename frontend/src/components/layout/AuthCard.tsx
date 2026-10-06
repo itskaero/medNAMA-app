@@ -104,7 +104,15 @@ export default function AuthCard({
                     onChange={(e) => setAuthUsername(e.target.value)}
                     autoComplete="username"
                     required
+                    maxLength={30}
+                    spellCheck={false}
+                    autoCapitalize="none"
                   />
+                  {isRegisterMode ? (
+                    <p className="input-hint">
+                      3-30 characters: letters, numbers, dot, underscore or hyphen. No spaces.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="field">
                   <label className="field-label" htmlFor="auth-password">

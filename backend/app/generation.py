@@ -17,6 +17,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app import exam_levels
 from app.llm import LLMNotConfigured, chat_completion
 from app.models import Book
 from app.retrieval import retrieval_service
@@ -32,15 +33,9 @@ NOT_COVERED_RESPONSE = {
 }
 SUPPLEMENT_HEADING = "**Beyond the textbooks (AI clinical knowledge, not from your books):**"
 
-LEVEL_GUIDANCE = {
-    "undergraduate": "The reader is an MBBS undergraduate: explain clearly, define terms, keep it exam-focused.",
-    "fcps1": "The reader is preparing for FCPS-I (basic sciences): emphasise mechanisms, physiology, pathology and pharmacology.",
-    "fcps2": "The reader is a resident preparing for FCPS-II: emphasise clinical management, guidelines, doses and pitfalls.",
-}
-DEFAULT_LEVEL_GUIDANCE = (
-    "The reader is a medical student or resident preparing for MBBS/FCPS (CPSP) exams: "
-    "be concise, high-yield and exam-oriented."
-)
+# What each exam level means now lives in app/exam_levels.py, so Chat, Revision and MCQ
+# generation read one definition instead of drifting apart. The guidance text itself is
+# unchanged, and an unset or unknown level still falls back to the general exam-prep line.
 
 # "Tutor me": the student asked to be taught, not told. Same JSON as an answer, so citations and figures still
 # show; the model leads with questions and gives the full answer only at the end.
@@ -266,12 +261,18 @@ def generate_answer(
     level: str | None = None,
     on_stage=None,
     mode: str | None = None,
+    book_ids: list[int] | None = None,
 ) -> dict[str, Any]:
     """Retrieve textbook context and generate a books-first answer with a labelled AI supplement.
     mode="tutor": Socratic tutoring on the same passages (TUTOR_RULES).
 
     on_stage(name) is called as the pipeline advances ("searching", "generating")
     so a streaming endpoint can report progress.
+
+    `level` is now resolved *before* retrieval and handed to search(), where it biases which
+    books surface; previously it was read after the search and only shaped the prose, so the
+    same passages came back whichever level was picked. `book_ids` is the hard source scope
+    (several books); `book_id` still works for the single-book callers.
     """
     def stage(name: str) -> None:
         if on_stage:
@@ -289,17 +290,24 @@ def generate_answer(
         # A tutoring reply ("low pH?") says little on its own: search with the topic the session started from.
         first_user = next((t["content"] for t in history if t.get("role") == "user"), "")
         search_q = f"{first_user[:300]} {query}".strip()
+    # Programme and intent are settled first: both steer retrieval, not just the wording.
+    programme = exam_levels.normalise(level)
+    intent = exam_levels.classify_intent(query)
     result = retrieval_service.search(session, search_q, limit=6, book_id=book_id, chapter=chapter,
-                                      context_hint=prev_user[:300])
+                                      context_hint=prev_user[:300], level=programme, book_ids=book_ids)
     chunks = result.context
     all_figures = result.figures
 
     books_str = ", ".join(b.title for b in session.query(Book).all()) or "No books currently loaded."
-    level_line = LEVEL_GUIDANCE.get((level or "").lower(), DEFAULT_LEVEL_GUIDANCE)
+    level_line = exam_levels.chat_guidance(programme)
+    # Keeps the answer on the facet that was asked for: "What is diabetes mellitus?" stays a
+    # definition at FCPS-II instead of turning into a management essay.
+    intent_line = exam_levels.intent_line(intent)
 
     system_prompt = (
         "You are Dr. MedNama, an expert medical tutor for MBBS and FCPS (CPSP) exam preparation.\n"
-        f"{level_line}\n\n"
+        f"{level_line}\n"
+        + (f"{intent_line}\n" if intent_line else "") + "\n"
         + (TUTOR_RULES if tutor else "") +
         "BOOKS AVAILABLE IN SYSTEM:\n"
         f"{books_str}\n\n"
@@ -410,19 +418,25 @@ def generate_answer(
     }
 
 
-def generate_mcq_explanation(session: Session, mcq) -> dict:
-    """Generates a grounded explanation for a specific MCQ using RAG and DeepSeek."""
+def generate_mcq_explanation(session: Session, mcq, level: str | None = None) -> dict:
+    """Generates a grounded explanation for a specific MCQ using RAG and DeepSeek.
+
+    `level` steers which books are preferred and how deep the explanation goes; unset keeps
+    today's behaviour exactly.
+    """
     options = mcq.options or {}
     correct_text = options.get(mcq.correct_option, "")
     query = f"{mcq.question_text} {correct_text}".strip()
-    result = retrieval_service.search(session, query, limit=6)
+    programme = exam_levels.normalise(level)
+    result = retrieval_service.search(session, query, limit=6, level=programme)
     chunks = result.context
     all_figures = result.figures
     options_str = "\n".join(f"- Option {k}: {v}" for k, v in options.items())
 
     system_prompt = (
         "You are an expert medical tutor writing an explanation for a multiple-choice question (MCQ) "
-        "for MBBS/FCPS exam preparation.\n\n"
+        "for MBBS/FCPS exam preparation.\n"
+        f"{exam_levels.chat_guidance(programme)}\n\n"
         "EXPLANATION RULES:\n"
         "1. Explain why the correct option is correct and why each other option is wrong.\n"
         "2. Prefer facts from the RETRIEVED TEXTBOOK CONTEXT and cite them inline with the exact book title "

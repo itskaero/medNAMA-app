@@ -62,8 +62,11 @@ def _run_chat_turn(db: Session, req: "ChatQueryRequest", user_id: int, on_stage=
         confidence_threshold=req.confidence_threshold,
         history=history,
         book_id=req.book_id,
+        book_ids=req.book_ids,
         chapter=req.chapter,
-        level=req.level,
+        # The request may override for one answer; otherwise the account's saved programme
+        # applies, so the level is set once and honoured everywhere.
+        level=req.level or getattr(db.get(User, user_id), "exam_level", None),
         mode=req.mode,
         on_stage=on_stage,
     )

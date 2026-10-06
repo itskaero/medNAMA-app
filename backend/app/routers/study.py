@@ -25,6 +25,10 @@ class StudyAnswerRequest(BaseModel):
 class ExamDateRequest(BaseModel):
     exam_date: str | None = None      # YYYY-MM-DD, or null to clear
 
+
+class ExamLevelRequest(BaseModel):
+    exam_level: str | None = None     # a programme id, or null for general exam prep
+
 @router.get("/api/study/daily")
 def get_daily_dose(
     db: Session = Depends(get_db),
@@ -191,6 +195,35 @@ def set_exam_date(
         user.exam_date = None
     db.commit()
     return {"exam_date": user.exam_date.isoformat() if user.exam_date else None}
+
+
+@router.get("/api/study/exam-level")
+def get_exam_level(db: Session = Depends(get_db),
+                   current_user: User = Depends(require_student_or_admin)):
+    """This account's exam programme, and the list to choose from."""
+    from app import exam_levels
+
+    user = db.get(User, current_user.id)
+    return {"exam_level": exam_levels.normalise(user.exam_level), "options": exam_levels.options()}
+
+
+@router.put("/api/study/exam-level")
+def set_exam_level(
+    req: ExamLevelRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """Set the programme once; Chat, Revision, MCQ generation and Exams all read it.
+
+    An unrecognised value is stored as NULL (general exam prep) rather than refused, which
+    matches how every consumer treats an unknown level.
+    """
+    from app import exam_levels
+
+    user = db.get(User, current_user.id)   # this request's session, so the change is committed
+    user.exam_level = exam_levels.normalise(req.exam_level)
+    db.commit()
+    return {"exam_level": user.exam_level}
 
 
 @router.get("/api/study/anki-export")

@@ -41,6 +41,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app import exam_levels
 from app.llm import chat_completion, llm_configured
 from app.models import AnswerEvent, Book, Chunk, Figure, MCQ, SavedSheet, TopicSummary, User
 from app.rapid_review import INLINE_REF
@@ -48,9 +49,16 @@ from app.retention import _embed, restricted_allowed
 
 logger = logging.getLogger(__name__)
 
-# Bullets per sheet. "quick" is the one-minute read, "full" the evening-before page.
+# Upper bound on bullets, not a target. Asking for "about 22 bullets" made every sheet the
+# same size whatever was asked: a sheet on "DKA management" spent half its lines defining
+# diabetes because padding to the count was the only way to reach it. The length control now
+# caps a sheet ("quick" = the one-minute read, "full" = the evening-before page) and the
+# model is told to stop when the passages stop saying anything new.
 LENGTHS = {"quick": 10, "full": 22}
-LENGTH_HINT = {"quick": "about 10 bullets", "full": "about 22 bullets"}
+LENGTH_HINT = {
+    "quick": "at most 10 bullets - only the few facts that matter most",
+    "full": "at most 22 bullets",
+}
 
 # How much of the scope is read. Parents (parent_id IS NULL) are whole paragraphs and
 # are what retrieval expands to, so a chapter read from them is complete.
@@ -137,6 +145,8 @@ def _is_byline(name: str) -> bool:
             return True
     return False
 
+# Kept for any caller that still imports it; the sheet itself now asks for the sections the
+# topic and programme call for (app/exam_levels.sections_for), not these five every time.
 SECTIONS = (
     "## Core concepts",
     "## Numbers & values",
@@ -167,11 +177,16 @@ def _book_ids(scope: dict[str, Any]) -> list[int]:
 
 def scope_key(scope: dict[str, Any]) -> str:
     """Distinct from the past-paper key (which never has 'books'), so the two can never collide."""
+    from app.exam_levels import normalise
+
     norm = {
         "books": _book_ids(scope),
         "chapter": (scope.get("chapter") or "").strip() or None,
         "topic": " ".join((scope.get("topic") or "").split()).lower() or None,
         "length": scope.get("length") if scope.get("length") in LENGTHS else "full",
+        # Part of the key: the same topic at FCPS-I and FCPS-II is two different sheets, and
+        # without this the first one cached would be served to both.
+        "level": normalise(scope.get("level")),
     }
     return "books:" + hashlib.sha1(json.dumps(norm, sort_keys=True).encode()).hexdigest()
 
@@ -301,8 +316,13 @@ def _read_chapter(db: Session, book_ids: list[int], chapter: str, budget: int = 
     return read, len(own), len(read) > len(own)
 
 
-def _read_topic(db: Session, book_ids: list[int], chapter: str | None, topic: str) -> list[Chunk]:
-    """Passages about a topic, restricted to the chosen books (and chapter when given)."""
+def _read_topic(db: Session, book_ids: list[int], chapter: str | None, topic: str,
+                level: str | None = None) -> list[Chunk]:
+    """Passages about a topic, restricted to the chosen books (and chapter when given).
+
+    One search per book, so the student's book choice is already a hard boundary; `level`
+    only changes which facet of the topic each search leans towards.
+    """
     from app.retrieval import retrieval_service
 
     per_book = max(3, MAX_TOPIC_CHUNKS // max(1, len(book_ids)) + 2)
@@ -310,7 +330,7 @@ def _read_topic(db: Session, book_ids: list[int], chapter: str | None, topic: st
     seen: set[int] = set()
     for book_id in book_ids:
         for c in retrieval_service.search(db, topic, limit=per_book, book_id=book_id,
-                                          chapter=chapter or None).context:
+                                          chapter=chapter or None, level=level).context:
             if c.id not in seen:
                 seen.add(c.id)
                 picked.append(c)
@@ -342,6 +362,10 @@ def build(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary:
     chapter = (scope.get("chapter") or "").strip()
     topic = " ".join((scope.get("topic") or "").split())
     length = scope.get("length") if scope.get("length") in LENGTHS else "full"
+    programme = exam_levels.normalise(scope.get("level"))
+    # A topic string is a question too: "DKA management" must not yield a sheet of diabetes
+    # definitions just because those are the passages that came back.
+    intent = exam_levels.classify_intent(topic or chapter or "")
     books = db.query(Book).filter(Book.id.in_(book_ids), Book.status == "ready").all()
     if not books:
         raise RuntimeError("None of those books are ready to revise yet.")
@@ -349,7 +373,7 @@ def build(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary:
     book_ids = [b.id for b in books]
 
     if topic:
-        chunks = _read_topic(db, book_ids, chapter, topic)
+        chunks = _read_topic(db, book_ids, chapter, topic, level=programme)
         # Retrieval is a best match by design, not a sweep, so there is no whole to
         # have covered; say so rather than implying the book was read end to end.
         coverage = {"kind": "topic", "read": len(chunks), "own": None, "extended": False}
@@ -371,9 +395,15 @@ def build(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary:
                 [
                     {"role": "system", "content": (
                         f"You are writing a revision sheet that a medical student reads the night before an exam. "
-                        f"Use ONLY the TEXTBOOK PASSAGES, and write {LENGTH_HINT[length]} in total, one line each. "
-                        f"Sections in this order (skip any you cannot fill from the passages):\n"
-                        + "\n".join(SECTIONS) + "\n"
+                        f"Use ONLY the TEXTBOOK PASSAGES. Write {LENGTH_HINT[length]}, one line each — but write "
+                        "only as many as the passages actually support: a narrow topic deserves a short sheet. "
+                        "Never pad, never repeat a fact in two bullets, and never add a bullet that is not about "
+                        "what was asked.\n"
+                        f"{exam_levels.revision_guidance(programme)}\n"
+                        + (f"{exam_levels.intent_line(intent)}\n" if exam_levels.intent_line(intent) else "")
+                        + "Use these sections, in this order, and SKIP any you cannot fill from the passages or "
+                        "that the topic does not call for:\n"
+                        + "\n".join(f"## {s}" for s in exam_levels.sections_for(programme, intent)) + "\n"
                         "Rules: every bullet states one fact that is in a passage and ends with that passage's "
                         "reference exactly as shown, e.g. [Guyton Hall Physiology, Page 331]. Prefer the numbers, "
                         "thresholds, drug doses and named signs an examiner asks for. Never state anything the "

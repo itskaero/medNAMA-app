@@ -21,6 +21,7 @@ import { AIMessage } from "@/components";
 import BasicDropdown from "@/components/ui/basic-dropdown";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
+import { examLevelItems, fromLevelValue, levelHint, toLevelValue } from "@/lib/examLevels";
 import { groupConversations } from "@/utils/quizHelpers";
 
 export interface ChatScope {
@@ -518,17 +519,12 @@ export default function ChatView({
                 ) : null}
 
                 {setLevel ? (
-                  <div style={{ width: "170px" }} title="Sets the depth and focus of answers">
+                  <div style={{ width: "170px" }} title={levelHint(level) || "Sets the depth and focus of answers"}>
                     <BasicDropdown
-                      items={[
-                        { value: "any", label: "Level: General" },
-                        { value: "undergraduate", label: "Level: MBBS" },
-                        { value: "fcps1", label: "Level: FCPS-I" },
-                        { value: "fcps2", label: "Level: FCPS-II" },
-                      ]}
-                      value={level ?? "any"}
-                      onChange={(val) => setLevel(val === "any" ? null : val)}
-                      ariaLabel="Study level for answers"
+                      items={examLevelItems()}
+                      value={toLevelValue(level)}
+                      onChange={(val) => setLevel(fromLevelValue(val))}
+                      ariaLabel="Exam programme for answers"
                     />
                   </div>
                 ) : null}

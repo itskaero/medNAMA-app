@@ -115,6 +115,9 @@ FOCUS_CHARS = 1500         # text window around the matched child used for reran
 # (e.g. Dhingra for ENT) from crowding out Bailey/Robbins on the same topic.
 BOOK_MARGIN = 4.0
 MAX_PER_BOOK = 2
+# Exam-level nudge towards the books a programme leans on (app/exam_levels.py). Kept well
+# under BOOK_MARGIN on purpose: it should settle near-ties, never outrank real relevance.
+LEVEL_SUBJECT_BONUS = 0.75
 # Neighbour paragraphs join a context block only if they are themselves
 # relevant (first-stage score) or are a short caption/heading right next to it.
 NEIGHBOR_MIN_SCORE = -6.0
@@ -125,6 +128,31 @@ NEIGHBOR_CHARS = 800       # text scored per neighbour paragraph
 # ranks highly is never lost in fusion). ~16-22 candidates instead of 24.
 RERANK_POOL = 16
 PER_LIST_TOP = 3
+# Extra rerank candidates reserved for books the RERANK_POOL cut missed entirely, so
+# select_diverse() can actually offer a slot to a book that discusses the topic in its own
+# idiom (Katzung's drug pages for "diabetes mellitus"). Bounded: see search().
+MAX_BOOK_HEADS = 8
+# How many child chunks each vector/keyword list returns. Widened from 30 once levels
+# existed: the cheap fix for "no Katzung passage was even a candidate" is a longer
+# *unfiltered* list, because one HNSW query over everything costs far less than several
+# book-filtered ones (a filtered scan is the slow path - see vector_search). Measured on
+# "mechanism of beta blockers": 10 filtered probes took 37 s, this takes about 11 s.
+CANDIDATE_LIMIT = 60
+# Last resort for a preferred book even a 60-row list never reached. Kept tiny because each
+# one is a filtered scan.
+PREFERRED_PROBE = 2
+MAX_PROBE_BOOKS = 3
+# Which Book.subject a question of this kind should consult first, used to spend the few
+# probe slots well. "Treatment of X" asking the pharmacology text is the whole point.
+INTENT_SUBJECTS: dict[str, tuple[str, ...]] = {
+    "management": ("Pharmacology", "Medicine", "Surgery", "Paediatrics"),
+    "mechanism": ("Physiology", "Pathology", "Biochemistry"),
+    "investigations": ("Pathology", "Microbiology", "Medicine"),
+    "features": ("Medicine", "Paediatrics", "Surgery"),
+    "complications": ("Medicine", "Pathology", "Surgery"),
+    "differentiation": ("Pathology", "Medicine", "Physiology"),
+    "definition": ("Physiology", "Pathology", "Anatomy"),
+}
 # Figures: shown only when their printed caption matches the question.
 FIGURE_MIN_SIM = 0.60
 FIGURE_MENTIONED_MIN_SIM = 0.50
@@ -215,14 +243,49 @@ def looks_like_index_page(content: str) -> bool:
     return len(_INDEX_ENTRY.findall(content)) * 1000 / len(content) > 6
 
 
+_REWRITE_STOPWORDS = frozenset("a an the of in for with and or to on is are what which how why".split())
+
+
+def looks_like_keywords(query: str) -> bool:
+    """True when the query is already a search phrase, so rewriting would only dilute it.
+
+    The rewrite turns an exam-style *question* into keywords. Given something that is already
+    keywords it expands two words into thirty, and the OR-fallback in keyword_search then
+    matches loosely related pages, which pushes the precise hit out of the candidate lists.
+    Measured: searching "diabetes mellitus" with the rewrite off puts Katzung's drug page top
+    at +10.21, and with it on that page reached the context in 0 of 3 trials. This is the real
+    cause of "searching diabetes mellitus doesn't bring up treatment from Katzung".
+
+    A question (ends with '?', or opens with an interrogative) is always rewritten.
+    """
+    text = " ".join((query or "").split())
+    if not text or text.endswith("?"):
+        return False
+    words = [w for w in re.findall(r"[A-Za-z0-9'-]+", text.lower())]
+    if any(w in ("what", "which", "how", "why", "when", "where", "who") for w in words[:1]):
+        return False
+    content = [w for w in words if w not in _REWRITE_STOPWORDS]
+    return len(content) <= 4
+
+
 @lru_cache(maxsize=512)
-def rewrite_query(query: str, context_hint: str = "") -> str | None:
+def rewrite_query(query: str, context_hint: str = "", level: str | None = None) -> str | None:
     """Turn an exam-style question into textbook search keywords with a fast LLM call.
 
     Returns None when rewriting is disabled, the LLM is unavailable, or it fails;
     retrieval then proceeds with the original query only.
+
+    `level` is accepted but deliberately NOT used to steer the rewrite. Letting it add its
+    programme's keywords was measured to do real harm: for "treatment of diabetes mellitus"
+    at FCPS-I the mechanism-leaning rewrite stopped retrieving Guyton's p973 (+9.04, the best
+    passage by a wide margin) while keeping passages scoring +0.23. The rewrite's one job is
+    to find what the question asks for; the question's own intent outranks the programme.
+    Programme preference is applied where it cannot lose information instead — an extra probe
+    into preferred books, plus an ordering bonus (see search()).
     """
     if not settings.query_rewrite:
+        return None
+    if looks_like_keywords(query):
         return None
     from app.llm import chat_completion, llm_configured
 
@@ -357,7 +420,7 @@ class RetrievalService:
             embedding = model.encode(prefixed_query, normalize_embeddings=True)
         return embedding.tolist()
 
-    def vector_search(self, session: Session, query_embedding: list[float], limit: int = 50, book_id: int | None = None, chapter: str | None = None) -> list[tuple[Chunk, float]]:
+    def vector_search(self, session: Session, query_embedding: list[float], limit: int = 50, book_id: int | None = None, chapter: str | None = None, book_ids: list[int] | None = None) -> list[tuple[Chunk, float]]:
         """Run vector similarity search on child chunks. Optional book/chapter filtering.
 
         Ordered by cosine *distance* ascending so Postgres can use the HNSW index
@@ -369,12 +432,14 @@ class RetrievalService:
         distance = Chunk.embedding.cosine_distance(query_embedding)
         # SET LOCAL: scoped to this transaction, so it never leaks to other queries.
         session.execute(text(f"SET LOCAL hnsw.ef_search = {max(limit * 3, 100)}"))
-        if book_id is not None or chapter:
+        if book_id is not None or book_ids or chapter:
             session.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
 
         query_stmt = session.query(Chunk, (1.0 - distance).label("score")).filter(Chunk.parent_id.isnot(None))
         if book_id is not None:
             query_stmt = query_stmt.filter(Chunk.book_id == book_id)
+        if book_ids:
+            query_stmt = query_stmt.filter(Chunk.book_id.in_(book_ids))
         if chapter:
             query_stmt = query_stmt.filter(Chunk.chapter.ilike(f"%{chapter.strip()}%"))
 
@@ -385,7 +450,8 @@ class RetrievalService:
         return results
 
     def _run_keyword_sql(self, session: Session, tsquery_sql: str, query_param: str, limit: int,
-                         book_id: int | None, chapter: str | None) -> list[tuple[int, float]]:
+                         book_id: int | None, chapter: str | None,
+                         book_ids: list[int] | None = None) -> list[tuple[int, float]]:
         # The to_tsvector expression and parent_id filter must match idx_chunks_child_fts.
         sql_query = f"""
             SELECT id, ts_rank_cd(to_tsvector('english', content), {tsquery_sql}) AS rank
@@ -397,13 +463,16 @@ class RetrievalService:
         if book_id is not None:
             sql_query += " AND book_id = :book_id"
             params["book_id"] = book_id
+        if book_ids:
+            sql_query += " AND book_id = ANY(:book_ids)"
+            params["book_ids"] = list(book_ids)
         if chapter:
             sql_query += " AND chapter ILIKE :chapter"
             params["chapter"] = f"%{chapter.strip()}%"
         sql_query += " ORDER BY rank DESC LIMIT :limit"
         return [(row[0], float(row[1])) for row in session.execute(text(sql_query), params).fetchall()]
 
-    def keyword_search(self, session: Session, query: str, limit: int = 50, book_id: int | None = None, chapter: str | None = None) -> list[tuple[Chunk, float]]:
+    def keyword_search(self, session: Session, query: str, limit: int = 50, book_id: int | None = None, chapter: str | None = None, book_ids: list[int] | None = None) -> list[tuple[Chunk, float]]:
         """Full-text search on child chunks: strict AND first, then a broad OR fallback.
 
         The AND query drops exam phrasing ("of choice"); if it finds fewer than 3
@@ -412,14 +481,15 @@ class RetrievalService:
         """
         strict = " ".join(QUESTION_NOISE.sub(" ", query).split())
         rows = self._run_keyword_sql(
-            session, "websearch_to_tsquery('english', :query)", strict, limit, book_id, chapter
+            session, "websearch_to_tsquery('english', :query)", strict, limit, book_id, chapter, book_ids
         ) if strict else []
 
         if len(rows) < 3:
             terms = keyword_terms(query)
             if terms:
                 or_rows = self._run_keyword_sql(
-                    session, "to_tsquery('english', :query)", " | ".join(terms), limit, book_id, chapter
+                    session, "to_tsquery('english', :query)", " | ".join(terms), limit, book_id, chapter,
+                    book_ids
                 )
                 seen = {cid for cid, _ in rows}
                 rows += [(cid, rank) for cid, rank in or_rows if cid not in seen]
@@ -540,11 +610,50 @@ class RetrievalService:
                 covered[c] = block
         return blocks
 
+    @staticmethod
+    def _preferred_book_ids(session: Session, level: str | None, book_id: int | None,
+                            book_ids: list[int] | None, intent: str = "mixed") -> list[int]:
+        """Ready books whose subject this programme prefers, best candidates first.
+
+        Ordered by what the question is asking, because only a few can be probed: a treatment
+        question should consult the pharmacology text, a mechanism question the physiology
+        one. Probing by arbitrary book id missed Katzung on exactly the query that prompted
+        this work.
+
+        Scope wins: probing must never reach a book the student excluded, so when a scope is
+        set the result is the intersection (and is empty when they do not overlap).
+        """
+        from app.exam_levels import preferred_subjects
+
+        wanted = preferred_subjects(level)
+        if not wanted:
+            return []
+        rows = session.query(Book.id, Book.subject).filter(
+            Book.status == "ready", Book.subject.in_(wanted)).all()
+        scope = {*([book_id] if book_id is not None else []), *(book_ids or [])}
+        if scope:
+            rows = [r for r in rows if r[0] in scope]
+        first = INTENT_SUBJECTS.get(intent, ())
+        # Stable: books whose subject the intent calls for, then the rest.
+        return [r[0] for r in sorted(rows, key=lambda r: (r[1] or "") not in first)]
+
     def search(self, session: Session, query: str, *, limit: int = 5, book_id: int | None = None,
                chapter: str | None = None, rewrite: bool = True, context_hint: str = "",
                exclude_chunk_ids: set[int] | None = None, num_candidates: int = 8,
-               deep_rerank: bool = True) -> SearchResult:
+               deep_rerank: bool = True, level: str | None = None,
+               book_ids: list[int] | None = None) -> SearchResult:
         """One retrieval pass: rewrite -> vector+keyword per query -> RRF -> rerank -> expand.
+
+        Two separate controls, deliberately not the same thing:
+
+        `book_ids` (and `book_id`) are **source scope**: a hard SQL filter. If the student
+        picked Katzung and Guyton, nothing else is retrieved, whatever the level prefers.
+
+        `level` is a **soft preference**, applied in two ways that cannot lose information:
+        an extra probe so the programme's books are candidates at all (PREFERRED_PROBE), and
+        a small ordering bonus (LEVEL_SUBJECT_BONUS) far below BOOK_MARGIN that never touches
+        the MIN_RERANK_SCORE gate. A clearly more relevant passage from a non-preferred book
+        still wins. It deliberately does *not* steer the query rewrite — see rewrite_query().
 
         deep_rerank=False skips the second-stage (biomedical cross-encoder) reranker: background AI jobs
         (harder versions, twists) search dozens of times per job, and on the NAS CPU that reranker was most of
@@ -554,28 +663,63 @@ class RetrievalService:
         they are kept only if there are not enough fresh candidates.
         """
         queries = [query]
-        rewritten = rewrite_query(query, context_hint) if rewrite else None
+        rewritten = rewrite_query(query, context_hint, level) if rewrite else None
         if rewritten and rewritten.lower() != query.lower():
             queries.append(rewritten)
 
         rrf: dict[int, float] = {}
         best_child: dict[int, str] = {}
+        book_of: dict[int, int] = {}  # parent id -> book, for the per-book pool heads below
         query_embeddings: list[list[float]] = []
         list_heads: list[int] = []  # top of every individual result list
         for q in queries:
             emb = self._embed_query(q)
             query_embeddings.append(emb)
-            for results in (self.vector_search(session, emb, limit=30, book_id=book_id, chapter=chapter),
-                            self.keyword_search(session, q, limit=30, book_id=book_id, chapter=chapter)):
+            for results in (self.vector_search(session, emb, limit=CANDIDATE_LIMIT, book_id=book_id,
+                                               chapter=chapter, book_ids=book_ids),
+                            self.keyword_search(session, q, limit=CANDIDATE_LIMIT, book_id=book_id,
+                                                chapter=chapter, book_ids=book_ids)):
                 head: list[int] = []
                 for rank, (child, _) in enumerate(results, 1):
                     pid = child.parent_id or child.id
                     rrf[pid] = rrf.get(pid, 0.0) + 1.0 / (60 + rank)
+                    book_of.setdefault(pid, child.book_id)
                     if pid not in best_child:
                         best_child[pid] = (child.extra_metadata or {}).get("original_text") or child.content
                     if len(head) < PER_LIST_TOP and pid not in head:
                         head.append(pid)
                 list_heads.extend(head)
+
+        # One extra probe into the books this programme leans on. Reserving rerank slots for
+        # books already in the candidate lists is not enough: across a 25-book library the
+        # 30+30 vector/keyword rows for "treatment of diabetes mellitus" contain no Katzung
+        # at all, so there is nothing to promote. Measured: scoped to Katzung+Guyton its drug
+        # page reranks at +3.30, well above passages that were taking context slots at +1.23 —
+        # it was losing on candidacy, not on merit. This buys candidacy only; the reranker
+        # still decides whether the passage earns a slot.
+        if level and rrf:
+            seen_books = {b for b in book_of.values() if b is not None}
+            # One probe PER BOOK, not one over all of them: a combined probe crowds exactly
+            # like the main lists do (six slots went to Satyanarayana and Lippincott and
+            # Katzung still missed out). Only books the main lists never reached are probed,
+            # so this usually costs nothing on a narrow query, and it is capped.
+            from app.exam_levels import classify_intent
+
+            probe_ids = [b for b in self._preferred_book_ids(session, level, book_id, book_ids,
+                                                             classify_intent(query))
+                         if b not in seen_books][:MAX_PROBE_BOOKS]
+            for bid in probe_ids:
+                for emb in query_embeddings[:1]:   # the original query; the rewrite adds little here
+                    for child, _ in self.vector_search(session, emb, limit=PREFERRED_PROBE,
+                                                       chapter=chapter, book_ids=[bid]):
+                        pid = child.parent_id or child.id
+                        if pid not in rrf:
+                            # Joins at the bottom of the RRF order: enough to be considered,
+                            # never enough to displace a passage the main lists ranked.
+                            rrf[pid] = 1.0 / (60 + 30)
+                            book_of.setdefault(pid, child.book_id)
+                            best_child.setdefault(
+                                pid, (child.extra_metadata or {}).get("original_text") or child.content)
 
         if not rrf:
             return SearchResult([], [], None, queries)
@@ -586,6 +730,31 @@ class RetrievalService:
         # otherwise never reach the reranker.
         top_ids = sorted(rrf, key=rrf.get, reverse=True)[:RERANK_POOL]
         top_ids += [pid for pid in dict.fromkeys(list_heads) if pid not in top_ids]
+        # ...and every book's own best passage. select_diverse() below is meant to give each
+        # relevant book a context slot, but it can only choose from what survived the
+        # RERANK_POOL cut: for a broad query across 20 books those 16 slots fill with the
+        # texts that discuss the topic most densely, and a pharmacology book's treatment
+        # pages never reach the reranker at all ("diabetes mellitus" never surfaced Katzung).
+        # Pool growth is bounded by the number of books in scope.
+        # Capped at MAX_BOOK_HEADS: with a 20-book library an uncapped sweep would add a
+        # passage per book and roughly double the reranker's work, which is the one
+        # CPU-bound step that hurts on the NAS. The books with the strongest best-passage
+        # get the slots; a book whose best passage is weak had nothing to contribute anyway.
+        # Only when a level is set. These slots exist to serve exam-level preference, and on
+        # the default path they widen the pool enough that select_diverse() spreads context
+        # across more books than the question wants: "fluid of choice in hypertrophic pyloric
+        # stenosis" gave 3 of 5 slots to anatomy texts describing the condition rather than
+        # the page answering it. Keeping the no-level path as it was limits the blast radius.
+        if level:
+            per_book_best: dict[int, int] = {}
+            for pid, bid in book_of.items():
+                if bid is None:
+                    continue
+                current = per_book_best.get(bid)
+                if current is None or rrf[pid] > rrf[current]:
+                    per_book_best[bid] = pid
+            heads = sorted(per_book_best.values(), key=lambda p: rrf[p], reverse=True)
+            top_ids += [pid for pid in heads if pid not in top_ids][:MAX_BOOK_HEADS]
         parents = session.query(Chunk).filter(Chunk.id.in_(top_ids)).options(joinedload(Chunk.book)).all()
         pmap = {p.id: p for p in parents if not looks_like_index_page(p.content)}
         candidates = [pmap[pid] for pid in top_ids if pid in pmap]
@@ -615,6 +784,32 @@ class RetrievalService:
                 for (p, _), sc in zip(head, scores):
                     s2[p.id] = max(s2.get(p.id, float("-inf")), float(sc))
             ranked = sorted(head, key=lambda x: s2[x[0].id], reverse=True) + tail
+
+        # Exam-level preference: a tie-break, not a filter. Books whose subject this
+        # programme leans on (Katzung for FCPS-I, Davidson for FCPS-II) move up by
+        # LEVEL_SUBJECT_BONUS. The stored score stays the raw reranker score, so the
+        # MIN_RERANK_SCORE floor and the BOOK_MARGIN comparison in select_diverse() are
+        # unchanged; only the order the two see is nudged.
+        if level:
+            from app.exam_levels import classify_intent, preferred_subjects
+
+            wanted = preferred_subjects(level)
+            # Narrowed by what the question asks. A flat per-subject bonus was measured to
+            # backfire: for "treatment of diabetes mellitus" at FCPS-I every basic science
+            # counted equally, so histology (+6.62) and microbiology (+4.13) were promoted
+            # over the pharmacology page (+1.78) and FCPS-I did worse than no level at all.
+            # Emphasis has to be about the question, not only about the exam.
+            focus_subjects = INTENT_SUBJECTS.get(classify_intent(query), ())
+            if wanted and focus_subjects:
+                narrowed = wanted & frozenset(focus_subjects)
+                if narrowed:
+                    wanted = narrowed
+            if wanted:
+                def _preference(item: tuple[Any, float]) -> float:
+                    subject = (item[0].book.subject if item[0].book else None) or ""
+                    return item[1] + (LEVEL_SUBJECT_BONUS if subject in wanted else 0.0)
+
+                ranked = sorted(ranked, key=_preference, reverse=True)
 
         if exclude_chunk_ids:
             fresh = [r for r in ranked if r[0].id not in exclude_chunk_ids]

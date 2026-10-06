@@ -29,6 +29,7 @@ import numpy as np
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app import exam_levels
 from app.llm import chat_completion, key_instruction
 from app.models import MCQ
 from app.retrieval import retrieval_service
@@ -246,9 +247,28 @@ def _concept_text(q: dict) -> str:
     return f"{q.get('tested_concept') or ''} {q['options'][q['correct_option']]}".strip()
 
 
+def _angles_for(level: str | None) -> tuple[str, ...]:
+    """BATCH_ANGLES reordered so the programme's own emphasis gets the first batches.
+
+    The angle list itself is unchanged: every aspect is still covered when enough batches
+    run. Only the order shifts, so a 1-batch FCPS-I request asks about mechanism rather
+    than whichever angle happened to be first.
+    """
+    programme = exam_levels.normalise(level)
+    if programme in (exam_levels.FCPS_1, exam_levels.USMLE):
+        order = (0, 1, 3, 2)          # mechanisms, then features, then traps
+    elif programme in (exam_levels.FCPS_2, exam_levels.MD, exam_levels.MS, exam_levels.PGET):
+        order = (2, 1, 3, 0)          # management, then features, then traps
+    elif programme == exam_levels.MBBS:
+        order = (1, 0, 2, 3)          # features and basics first
+    else:
+        return BATCH_ANGLES
+    return tuple(BATCH_ANGLES[i] for i in order)
+
+
 def _build_prompts(prompt_text: str, profile: dict, difficulty: int | None, context_str: str,
                    avoid_lines: str, batch_no: int, n_batches: int, batch_target: int,
-                   focus_chunks: list[int]) -> tuple[str, str]:
+                   focus_chunks: list[int], level: str | None = None) -> tuple[str, str]:
     keys = profile["keys"]
     options_example = ", ".join(f'"{k}": "..."' for k in keys)
     difficulty_line = ""
@@ -258,9 +278,20 @@ def _build_prompts(prompt_text: str, profile: dict, difficulty: int | None, cont
             "3 = standard board-style with plausible distractors; 4 = multi-step clinical reasoning; "
             "5 = subtle distractors needing deep integration). Write every question at this level.\n"
         )
+    programme = exam_levels.normalise(level)
+    level_line = ""
+    if programme:
+        mix = exam_levels.mcq_cognitive_mix(programme)
+        level_line = (
+            f"EXAM LEVEL: {programme} ({exam_levels.label(programme)}). "
+            f"{exam_levels.mcq_guidance(programme)}"
+            + (f" Pitch the thinking at: {mix}." if mix else "")
+            + " This changes what you emphasise and how deep you go. It does NOT license a fact the "
+              "TEXTBOOK CONTEXT does not state, and it is separate from the target difficulty above.\n"
+        )
     system_prompt = (
         "You are an expert medical educator writing exam MCQs for MBBS/FCPS candidates.\n"
-        f"{profile['style']}\n{difficulty_line}"
+        f"{profile['style']}\n{difficulty_line}{level_line}"
         "GROUNDING: Base questions on the TEXTBOOK CONTEXT whenever it covers the topic, and set "
         '"source_chunk" to the number of the chunk the tested fact comes from. If a question tests '
         "knowledge the context does not state (current terms, guidelines), set \"source_chunk\" to null; "
@@ -283,7 +314,9 @@ def _build_prompts(prompt_text: str, profile: dict, difficulty: int | None, cont
         "}"
     )
     focus = ", ".join(f"Chunk {i}" for i in focus_chunks) if focus_chunks else "any chunk"
-    angle = BATCH_ANGLES[(batch_no - 1) % len(BATCH_ANGLES)] if n_batches > 1 else "any aspect of the topic"
+    angles = _angles_for(level)
+    angle = angles[(batch_no - 1) % len(angles)] if n_batches > 1 else (
+        angles[0] if programme else "any aspect of the topic")
     user_prompt = (
         f"USER PROMPT: {prompt_text}\n\n"
         f"Generate exactly {batch_target} MCQs. This is batch {batch_no} of {n_batches} running in parallel; "
@@ -330,7 +363,8 @@ def _normalise_question(item: dict, keys: list[str]) -> dict | None:
 
 def generate_quiz_set(db: Session, *, prompt_text: str, book_id: int | None, page_num: int | None,
                       mcq_count: int, difficulty: int | None, exam_profile: str | None,
-                      request_id: str | None, chapter: str | None = None) -> dict[str, Any]:
+                      request_id: str | None, chapter: str | None = None,
+                      level: str | None = None, book_ids: list[int] | None = None) -> dict[str, Any]:
     quiz_set_id = quiz_set_id_for(request_id)
 
     # Idempotency: a retry of the same request gets the first attempt's result.
@@ -353,7 +387,8 @@ def generate_quiz_set(db: Session, *, prompt_text: str, book_id: int | None, pag
                 return serialize_quiz_set(existing, quiz_set_id)
             raise QuizGenerationError(409, "The original request for this quiz did not finish. Please try again.")
     try:
-        return _generate(db, quiz_set_id, prompt_text, book_id, page_num, mcq_count, difficulty, exam_profile, chapter)
+        return _generate(db, quiz_set_id, prompt_text, book_id, page_num, mcq_count, difficulty, exam_profile,
+                         chapter, level=level, book_ids=book_ids)
     finally:
         if request_id:
             with _inflight_lock:
@@ -364,11 +399,16 @@ def generate_quiz_set(db: Session, *, prompt_text: str, book_id: int | None, pag
 
 def _generate(db: Session, quiz_set_id: str, prompt_text: str, book_id: int | None, page_num: int | None,
               mcq_count: int, difficulty: int | None, exam_profile: str | None,
-              chapter: str | None = None) -> dict[str, Any]:
+              chapter: str | None = None, level: str | None = None,
+              book_ids: list[int] | None = None) -> dict[str, Any]:
     from app.models import Chunk
     from app.retrieval import ContextChunk
 
     profile = PROFILES.get((exam_profile or DEFAULT_PROFILE).lower(), PROFILES[DEFAULT_PROFILE])
+    # exam_profile is the *format* (how many options, how long the vignette); `level` is the
+    # *programme* (how deep, what to emphasise, which books). Both are honoured, neither
+    # overrides the other, and `difficulty` stays independent of both.
+    programme = exam_levels.normalise(level)
 
     # 1. What already exists on this topic (meaning-based, across all books).
     _backfill_missing_embeddings(db)
@@ -386,7 +426,8 @@ def _generate(db: Session, quiz_set_id: str, prompt_text: str, book_id: int | No
                    for c in q.order_by(Chunk.id).all()]
     if not context:
         context = retrieval_service.search(db, prompt_text, limit=6, book_id=book_id, chapter=chapter,
-                                           exclude_chunk_ids=used_chunks).context
+                                           exclude_chunk_ids=used_chunks, level=programme,
+                                           book_ids=book_ids).context
 
     blocks, total = [], 0
     for idx, c in enumerate(context, 1):
@@ -437,7 +478,7 @@ def _generate(db: Session, quiz_set_id: str, prompt_text: str, book_id: int | No
             target = min(BATCH_SIZE, needed - b * BATCH_SIZE)
             focus = [i for i in range(1, len(context) + 1) if (i - 1 + round_no - 1) % n_batches == b]
             jobs.append(_build_prompts(prompt_text, profile, difficulty, context_str, round_avoid,
-                                       b + 1, n_batches, target, focus))
+                                       b + 1, n_batches, target, focus, level=programme))
 
         results: list = []
         with ThreadPoolExecutor(max_workers=min(MAX_PARALLEL_BATCHES, n_batches)) as pool:

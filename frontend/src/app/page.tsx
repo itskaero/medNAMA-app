@@ -108,7 +108,9 @@ export default function Home() {
     setChatTutorState(on);
     try { localStorage.setItem("mednama_tutor", on ? "1" : "0"); } catch { /* storage unavailable */ }
   }, []);
-  // Study level (answer depth). Per-browser preference; null = general exam prep.
+  // The exam programme, shared by Chat, Revise and the MCQ generator (null = general prep).
+  // Stored on the account so it follows the student to another device; localStorage is the
+  // local cache that makes the control render correctly before the request returns.
   const [chatLevel, setChatLevelState] = useState<string | null>(null);
   useEffect(() => {
     try {
@@ -116,6 +118,19 @@ export default function Home() {
     } catch {
       /* storage unavailable */
     }
+    fetch(`${API}/api/study/exam-level`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return; // not signed in yet, or the server predates this setting
+        setChatLevelState(d.exam_level ?? null);
+        try {
+          if (d.exam_level) localStorage.setItem("mednama_level", d.exam_level);
+          else localStorage.removeItem("mednama_level");
+        } catch {
+          /* storage unavailable */
+        }
+      })
+      .catch(() => {});
   }, []);
   const setChatLevel = useCallback((level: string | null) => {
     setChatLevelState(level);
@@ -125,6 +140,13 @@ export default function Home() {
     } catch {
       /* storage unavailable */
     }
+    // Saved per account; a failure here leaves the local choice working for this browser.
+    fetch(`${API}/api/study/exam-level`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ exam_level: level }),
+    }).catch(() => {});
   }, []);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
@@ -410,9 +432,9 @@ export default function Home() {
       return (
         <ExamsView
           token={token}
-          onStartExam={quiz.startExam}
           onOpenMock={() => nav.navigate("mock")}
-          onOpenPastPapers={() => nav.navigate("pastpapers")}
+          onOpenPaper={openPaper}
+          onBuildCustom={() => nav.navigate("quiz")}
         />
       );
     }
@@ -443,6 +465,9 @@ export default function Home() {
       return (
         <QuizView
           {...quiz}
+          level={chatLevel}
+          setLevel={setChatLevel}
+          onOpenPaper={openPaper}
           stats={stats}
           bookmarkedMcqs={bookmarkedMcqs}
           token={token}
@@ -596,6 +621,8 @@ export default function Home() {
           onBack={() => nav.back("dashboard")}
           onFigureClick={setLightboxFig}
           onTestMe={(quizSetId, label) => quiz.startAiCustomQuiz(quizSetId, label, "revise")}
+          level={chatLevel}
+          setLevel={setChatLevel}
         />
       );
     }

@@ -6,6 +6,8 @@ import {
   RefreshCw, Scale, Sparkles, X,
 } from "lucide-react";
 import { API } from "@/lib/constants";
+import BasicDropdown from "@/components/ui/basic-dropdown";
+import { examLevelItems, fromLevelValue, levelHint, toLevelValue } from "@/lib/examLevels";
 import { parseMarkdown } from "@/utils/markdown";
 import { FiguresDrawer } from "@/components/FiguresDrawer";
 import { Figure } from "@/types";
@@ -46,6 +48,8 @@ export default function ReviseView({
   onBack,
   onFigureClick,
   onTestMe,
+  level = null,
+  setLevel,
 }: {
   token: string | null;
   isAdmin: boolean;
@@ -53,6 +57,9 @@ export default function ReviseView({
   onFigureClick: (f: Figure) => void;
   /** Start a saved AI quiz set straight away (skips the builder). */
   onTestMe: (quizSetId: string, label: string) => void;
+  /** Exam programme, owned by the page so chat and revision share one preference. */
+  level?: string | null;
+  setLevel?: (level: string | null) => void;
 }) {
   const headers = useCallback((): HeadersInit => {
     const t = (typeof window !== "undefined" && localStorage.getItem("token")) || token;
@@ -195,6 +202,7 @@ export default function ReviseView({
           chapter: chapter || null,
           topic: topic.trim() || null,
           length,
+          level,
           regenerate: isAdmin && regenerate,
         }),
       });
@@ -388,9 +396,17 @@ export default function ReviseView({
                     background: length === l ? "rgba(48,197,255,0.16)" : "transparent",
                     color: "var(--text-primary)", fontWeight: length === l ? 700 : 400,
                   }}>
-                  {l === "quick" ? "Quick · ~10 bullets" : "Full · ~22 bullets"}
+                  {l === "quick" ? "Quick · up to 10" : "Full · up to 22"}
                 </button>
               ))}
+            </div>
+            <div style={{ width: "150px" }} title={levelHint(level) || "Sets which facts the sheet leads with"}>
+              <BasicDropdown
+                items={examLevelItems()}
+                value={toLevelValue(level)}
+                onChange={(val) => setLevel?.(fromLevelValue(val))}
+                ariaLabel="Exam programme for this sheet"
+              />
             </div>
             <button type="button" className="btn-workspace" disabled={!buildEnabled} onClick={() => build(false)}
               style={{ marginLeft: "auto", fontWeight: 700 }}>

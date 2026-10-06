@@ -25,10 +25,15 @@ export const HUBS: Hub[] = [
     { view: "lookalikes", label: "Look-alikes" },
     { view: "library", label: "Library" },
   ] },
+  // Each tab has one job, because "Exams" and "Past papers" used to overlap: both filtered by
+  // year and subject, and the Exams page's timed-paper tile only told you to go to Past papers.
+  //   Custom exam     build a paper by filtering (sources, subjects, topics, years, rules)
+  //   Programme exams sit a full paper for your exam (FCPS-I / FCPS-II / PGET), or the weekly mock
+  //   Past papers     browse and review the archive; practising from it starts a Custom exam
   { id: "practise", label: "Practise", blurb: "Questions, papers and exams", tabs: [
-    { view: "quiz", label: "Custom", title: "Subjects and topics from past papers and the bank, any difficulty" },
-    { view: "pastpapers", label: "Past papers" },
-    { view: "exams", label: "Exams", title: "Timed papers and the weekly mock" },
+    { view: "exams", label: "Programme exams", title: "Sit a full paper for your exam, or this week's mock" },
+    { view: "quiz", label: "Custom exam", title: "Build a paper: pick sources, subjects, topics and rules" },
+    { view: "pastpapers", label: "Past papers", title: "Browse the archive and review what you have answered" },
     { view: "duel", label: "Challenge" },
     { view: "offline", label: "Offline" },
   ] },
@@ -48,7 +53,9 @@ export const HUBS: Hub[] = [
 ];
 
 // Screens that are not tabs still belong to a hub (for the highlighted sidebar item and the hub bar).
-const EXTRA: Partial<Record<ViewId, HubId>> = { review: "learn", mock: "practise", paper: "practise" };
+// Rapid review sits in "practise", not "learn": it is opened from Past papers, and filing it under
+// a different hub made the hub bar switch out from under the student mid-flow.
+const EXTRA: Partial<Record<ViewId, HubId>> = { review: "practise", mock: "practise", paper: "practise" };
 
 export function hubOf(view: ViewId): Hub {
   const id = EXTRA[view] ?? HUBS.find((h) => h.tabs.some((t) => t.view === view))?.id ?? "today";
