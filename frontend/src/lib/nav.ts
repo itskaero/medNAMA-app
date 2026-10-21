@@ -4,58 +4,75 @@
 export type ViewId =
   | "dashboard" | "daily" | "sprint"
   | "chat" | "revise" | "review" | "lookalikes" | "library"
-  | "quiz" | "pastpapers" | "exams" | "mock" | "paper" | "duel" | "offline"
+  | "tos" | "toacs" | "station" | "quiz" | "pastpapers" | "exams" | "mock" | "paper" | "duel" | "offline"
   | "mistakes" | "study" | "bookmarks" | "stats" | "mcq-bank"
+  | "check" | "highyield"
   | "users" | "referee" | "reports" | "content";
 
-export type HubId = "today" | "learn" | "practise" | "review" | "admin";
+export type HubId = "today" | "learn" | "practise" | "review" | "more" | "admin";
 
-export interface Tab { view: ViewId; label: string; title?: string }
+export interface Tab { view: ViewId; label: string; title?: string; /** only for clinical / specialty papers */ clinical?: boolean }
 export interface Hub { id: HubId; label: string; tabs: Tab[]; admin?: boolean; blurb: string }
 
+// The core loop is four hubs: Today (what to do now) -> Study (learn it) -> Practise (test it) -> Review (fix it).
+// Everything else is one click further, under More, until the usage counts (Admin -> Content) say it earns a place.
 export const HUBS: Hub[] = [
   { id: "today", label: "Today", blurb: "Your plan for today", tabs: [
-    { view: "dashboard", label: "Overview" },
+    { view: "dashboard", label: "Plan" },
     { view: "daily", label: "Daily Dose" },
     { view: "sprint", label: "Final sprint", title: "Opens in the last 7 days before your exam" },
   ] },
-  { id: "learn", label: "Learn", blurb: "Understand it from the books", tabs: [
-    { view: "chat", label: "Dr MedNama", title: "Ask, or be tutored, from your textbooks" },
+  { id: "learn", label: "Study", blurb: "Your paper's blueprint, notes and tutor", tabs: [
+    { view: "tos", label: "My paper", title: "Your paper's official Table of Specifications: learn, practise and test each topic" },
     { view: "revise", label: "Revise", title: "One-page revision sheets from the pages you choose" },
-    { view: "lookalikes", label: "Look-alikes" },
-    { view: "library", label: "Library" },
+    { view: "chat", label: "Dr MedNama", title: "Ask, or be tutored, from your textbooks" },
   ] },
   // Each tab has one job, because "Exams" and "Past papers" used to overlap: both filtered by
   // year and subject, and the Exams page's timed-paper tile only told you to go to Past papers.
-  //   Custom exam     build a paper by filtering (sources, subjects, topics, years, rules)
-  //   Programme exams sit a full paper for your exam (FCPS-I / FCPS-II / PGET), or the weekly mock
-  //   Past papers     browse and review the archive; practising from it starts a Custom exam
+  //   Programme exams sit a full paper for your exam (FCPS-I is Paper 1 + Paper 2, 100 each), or the weekly mock
+  //   Custom exam     Paper 1 (subjects, topics) or Paper 2 (specialty) from the bank and past papers
+  //                   together, your missed MCQs, or a special set (AI sets, collections)
+  //   Past papers     go through the archive: by exam, year, sitting and faculty
   { id: "practise", label: "Practise", blurb: "Questions, papers and exams", tabs: [
     { view: "exams", label: "Programme exams", title: "Sit a full paper for your exam, or this week's mock" },
-    { view: "quiz", label: "Custom exam", title: "Build a paper: pick sources, subjects, topics and rules" },
+    { view: "quiz", label: "Custom exam", title: "Paper 1 or Paper 2 by subject or specialty, missed MCQs, or a special set" },
     { view: "pastpapers", label: "Past papers", title: "Browse the archive and review what you have answered" },
+    { view: "toacs", label: "TOACS / viva", title: "Practise examiner-led viva stations (educational simulation)", clinical: true },
+  ] },
+  { id: "review", label: "Review", blurb: "Mistakes, cards and progress", tabs: [
+    { view: "mistakes", label: "Mistakes" },
+    { view: "study", label: "Notes & cards" },
+    { view: "stats", label: "Progress" },
+  ] },
+  // Tools a student reaches for now and then. Check an answer works on any MCQ, including
+  // one from outside the app, and keeps a new one in the bank (backend app/checked_mcqs.py).
+  { id: "more", label: "More", blurb: "Tools and extras", tabs: [
+    { view: "check", label: "Check an answer", title: "Is this key right? The textbooks decide, with the exact passages" },
+    { view: "highyield", label: "High-yield map", title: "Which systems past papers ask about most" },
+    { view: "lookalikes", label: "Look-alikes" },
+    { view: "bookmarks", label: "Bookmarks" },
+    { view: "mcq-bank", label: "Question bank" },
     { view: "duel", label: "Challenge" },
     { view: "offline", label: "Offline" },
-  ] },
-  { id: "review", label: "Review", blurb: "Mistakes, saved items and progress", tabs: [
-    { view: "mistakes", label: "Mistakes" },
-    { view: "stats", label: "Progress" },
-    { view: "bookmarks", label: "Bookmarks" },
-    { view: "study", label: "Notes & cards" },
-    { view: "mcq-bank", label: "Question bank" },
+    { view: "library", label: "Library" },
   ] },
   { id: "admin", label: "Admin", admin: true, blurb: "Accounts, content and quality", tabs: [
     { view: "users", label: "Users" },
     { view: "reports", label: "Reports" },
     { view: "content", label: "Content" },
-    { view: "referee", label: "Answer-key referee" },
+    { view: "referee", label: "Recall bank", title: "The private recall bank and its referee verdicts" },
   ] },
 ];
+
+/** A hub's tabs for this learner: TOACS only for clinical papers (or while it is the open screen). */
+export function visibleTabs(hub: Hub, clinical: boolean, current?: ViewId): Tab[] {
+  return hub.tabs.filter((t) => !t.clinical || clinical || t.view === current);
+}
 
 // Screens that are not tabs still belong to a hub (for the highlighted sidebar item and the hub bar).
 // Rapid review sits in "practise", not "learn": it is opened from Past papers, and filing it under
 // a different hub made the hub bar switch out from under the student mid-flow.
-const EXTRA: Partial<Record<ViewId, HubId>> = { review: "practise", mock: "practise", paper: "practise" };
+const EXTRA: Partial<Record<ViewId, HubId>> = { review: "practise", mock: "practise", paper: "practise", station: "practise" };
 
 export function hubOf(view: ViewId): Hub {
   const id = EXTRA[view] ?? HUBS.find((h) => h.tabs.some((t) => t.view === view))?.id ?? "today";
@@ -63,11 +80,11 @@ export function hubOf(view: ViewId): Hub {
 }
 
 export const ADMIN_VIEWS: ViewId[] = ["users", "referee", "reports", "content"];
-export const ALL_VIEWS: ViewId[] = [...HUBS.flatMap((h) => h.tabs.map((t) => t.view)), "review", "mock", "paper"];
+export const ALL_VIEWS: ViewId[] = [...HUBS.flatMap((h) => h.tabs.map((t) => t.view)), "review", "mock", "paper", "station"];
 
 export const VIEW_LABEL: Record<ViewId, string> = Object.fromEntries([
   ...HUBS.flatMap((h) => h.tabs.map((t) => [t.view, t.label])),
-  ["review", "Rapid review"], ["mock", "Weekly mock"], ["paper", "Timed paper"],
+  ["dashboard", "Today"], ["review", "Rapid review"], ["mock", "Weekly mock"], ["paper", "Timed paper"], ["station", "Station"],
 ]) as Record<ViewId, string>;
 
 export type NavParams = Record<string, string | number | null | undefined>;

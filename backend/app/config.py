@@ -66,20 +66,28 @@ class Settings(BaseSettings):
     # Imported past papers: who may see them. "all" (default) = every signed-in student;
     # "admin" = admins only. Shared features (duels, the weekly mock) never include them either way.
     past_papers_access: str = "all"
-    # Two-stage reranking: the fast ms-marco model orders all candidates, then a
-    # biomedical cross-encoder re-orders its top N (scripts/eval_rerankers.py).
-    # Set RERANKER_SECOND_STAGE="" to disable.
-    reranker_second_stage: str = "ncbi/MedCPT-Cross-Encoder"
+    # Two-stage reranking: the fast ms-marco model orders all candidates, then a second
+    # cross-encoder re-orders its top N. BGE reranker base since 2026-10-10: on the reranker
+    # benchmark (labs/evaluation/reranker) ms-marco -> BGE base put the right passage first in
+    # 89% of questions against 77% for ms-marco -> MedCPT, and fits the NAS (~720 MB).
+    # MedCPT added nothing measurable as a second stage. Set RERANKER_SECOND_STAGE="" to disable.
+    reranker_second_stage: str = "BAAI/bge-reranker-base"
     reranker_second_stage_top_n: int = 8
 
     # Logging (app loggers; uvicorn's own access log is separate)
     log_level: str = "INFO"
 
-    # Gemini vision (Phase 2)
+    # Gemini vision: reads a photographed MCQ for Check an answer (app/photo_mcq.py), through Gemini's
+    # OpenAI-compatible endpoint. VISION_MODEL picks the model.
     gemini_api_key: str = ""
+    vision_model: str = "gemini-flash-latest"   # an alias Google keeps current; 2.5-flash was retired for new keys
+    vision_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
     # Auth (Phase 7)
     jwt_secret: str = "dev-secret-change-in-production"
+    # Refuse to start with a weak/default JWT_SECRET (a forgeable login) unless this is
+    # explicitly allowed. Intended only for throwaway local experiments, never production.
+    allow_weak_jwt_secret: bool = False
 
     # Ingestion
     max_upload_size_mb: int = 500

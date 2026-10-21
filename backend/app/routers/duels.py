@@ -132,9 +132,12 @@ def submit_duel(
 @router.get("/api/recalls/frequency")
 def recall_frequency(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_student_or_admin),
 ):
-    """High-yield map: how often each chapter/system appears in the recall bank (headlines + variants)."""
+    """High-yield map: how often each chapter/system appears in the recall bank (headlines + variants).
+
+    Open to students (Utilities > High-yield map): it returns per-chapter counts only, never a
+    recall's text, so the recall bank itself stays admin-only."""
     from sqlalchemy import case as _case
     from app.models import RecallItem
 

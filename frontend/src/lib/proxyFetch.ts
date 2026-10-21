@@ -17,6 +17,9 @@
  */
 const FAST_FAILURE_MS = 2500;
 
+/** Set by ApiErrorShim when it turns the proxy's plain-text 500 into a JSON 503. */
+export const PROXY_DOWN_HEADER = "x-mednama-proxy-down";
+
 export async function proxySafeFetch(url: string, init: RequestInit): Promise<Response> {
   const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 
@@ -32,6 +35,8 @@ export async function proxySafeFetch(url: string, init: RequestInit): Promise<Re
     }
 
     if (res.ok) return res;
+
+    if (res.headers.get(PROXY_DOWN_HEADER) && canRetry()) continue;
 
     // HTTP 500 + non-JSON body is the proxy's dead-socket failure signature.
     const isProxyError500 =

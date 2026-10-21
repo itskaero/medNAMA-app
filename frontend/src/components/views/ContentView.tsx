@@ -5,6 +5,9 @@ import { BookOpen, Database, Library, Loader2, Scale } from "lucide-react";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import PageShell from "@/components/layout/PageShell";
+import TosReviewPanel from "@/components/TosReviewPanel";
+import StationsAdminPanel from "@/components/StationsAdminPanel";
+import UsagePanel from "@/components/UsagePanel";
 import type { Book } from "@/types";
 import type { ViewId } from "@/lib/nav";
 
@@ -83,6 +86,9 @@ export default function ContentView({ getHeaders, books, onNavigate }: {
           <span className="tile-text">scripts/prewarm_harder.py and prewarm_twists.py, then the transfer scripts to the NAS.</span>
         </div>
       </div>
+      <UsagePanel getHeaders={getHeaders} />
+      <StationsAdminPanel getHeaders={getHeaders} />
+      <TosReviewPanel getHeaders={getHeaders} />
     </PageShell>
   );
 }

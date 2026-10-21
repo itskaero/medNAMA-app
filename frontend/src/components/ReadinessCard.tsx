@@ -5,7 +5,7 @@ import { AlertTriangle, CalendarClock, Flame, GitCompareArrows, Target, Zap } fr
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 
-interface Readiness {
+export interface Readiness {
   predicted_score: number | null;
   pass_line: number;
   paper1?: { score: number | null; low: number | null; high: number | null; coverage: number; missing: { subject: string; share: number }[] };
@@ -42,11 +42,14 @@ export function ReadinessCard({
   onOpenDailyDose,
   onOpenLookalikes,
   onOpenSprint,
+  onSaved,
 }: {
   token: string | null;
   onOpenDailyDose?: () => void;
   onOpenLookalikes?: () => void;
   onOpenSprint?: () => void;
+  /** Called after the exam date is saved, so a parent showing the countdown can refresh. */
+  onSaved?: () => void;
 }) {
   const [data, setData] = useState<Readiness | null>(null);
   const [dateInput, setDateInput] = useState("");
@@ -87,6 +90,7 @@ export function ReadinessCard({
     if (res.ok) {
       toast.success(dateInput ? "Exam date saved." : "Exam date cleared.");
       load();
+      onSaved?.();
     } else toast.error("Could not save the exam date.");
   };
 

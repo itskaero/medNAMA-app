@@ -1,0 +1,26 @@
+[
+  {
+    "id": "level-bonus-erases-stage2",
+    "title": "With an exam level set, production discards MedCPT's re-ordering",
+    "stage": "reranking",
+    "severity": "high",
+    "verified": "2026-10-07",
+    "evidence": "Production search() with and without the second stage, same queries: with no level, MedCPT changed the source order on 4/4 questions; with FCPS-I or FCPS-II it changed nothing on 7/8 (pyloric stenosis, pioglitazone, DKA, Howell-Jolly). The level bonus re-sorts the whole ranked list by stage-1 score + bonus (backend/app/retrieval.py, the `if level:` block after the second stage).",
+    "impact": "Every student with a saved exam level pays MedCPT's cost (~2.3 s CPU and ~370 MB per process on the server) for no change in ranking.",
+    "suggestion": "Either apply the level bonus to the second-stage score inside the head (as rag_lab/pipeline.py does), or drop the second stage. Verify the choice with the lab first.",
+    "where": "backend/app/retrieval.py: search(), level preference block",
+    "effort": "low"
+  },
+  {
+    "id": "medcpt-no-measurable-gain",
+    "title": "MedCPT as second stage adds no measurable quality over ms-marco alone",
+    "stage": "reranking",
+    "severity": "medium",
+    "verified": "2026-10-07",
+    "evidence": "labs/evaluation/reranker benchmark (66 answerable questions, provisional term-predicate labels): ms-marco alone vs ms-marco -> MedCPT, MRR -0.016 [-0.074, +0.044], 6 better / 7 worse. MedCPT alone was significantly worse (1 better / 11 worse).",
+    "impact": "~2.3 s per question on a desktop CPU, more on the server; ~370 MB RAM.",
+    "suggestion": "Confirm on answer quality in this lab (msmarco vs msmarco_medcpt, human-scored), then consider RERANKER_SECOND_STAGE=\"\".",
+    "where": "RERANKER_SECOND_STAGE (backend/app/config.py; NAS compose does not pass it through yet)",
+    "effort": "low"
+  }
+]

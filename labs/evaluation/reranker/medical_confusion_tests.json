@@ -1,0 +1,1203 @@
+[
+  {
+    "id": "c01",
+    "category": "haematology",
+    "subject": "haematology",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "buzzword"
+    ],
+    "query": "What causes Howell-Jolly bodies?",
+    "correct": {
+      "label": "Hyposplenism / splenectomy",
+      "gold": {
+        "all": [
+          "howell jolly"
+        ],
+        "any": [
+          [
+            "splen",
+            "asplen",
+            "hyposplen"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Basophilic stippling",
+        "gold": {
+          "all": [
+            "basophilic stippling"
+          ]
+        }
+      },
+      {
+        "label": "Heinz bodies",
+        "gold": {
+          "all": [
+            "heinz"
+          ]
+        }
+      },
+      {
+        "label": "Pappenheimer bodies",
+        "gold": {
+          "all": [
+            "pappenheimer"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c02",
+    "category": "haematology",
+    "subject": "haematology",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "pathology_association"
+    ],
+    "query": "Which red cell inclusions are made of denatured haemoglobin in G6PD deficiency?",
+    "correct": {
+      "label": "Heinz bodies",
+      "gold": {
+        "all": [
+          "heinz"
+        ],
+        "any": [
+          [
+            "g6pd",
+            "glucose 6 phosphate dehydrogenase",
+            "denatured",
+            "oxidant",
+            "oxidative"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Howell-Jolly bodies",
+        "gold": {
+          "all": [
+            "howell jolly"
+          ]
+        }
+      },
+      {
+        "label": "Basophilic stippling",
+        "gold": {
+          "all": [
+            "basophilic stippling"
+          ]
+        }
+      },
+      {
+        "label": "Pappenheimer bodies",
+        "gold": {
+          "all": [
+            "pappenheimer"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c03",
+    "category": "pharmacology",
+    "subject": "pharmacology",
+    "difficulty": "easy",
+    "tags": [
+      "confusable",
+      "drug_mechanism"
+    ],
+    "query": "What is the mechanism of action of pioglitazone?",
+    "correct": {
+      "label": "PPAR-gamma agonist",
+      "gold": {
+        "any": [
+          [
+            "pioglitazone",
+            "thiazolidinedione",
+            "glitazone"
+          ],
+          [
+            "ppar",
+            "peroxisome proliferator"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "GLP-1 receptor agonist",
+        "gold": {
+          "any": [
+            [
+              "glp 1 receptor agonist",
+              "exenatide",
+              "liraglutide"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Sulfonylurea / KATP channel closure",
+        "gold": {
+          "any": [
+            [
+              "sulfonylurea",
+              "sulphonylurea",
+              "glibenclamide",
+              "glyburide",
+              "glipizide"
+            ],
+            [
+              "k atp",
+              "katp",
+              "atp sensitive",
+              "potassium channel"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "DPP-4 inhibition",
+        "gold": {
+          "any": [
+            [
+              "dpp 4",
+              "dipeptidyl peptidase",
+              "sitagliptin"
+            ]
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c04",
+    "category": "facial_nerve",
+    "subject": "anatomy",
+    "difficulty": "hard",
+    "tags": [
+      "confusable",
+      "anatomy_localization",
+      "fcps_style"
+    ],
+    "query": "If lacrimation is intact but all other facial nerve functions (taste, stapedial reflex, facial muscles) are lost, where is the lesion?",
+    "correct": {
+      "label": "Distal to the geniculate ganglion (after the greater petrosal nerve leaves)",
+      "gold": {
+        "all": [
+          "geniculate"
+        ],
+        "any": [
+          [
+            "lacrimation",
+            "schirmer",
+            "lacrimal"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Chorda tympani",
+        "gold": {
+          "all": [
+            "chorda tympani"
+          ]
+        }
+      },
+      {
+        "label": "Greater petrosal nerve",
+        "gold": {
+          "all": [
+            "greater petrosal"
+          ]
+        }
+      },
+      {
+        "label": "Proximal facial nerve (internal acoustic meatus / cerebellopontine angle)",
+        "gold": {
+          "all": [
+            "facial"
+          ],
+          "any": [
+            [
+              "internal acoustic meatus",
+              "internal auditory meatus",
+              "cerebellopontine"
+            ]
+          ]
+        }
+      }
+    ],
+    "notes": "The correct passage is a topographic (topognostic) localisation of facial nerve lesions. Distractor passages that also mention the geniculate ganglion with lacrimation count as correct, which is the intended reading: a passage that localises by lacrimation answers the question.",
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c05",
+    "category": "anatomy",
+    "subject": "anatomy",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "anatomy_localization",
+      "clinical_scenario"
+    ],
+    "query": "A fracture of the shaft of the humerus causes wrist drop. Which nerve is injured?",
+    "correct": {
+      "label": "Radial nerve in the spiral groove",
+      "gold": {
+        "all": [
+          "radial nerve"
+        ],
+        "any": [
+          [
+            "shaft",
+            "spiral groove",
+            "radial groove"
+          ],
+          [
+            "wrist drop"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Axillary nerve (surgical neck)",
+        "gold": {
+          "all": [
+            "axillary nerve",
+            "surgical neck"
+          ]
+        }
+      },
+      {
+        "label": "Ulnar nerve (claw hand)",
+        "gold": {
+          "all": [
+            "ulnar nerve"
+          ],
+          "any": [
+            [
+              "claw"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Median nerve (supracondylar / carpal tunnel)",
+        "gold": {
+          "all": [
+            "median nerve"
+          ],
+          "any": [
+            [
+              "ape thumb",
+              "supracondylar",
+              "carpal tunnel"
+            ]
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c06",
+    "category": "anatomy",
+    "subject": "anatomy",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "anatomy_localization",
+      "exact_terminology"
+    ],
+    "query": "Which nerve passes through the foramen ovale of the skull?",
+    "correct": {
+      "label": "Mandibular nerve (V3)",
+      "gold": {
+        "all": [
+          "foramen ovale"
+        ],
+        "any": [
+          [
+            "mandibular nerve",
+            "mandibular division"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Foramen rotundum (maxillary nerve)",
+        "gold": {
+          "all": [
+            "foramen rotundum"
+          ],
+          "any": [
+            [
+              "maxillary"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Foramen spinosum (middle meningeal artery)",
+        "gold": {
+          "all": [
+            "foramen spinosum"
+          ],
+          "any": [
+            [
+              "middle meningeal"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Foramen ovale of the heart (interatrial)",
+        "gold": {
+          "all": [
+            "foramen ovale"
+          ],
+          "any": [
+            [
+              "atrial",
+              "atrium",
+              "atria",
+              "fossa ovalis",
+              "septum primum",
+              "septum secundum"
+            ]
+          ]
+        }
+      }
+    ],
+    "notes": "The same term names a skull foramen and a fetal heart opening: a pure exact-term model cannot separate them.",
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c07",
+    "category": "anatomy",
+    "subject": "anatomy",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "anatomy_localization",
+      "exact_terminology"
+    ],
+    "query": "Which laryngeal muscle tenses the vocal cords?",
+    "correct": {
+      "label": "Cricothyroid",
+      "gold": {
+        "all": [
+          "cricothyroid"
+        ],
+        "any": [
+          [
+            "tens",
+            "lengthen",
+            "elongat"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Thyroarytenoid (relaxes)",
+        "gold": {
+          "all": [
+            "thyroarytenoid"
+          ]
+        }
+      },
+      {
+        "label": "Posterior cricoarytenoid (abducts)",
+        "gold": {
+          "all": [
+            "posterior cricoarytenoid"
+          ]
+        }
+      },
+      {
+        "label": "Lateral cricoarytenoid (adducts)",
+        "gold": {
+          "all": [
+            "lateral cricoarytenoid"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c08",
+    "category": "pathology",
+    "subject": "pathology",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "pathology_association",
+      "buzzword"
+    ],
+    "query": "What are Councilman bodies and in which disease are they seen?",
+    "correct": {
+      "label": "Councilman (acidophil) bodies of viral hepatitis",
+      "gold": {
+        "all": [
+          "councilman"
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Mallory bodies",
+        "gold": {
+          "all": [
+            "mallory"
+          ]
+        }
+      },
+      {
+        "label": "Russell bodies",
+        "gold": {
+          "all": [
+            "russell bod"
+          ]
+        }
+      },
+      {
+        "label": "Psammoma bodies",
+        "gold": {
+          "all": [
+            "psammoma"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c09",
+    "category": "pathology",
+    "subject": "pathology",
+    "difficulty": "easy",
+    "tags": [
+      "confusable",
+      "pathology_association"
+    ],
+    "query": "Which type of necrosis is typical of acute pancreatitis?",
+    "correct": {
+      "label": "Fat necrosis",
+      "gold": {
+        "all": [
+          "fat necrosis"
+        ],
+        "any": [
+          [
+            "pancrea"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Caseous necrosis",
+        "gold": {
+          "all": [
+            "caseous"
+          ]
+        }
+      },
+      {
+        "label": "Fibrinoid necrosis",
+        "gold": {
+          "all": [
+            "fibrinoid"
+          ]
+        }
+      },
+      {
+        "label": "Liquefactive necrosis",
+        "gold": {
+          "all": [
+            "liquefactive"
+          ]
+        }
+      },
+      {
+        "label": "Coagulative necrosis",
+        "gold": {
+          "all": [
+            "coagulative"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c10",
+    "category": "paediatrics",
+    "subject": "paediatrics",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "buzzword",
+      "lab_findings"
+    ],
+    "query": "A steeple sign on a neck X-ray is seen in which condition?",
+    "correct": {
+      "label": "Croup (laryngotracheobronchitis)",
+      "gold": {
+        "all": [
+          "steeple"
+        ],
+        "any": [
+          [
+            "croup",
+            "laryngotracheobronchitis",
+            "laryngotracheitis"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Epiglottitis (thumb sign)",
+        "gold": {
+          "all": [
+            "epiglottitis"
+          ],
+          "any": [
+            [
+              "thumb"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Bronchiolitis",
+        "gold": {
+          "all": [
+            "bronchiolitis"
+          ]
+        }
+      },
+      {
+        "label": "Bacterial tracheitis",
+        "gold": {
+          "all": [
+            "bacterial tracheitis"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c11",
+    "category": "paediatrics",
+    "subject": "paediatrics",
+    "difficulty": "easy",
+    "tags": [
+      "confusable",
+      "factual"
+    ],
+    "query": "What is the most common cause of bronchiolitis in infants?",
+    "correct": {
+      "label": "Respiratory syncytial virus",
+      "gold": {
+        "all": [
+          "bronchiolitis"
+        ],
+        "any": [
+          [
+            "respiratory syncytial",
+            "=rsv"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Croup (parainfluenza)",
+        "gold": {
+          "all": [
+            "croup"
+          ],
+          "any": [
+            [
+              "parainfluenza"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Whooping cough (Bordetella pertussis)",
+        "gold": {
+          "any": [
+            [
+              "pertussis",
+              "whooping cough"
+            ],
+            [
+              "bordetella"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Asthma / wheeze",
+        "gold": {
+          "all": [
+            "asthma"
+          ],
+          "any": [
+            [
+              "wheez"
+            ]
+          ],
+          "none": [
+            "bronchiolitis"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c12",
+    "category": "microbiology",
+    "subject": "microbiology",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "mechanism"
+    ],
+    "query": "Which bacterial toxin acts by ADP-ribosylation of elongation factor 2?",
+    "correct": {
+      "label": "Diphtheria toxin / Pseudomonas exotoxin A",
+      "gold": {
+        "any": [
+          [
+            "diphtheria",
+            "exotoxin a"
+          ],
+          [
+            "ef 2",
+            "elongation factor"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Cholera toxin (Gs, cAMP)",
+        "gold": {
+          "all": [
+            "cholera"
+          ],
+          "any": [
+            [
+              "camp",
+              "cyclic amp",
+              "adenyl"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Pertussis toxin (Gi)",
+        "gold": {
+          "all": [
+            "pertussis toxin"
+          ]
+        }
+      },
+      {
+        "label": "Shiga toxin (60S ribosome)",
+        "gold": {
+          "all": [
+            "shiga"
+          ],
+          "any": [
+            [
+              "60s",
+              "28s",
+              "ribosom"
+            ]
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c13",
+    "category": "microbiology",
+    "subject": "microbiology",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "mechanism"
+    ],
+    "query": "Which toxin of Clostridium tetani causes spastic paralysis, and how?",
+    "correct": {
+      "label": "Tetanospasmin blocks inhibitory (glycine / GABA) neurotransmitter release",
+      "gold": {
+        "any": [
+          [
+            "tetanospasmin",
+            "tetanus toxin"
+          ],
+          [
+            "glycine",
+            "gaba",
+            "inhibitory"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Botulinum toxin (acetylcholine release, flaccid paralysis)",
+        "gold": {
+          "all": [
+            "botulinum"
+          ],
+          "any": [
+            [
+              "acetylcholine",
+              "flaccid"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "C. perfringens alpha toxin (lecithinase)",
+        "gold": {
+          "all": [
+            "alpha toxin"
+          ],
+          "any": [
+            [
+              "perfringens",
+              "lecithinase"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Strychnine (glycine receptor antagonist)",
+        "gold": {
+          "all": [
+            "strychnine"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "notes": "Replaced the Nagler reaction test: 'Nagler' appears nowhere in the 25-book corpus (ground-truth gap, not a retrieval failure)."
+  },
+  {
+    "id": "c14",
+    "category": "physiology",
+    "subject": "physiology",
+    "difficulty": "easy",
+    "tags": [
+      "confusable",
+      "mechanism"
+    ],
+    "query": "Which hormone is released from the juxtaglomerular cells when renal perfusion falls?",
+    "correct": {
+      "label": "Renin",
+      "gold": {
+        "all": [
+          "renin",
+          "juxtaglomerular"
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Atrial natriuretic peptide",
+        "gold": {
+          "any": [
+            [
+              "atrial natriuretic"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Aldosterone (zona glomerulosa)",
+        "gold": {
+          "all": [
+            "aldosterone",
+            "zona glomerulosa"
+          ]
+        }
+      },
+      {
+        "label": "ADH / vasopressin (collecting duct)",
+        "gold": {
+          "any": [
+            [
+              "antidiuretic hormone",
+              "vasopressin"
+            ],
+            [
+              "collecting duct",
+              "aquaporin"
+            ]
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c15",
+    "category": "physiology",
+    "subject": "physiology",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "mechanism",
+      "anatomy_localization"
+    ],
+    "query": "Where are the baroreceptors that buffer changes in arterial blood pressure?",
+    "correct": {
+      "label": "Carotid sinus and aortic arch baroreceptors",
+      "gold": {
+        "all": [
+          "baroreceptor"
+        ],
+        "any": [
+          [
+            "carotid sinus",
+            "aortic arch"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Peripheral chemoreceptors (carotid and aortic bodies)",
+        "gold": {
+          "all": [
+            "chemoreceptor"
+          ],
+          "any": [
+            [
+              "carotid bod",
+              "aortic bod"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "J receptors",
+        "gold": {
+          "any": [
+            [
+              "j receptor",
+              "juxtacapillary"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Pulmonary stretch receptors (Hering-Breuer)",
+        "gold": {
+          "any": [
+            [
+              "hering breuer"
+            ]
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c16",
+    "category": "pharmacology",
+    "subject": "pharmacology",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "drug_mechanism"
+    ],
+    "query": "What is the mechanism of action of clopidogrel?",
+    "correct": {
+      "label": "P2Y12 ADP receptor blocker",
+      "gold": {
+        "all": [
+          "clopidogrel"
+        ],
+        "any": [
+          [
+            "p2y12",
+            "adp receptor",
+            "p2y"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Aspirin (COX inhibition)",
+        "gold": {
+          "all": [
+            "aspirin"
+          ],
+          "any": [
+            [
+              "cyclooxygenase",
+              "=cox"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "GP IIb/IIIa antagonists (abciximab)",
+        "gold": {
+          "any": [
+            [
+              "glycoprotein iib",
+              "gp iib",
+              "abciximab",
+              "tirofiban",
+              "eptifibatide"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Dipyridamole (phosphodiesterase)",
+        "gold": {
+          "all": [
+            "dipyridamole"
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c17",
+    "category": "pharmacology",
+    "subject": "pharmacology",
+    "difficulty": "medium",
+    "tags": [
+      "confusable",
+      "drug_mechanism"
+    ],
+    "query": "What is the mechanism of action of furosemide?",
+    "correct": {
+      "label": "Loop diuretic: blocks Na-K-2Cl (NKCC2) in the thick ascending limb",
+      "gold": {
+        "any": [
+          [
+            "furosemide",
+            "frusemide",
+            "loop diuretic"
+          ],
+          [
+            "2cl",
+            "nkcc",
+            "thick ascending"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "Thiazides (NaCl cotransporter, distal tubule)",
+        "gold": {
+          "all": [
+            "thiazide"
+          ],
+          "any": [
+            [
+              "distal convoluted",
+              "ncc",
+              "nacl cotransport",
+              "na cl cotransport"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Spironolactone (aldosterone antagonist)",
+        "gold": {
+          "all": [
+            "spironolactone",
+            "aldosterone"
+          ]
+        }
+      },
+      {
+        "label": "Acetazolamide (carbonic anhydrase)",
+        "gold": {
+          "any": [
+            [
+              "acetazolamide"
+            ],
+            [
+              "carbonic anhydrase"
+            ]
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "c18",
+    "category": "neurology",
+    "subject": "neurology",
+    "difficulty": "hard",
+    "tags": [
+      "confusable",
+      "anatomy_localization",
+      "fcps_style"
+    ],
+    "query": "Occlusion of which artery causes the lateral medullary (Wallenberg) syndrome?",
+    "correct": {
+      "label": "PICA / vertebral artery",
+      "gold": {
+        "any": [
+          [
+            "lateral medullary",
+            "wallenberg"
+          ],
+          [
+            "posterior inferior cerebellar",
+            "=pica",
+            "vertebral"
+          ]
+        ]
+      }
+    },
+    "distractors": [
+      {
+        "label": "AICA (lateral pontine syndrome)",
+        "gold": {
+          "any": [
+            [
+              "anterior inferior cerebellar",
+              "=aica"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Anterior spinal artery (medial medullary syndrome)",
+        "gold": {
+          "any": [
+            [
+              "medial medullary"
+            ]
+          ]
+        }
+      },
+      {
+        "label": "Posterior cerebral artery",
+        "gold": {
+          "any": [
+            [
+              "posterior cerebral artery"
+            ]
+          ]
+        }
+      }
+    ],
+    "relevant_chunk_ids": [],
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  }
+]

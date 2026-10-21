@@ -1,0 +1,157 @@
+[
+  {"id": "t01", "subject": "biochemistry", "difficulty": "medium", "tags": ["exact_terminology", "buzzword"],
+   "query": "GALT",
+   "correct": {"label": "Contains GALT (or its expansion)", "gold": {"any": [["=galt", "galactose 1 phosphate uridyl", "gut associated lymphoid tissue"]]}},
+   "distractors": [
+     {"label": "Galactokinase (other galactosaemia enzyme)", "gold": {"all": ["galactokinase"], "none": ["=galt", "galactose 1 phosphate uridyl"]}},
+     {"label": "UDP-galactose epimerase", "gold": {"all": ["epimerase"], "any": [["galactose"]], "none": ["=galt", "galactose 1 phosphate uridyl"]}}
+   ],
+   "notes": "GALT names two things (galactose-1-phosphate uridyltransferase; gut-associated lymphoid tissue). Either counts: this test is about exactness, not sense.",
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t02", "subject": "haematology", "difficulty": "easy", "tags": ["exact_terminology", "buzzword"],
+   "query": "G6PD",
+   "correct": {"label": "Contains G6PD", "gold": {"any": [["g6pd", "glucose 6 phosphate dehydrogenase"]]}},
+   "distractors": [
+     {"label": "Pyruvate kinase deficiency", "gold": {"all": ["pyruvate kinase deficiency"], "none": ["g6pd", "glucose 6 phosphate dehydrogenase"]}},
+     {"label": "Glucose-6-phosphatase (von Gierke)", "gold": {"any": [["glucose 6 phosphatase", "von gierke"]], "none": ["g6pd", "glucose 6 phosphate dehydrogenase"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t03", "subject": "genetics", "difficulty": "easy", "tags": ["exact_terminology", "buzzword"],
+   "query": "HLA-B27",
+   "correct": {"label": "Contains HLA-B27", "gold": {"all": ["hla b27"]}},
+   "distractors": [
+     {"label": "HLA-DR4 / DR3", "gold": {"any": [["hla dr4", "hla dr3"]], "none": ["hla b27"]}},
+     {"label": "Seronegative spondyloarthropathy without the allele", "gold": {"any": [["ankylosing spondylitis", "reactive arthritis"]], "none": ["hla b27", "=b27"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t04", "subject": "pathology", "difficulty": "medium", "tags": ["exact_terminology", "buzzword"],
+   "query": "p-ANCA",
+   "correct": {"label": "Contains p-ANCA / MPO-ANCA", "gold": {"any": [["p anca", "panca", "mpo anca", "perinuclear anca", "myeloperoxidase anca", "perinuclear antineutrophil"]]}},
+   "distractors": [
+     {"label": "c-ANCA / PR3-ANCA", "gold": {"any": [["c anca", "canca", "pr3 anca", "cytoplasmic anca", "proteinase 3"]], "none": ["p anca", "panca", "mpo anca", "perinuclear"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t05", "subject": "microbiology", "difficulty": "easy", "tags": ["exact_terminology"],
+   "query": "CD4",
+   "correct": {"label": "Contains CD4", "gold": {"any": [["=cd4", "cd4+"]]}},
+   "distractors": [
+     {"label": "CD8 without CD4", "gold": {"any": [["=cd8"]], "none": ["=cd4"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t06", "subject": "pathology", "difficulty": "medium", "tags": ["exact_terminology"],
+   "query": "TNF-alpha",
+   "correct": {"label": "Contains TNF-alpha", "gold": {"any": [["tnf alpha", "tnf", "tumour necrosis factor", "tumor necrosis factor"]]}},
+   "distractors": [
+     {"label": "TGF-beta", "gold": {"any": [["tgf beta", "transforming growth factor"]], "none": ["=tnf", "tumour necrosis factor", "tumor necrosis factor"]}},
+     {"label": "Interleukin-6 / interferon-gamma", "gold": {"any": [["il 6", "interleukin 6", "interferon gamma", "ifn gamma"]], "none": ["=tnf", "tumour necrosis factor", "tumor necrosis factor"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t07", "subject": "medicine", "difficulty": "medium", "tags": ["exact_terminology", "buzzword"],
+   "query": "MODY",
+   "correct": {"label": "Contains MODY", "gold": {"any": [["=mody", "maturity onset diabetes of the young"]]}},
+   "distractors": [
+     {"label": "LADA", "gold": {"any": [["=lada", "latent autoimmune diabetes"]], "none": ["=mody", "maturity onset diabetes"]}},
+     {"label": "Neonatal / monogenic diabetes without MODY", "gold": {"any": [["neonatal diabetes", "monogenic diabetes"]], "none": ["=mody", "maturity onset diabetes"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t08", "subject": "haematology", "difficulty": "medium", "tags": ["exact_terminology", "buzzword", "confusable"],
+   "query": "Howell-Jolly bodies",
+   "correct": {"label": "Contains Howell-Jolly", "gold": {"all": ["howell jolly"]}},
+   "distractors": [
+     {"label": "Pappenheimer bodies", "gold": {"all": ["pappenheimer"], "none": ["howell jolly"]}},
+     {"label": "Heinz bodies", "gold": {"all": ["heinz"], "none": ["howell jolly"]}},
+     {"label": "Basophilic stippling", "gold": {"all": ["basophilic stippling"], "none": ["howell jolly"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t09", "subject": "haematology", "difficulty": "medium", "tags": ["exact_terminology", "buzzword", "confusable"],
+   "query": "Pappenheimer bodies",
+   "correct": {"label": "Contains Pappenheimer", "gold": {"all": ["pappenheimer"]}},
+   "distractors": [
+     {"label": "Howell-Jolly bodies", "gold": {"all": ["howell jolly"], "none": ["pappenheimer"]}},
+     {"label": "Heinz bodies", "gold": {"all": ["heinz"], "none": ["pappenheimer"]}},
+     {"label": "Basophilic stippling", "gold": {"all": ["basophilic stippling"], "none": ["pappenheimer"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t10", "subject": "haematology", "difficulty": "medium", "tags": ["exact_terminology", "buzzword", "confusable"],
+   "query": "Basophilic stippling",
+   "correct": {"label": "Contains basophilic stippling", "gold": {"all": ["basophilic stippling"]}},
+   "distractors": [
+     {"label": "Howell-Jolly bodies", "gold": {"all": ["howell jolly"], "none": ["basophilic stippling"]}},
+     {"label": "Heinz bodies", "gold": {"all": ["heinz"], "none": ["basophilic stippling"]}},
+     {"label": "Pappenheimer bodies", "gold": {"all": ["pappenheimer"], "none": ["basophilic stippling"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t11", "subject": "haematology", "difficulty": "medium", "tags": ["exact_terminology", "buzzword", "confusable"],
+   "query": "Heinz bodies",
+   "correct": {"label": "Contains Heinz bodies", "gold": {"all": ["heinz"]}},
+   "distractors": [
+     {"label": "Howell-Jolly bodies", "gold": {"all": ["howell jolly"], "none": ["heinz"]}},
+     {"label": "Pappenheimer bodies", "gold": {"all": ["pappenheimer"], "none": ["heinz"]}},
+     {"label": "Basophilic stippling", "gold": {"all": ["basophilic stippling"], "none": ["heinz"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t12", "subject": "pharmacology", "difficulty": "medium", "tags": ["exact_terminology", "drug_mechanism"],
+   "query": "PPAR-gamma",
+   "correct": {"label": "Contains PPAR-gamma", "gold": {"any": [["ppar gamma", "ppargamma"]]}},
+   "distractors": [
+     {"label": "PPAR-alpha (fibrates)", "gold": {"any": [["ppar alpha", "pparalpha"]], "none": ["ppar gamma", "ppargamma"]}},
+     {"label": "Other nuclear receptors (RXR, LXR)", "gold": {"any": [["retinoid x receptor", "=rxr", "=lxr"]], "none": ["ppar"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t13", "subject": "biochemistry", "difficulty": "medium", "tags": ["exact_terminology", "mechanism"],
+   "query": "Carnitine shuttle",
+   "correct": {"label": "Contains carnitine (shuttle / CPT)", "gold": {"all": ["carnitine"]}},
+   "distractors": [
+     {"label": "Malate-aspartate shuttle", "gold": {"any": [["malate aspartate"]], "none": ["carnitine"]}},
+     {"label": "Glycerol phosphate shuttle", "gold": {"any": [["glycerol 3 phosphate shuttle", "glycerol phosphate shuttle", "glycerophosphate shuttle"]], "none": ["carnitine"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t14", "subject": "neurology", "difficulty": "hard", "tags": ["exact_terminology", "anatomy_localization"],
+   "query": "AICA",
+   "correct": {"label": "Contains AICA / anterior inferior cerebellar artery", "gold": {"any": [["=aica", "anterior inferior cerebellar"]]}},
+   "distractors": [
+     {"label": "PICA", "gold": {"any": [["=pica", "posterior inferior cerebellar"]], "none": ["=aica", "anterior inferior cerebellar"]}},
+     {"label": "Superior cerebellar artery", "gold": {"any": [["superior cerebellar artery"]], "none": ["=aica", "anterior inferior cerebellar"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t15", "subject": "neurology", "difficulty": "hard", "tags": ["exact_terminology", "anatomy_localization"],
+   "query": "PCA infarct",
+   "correct": {"label": "Contains posterior cerebral artery / PCA", "gold": {"any": [["posterior cerebral artery", "=pca"]]}},
+   "distractors": [
+     {"label": "MCA / ACA territory", "gold": {"any": [["middle cerebral artery", "anterior cerebral artery", "=mca", "=aca"]], "none": ["posterior cerebral artery", "=pca"]}}
+   ],
+   "notes": "Bare 'PCA' is also patient-controlled analgesia; 'infarct' disambiguates it, as a student would.",
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t16", "subject": "anatomy", "difficulty": "medium", "tags": ["exact_terminology", "anatomy_localization", "confusable"],
+   "query": "thyroarytenoid",
+   "correct": {"label": "Contains thyroarytenoid", "gold": {"all": ["thyroarytenoid"]}},
+   "distractors": [
+     {"label": "Cricothyroid", "gold": {"all": ["cricothyroid"], "none": ["thyroarytenoid"]}},
+     {"label": "Cricoarytenoids", "gold": {"any": [["cricoarytenoid"]], "none": ["thyroarytenoid"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t17", "subject": "anatomy", "difficulty": "medium", "tags": ["exact_terminology", "anatomy_localization", "confusable"],
+   "query": "cricothyroid",
+   "correct": {"label": "Contains cricothyroid", "gold": {"all": ["cricothyroid"]}},
+   "distractors": [
+     {"label": "Thyroarytenoid", "gold": {"all": ["thyroarytenoid"], "none": ["cricothyroid"]}},
+     {"label": "Cricoarytenoids", "gold": {"any": [["cricoarytenoid"]], "none": ["cricothyroid"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t18", "subject": "neurology", "difficulty": "medium", "tags": ["exact_terminology", "anatomy_localization", "confusable"],
+   "query": "conus medullaris",
+   "correct": {"label": "Contains conus medullaris", "gold": {"all": ["conus medullaris"]}},
+   "distractors": [
+     {"label": "Cauda equina (without conus)", "gold": {"all": ["cauda equina"], "none": ["conus"]}},
+     {"label": "Filum terminale (without conus)", "gold": {"all": ["filum terminale"], "none": ["conus"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}},
+  {"id": "t19", "subject": "neurology", "difficulty": "medium", "tags": ["exact_terminology", "anatomy_localization", "confusable"],
+   "query": "cauda equina",
+   "correct": {"label": "Contains cauda equina", "gold": {"all": ["cauda equina"]}},
+   "distractors": [
+     {"label": "Conus medullaris (without cauda equina)", "gold": {"all": ["conus medullaris"], "none": ["cauda equina"]}},
+     {"label": "Lumbar spinal stenosis / sciatica (without cauda equina)", "gold": {"any": [["spinal stenosis", "sciatica"]], "none": ["cauda equina"]}}
+   ],
+   "relevant_chunk_ids": [], "annotation": {"status": "unverified", "basis": "predicate"}}
+]

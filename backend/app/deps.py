@@ -79,6 +79,7 @@ def bg_ingest_worker(temp_pdf_path: str, filename: str, book_title: str):
 def _mcq_payload(m: MCQ) -> dict:
     from sqlalchemy.orm import object_session
 
+    from app.answer_stats import difficulty_info
     from app.past_papers import question_media
 
     sess = object_session(m)
@@ -95,6 +96,7 @@ def _mcq_payload(m: MCQ) -> dict:
         "figure_id": m.figure_id,
         "concept_id": m.concept_id,
         "grounding": m.grounding,
+        **difficulty_info(m),
     }
 
 class MockAnswersRequest(BaseModel):

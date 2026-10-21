@@ -1,0 +1,304 @@
+[
+  {
+    "id": "lab001",
+    "question": "Diagnosis and treatment of pyloric stenosis",
+    "level": "FCPS-II",
+    "intent": "management",
+    "expected_components": [
+      "clinical presentation (projectile non-bilious vomiting, palpable olive)",
+      "ultrasound diagnosis",
+      "hypochloraemic hypokalaemic metabolic alkalosis",
+      "fluid and electrolyte correction before surgery",
+      "Ramstedt pyloromyotomy"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [
+        "pylor"
+      ],
+      "any": [
+        [
+          "pyloromyotomy",
+          "ramstedt"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": []
+  },
+  {
+    "id": "lab002",
+    "question": "What is the mechanism of action of pioglitazone?",
+    "level": "FCPS-I",
+    "intent": "mechanism",
+    "expected_components": [
+      "PPAR-gamma agonist",
+      "altered gene transcription",
+      "improved insulin sensitivity in adipose tissue and muscle"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "pioglitazone",
+          "thiazolidinedione",
+          "glitazone"
+        ],
+        [
+          "ppar",
+          "peroxisome proliferator"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker q022"
+  },
+  {
+    "id": "lab003",
+    "question": "Management of diabetic ketoacidosis",
+    "level": "FCPS-II",
+    "intent": "management",
+    "expected_components": [
+      "intravenous fluid resuscitation",
+      "fixed-rate insulin infusion",
+      "potassium monitoring and replacement",
+      "monitoring glucose, ketones and pH",
+      "identify and treat the precipitant"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "ketoacidosis",
+          "=dka"
+        ],
+        [
+          "insulin",
+          "fluid",
+          "potassium"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker q038"
+  },
+  {
+    "id": "lab004",
+    "question": "A 60-year-old man has sudden vertigo, dysphagia, hoarseness, ipsilateral Horner syndrome, and loss of pain and temperature on the ipsilateral face and contralateral body. Which artery is occluded?",
+    "level": "FCPS-I",
+    "intent": "anatomy",
+    "expected_components": [
+      "lateral medullary (Wallenberg) syndrome",
+      "posterior inferior cerebellar or vertebral artery",
+      "structures in the lateral medulla explaining each sign"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "lateral medullary",
+          "wallenberg",
+          "lateral part of the medulla"
+        ],
+        [
+          "posterior inferior cerebellar",
+          "=pica",
+          "vertebral"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker q052"
+  },
+  {
+    "id": "lab005",
+    "question": "Which red cell inclusions are seen in G6PD deficiency, and why do they form?",
+    "level": "MBBS",
+    "intent": "pathology",
+    "expected_components": [
+      "Heinz bodies",
+      "denatured haemoglobin after oxidative stress",
+      "bite cells after splenic removal"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [
+        "heinz"
+      ],
+      "any": [
+        [
+          "g6pd",
+          "glucose 6 phosphate dehydrogenase"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker q056"
+  },
+  {
+    "id": "lab006",
+    "question": "What is the antidote for heparin overdose and how does it work?",
+    "level": "MBBS",
+    "intent": "pharmacology",
+    "expected_components": [
+      "protamine sulfate",
+      "positively charged protamine binds negatively charged heparin"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [
+        "protamine",
+        "heparin"
+      ],
+      "any": []
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker q024"
+  },
+  {
+    "id": "lab007",
+    "question": "What is the most common site of epistaxis?",
+    "level": "MBBS",
+    "intent": "anatomy",
+    "expected_components": [
+      "Little's area (Kiesselbach plexus) on the anterior septum",
+      "the arteries forming the plexus"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "little's area",
+          "littles area",
+          "kiesselbach"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker q049"
+  },
+  {
+    "id": "lab008",
+    "question": "Where are the baroreceptors and how do they buffer changes in arterial pressure?",
+    "level": "FCPS-I",
+    "intent": "physiology",
+    "expected_components": [
+      "carotid sinus and aortic arch",
+      "afferents via glossopharyngeal and vagus nerves",
+      "reflex change in heart rate and vascular tone"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [
+        "baroreceptor"
+      ],
+      "any": [
+        [
+          "carotid sinus",
+          "aortic arch"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker c15"
+  },
+  {
+    "id": "lab009",
+    "question": "Differentiate nephrotic from nephritic syndrome",
+    "level": "FCPS-II",
+    "intent": "comparison",
+    "expected_components": [
+      "heavy proteinuria, hypoalbuminaemia, oedema, hyperlipidaemia (nephrotic)",
+      "haematuria, hypertension, oliguria, RBC casts (nephritic)",
+      "typical causes of each"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [
+        "nephrotic",
+        "nephritic"
+      ]
+    },
+    "relevant_chunk_ids": []
+  },
+  {
+    "id": "lab010",
+    "question": "Mechanism of action of cholera toxin",
+    "level": "FCPS-I",
+    "intent": "mechanism",
+    "expected_components": [
+      "ADP-ribosylation of Gs",
+      "persistently raised cAMP",
+      "chloride and water secretion causing watery diarrhoea"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [
+        "cholera"
+      ],
+      "any": [
+        [
+          "camp",
+          "cyclic amp",
+          "adenyl"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker q028"
+  },
+  {
+    "id": "lab011",
+    "question": "Investigation of choice for suspected pulmonary embolism",
+    "level": "FCPS-II",
+    "intent": "investigation",
+    "expected_components": [
+      "CT pulmonary angiography",
+      "clinical probability (Wells) and D-dimer",
+      "V/Q scan when CTPA is unsuitable"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [
+        "pulmonary embol"
+      ],
+      "any": [
+        [
+          "ctpa",
+          "ct pulmonary angiogra",
+          "computed tomography pulmonary angiogra"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker q042"
+  },
+  {
+    "id": "lab012",
+    "question": "What causes Howell-Jolly bodies?",
+    "level": "MBBS",
+    "intent": "pathology",
+    "expected_components": [
+      "nuclear remnants in red cells",
+      "hyposplenism or splenectomy"
+    ],
+    "gold_notes": "Draft components written by Claude, not clinician-reviewed: edit before trusting scores.",
+    "gold": {
+      "all": [
+        "howell jolly"
+      ],
+      "any": [
+        [
+          "splen",
+          "asplen",
+          "hyposplen"
+        ]
+      ]
+    },
+    "relevant_chunk_ids": [],
+    "source": "labs/evaluation/reranker c01"
+  }
+]

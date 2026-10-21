@@ -49,7 +49,8 @@ import QuestionPlayer, { ConfidenceRow } from "@/components/QuestionPlayer";
 import SessionSummary, { NextAction } from "@/components/SessionSummary";
 import { AppLinks, VIEW_LABEL, ViewId, askAboutQuestion } from "@/lib/nav";
 import HardenPanel, { HARDEN_MAX_QUESTIONS, HARDEN_STORAGE_KEY, HardenLevel, hardenBlockReason, previewLine, useHardenPreview } from "@/components/HardenPanel";
-import PracticePicker, { EMPTY_SCOPE, PracticeScope, describeScope, scopeActive } from "@/components/PracticePicker";
+import { EMPTY_SCOPE, PracticeScope, describeScope, scopeActive } from "@/components/PracticePicker";
+import PaperPicker from "@/components/PaperPicker";
 
 // Quiz generation runs as a background job: the start request returns at once
 // and the page polls its status, so no proxy/browser timeout can cut it off.
@@ -137,7 +138,7 @@ interface QuizViewProps {
   onFigureClick: (fig: Figure) => void;
   books?: Book[];
   getHeaders?: () => HeadersInit;
-  startAiCustomQuiz?: (quizSetId: string) => Promise<void>;
+  startAiCustomQuiz?: (quizSetId: string, label?: string) => Promise<void>;
   startQuizWith?: (filters: Record<string, unknown>, label?: string, returnTo?: string) => Promise<void>;
   lastRun?: { filters: Record<string, unknown>; label: string; returnTo?: string; total: number; unseen: number; batch: number } | null;
 }
@@ -200,6 +201,12 @@ const CATEGORY_GROUPS: { title: string; match: (c: string) => boolean }[] = [
   { title: "Other exams", match: (c) => ["English", "NTS MCQ bank", "NTS mocks"].includes(c) },
 ];
 const SMALL_CATEGORY = 20;   // sets smaller than this sit behind "More"
+// Categories the Paper 1 / Paper 2 choice already covers (backend app/practice_scope.py), plus
+// "AI MCQs", whose sets are offered one by one under Special sets.
+const PAPER_SOURCES = new Set([
+  "Paper 1 · Basic sciences", "Paper 2 · Faculty", "Past papers · FCPS Part 1",
+  "Past papers · FCPS Part 1 (Dentistry)", "AI MCQs",
+]);
 const categoryCount = (c: any): number => c.sub_categories.reduce((sum: number, s: any) => sum + s.count, 0);
 function groupCategories(categories: any[]): { title: string; items: any[] }[] {
   const groups = CATEGORY_GROUPS.map((g) => ({ title: g.title, items: [] as any[] }));
@@ -760,6 +767,12 @@ export default function QuizView({
   // ─── Stage 1: Configure ───────────────────────────────────────────────────
   if (quizStep === "config") {
     const mainCategories = stats?.categories || [];
+    // Sets that are not one of the two papers: the papers come from the bank and past papers
+    // through the Paper 1 / Paper 2 choice, and AI sets are listed one by one in the picker.
+    const specialCollections = mainCategories
+      .filter((c: any) => !PAPER_SOURCES.has(c.main_category))
+      .map((c: any) => ({ name: c.main_category as string, count: categoryCount(c) }))
+      .filter((c: { count: number }) => c.count > 0);
 
     const toggleCategory = (catName: string) => {
       clearScope();
@@ -852,6 +865,10 @@ export default function QuizView({
 
     const handleNextStep = () => {
       if (quizConfigStep === 1) {
+        if (!scopeOn && quizConfigCategories.length === 0) {
+          toast.warning("Choose Paper 1, Paper 2 or a special set first.");
+          return;
+        }
         const activeSubCount =
           quizConfigSubCategories.length > 0
             ? quizConfigSubCategories.length
@@ -1048,25 +1065,6 @@ export default function QuizView({
               </button>
             </div>
 
-            {/* F4 — drill previously-missed questions */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px" }}>
-              <button
-                type="button"
-                className="btn-workspace"
-                onClick={handleStartDrill}
-                disabled={quizIsLoading}
-                title="Practice only the questions you've answered incorrectly before"
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.76rem" }}
-              >
-                {quizIsLoading ? (
-                  <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
-                ) : (
-                  <RotateCcw size={12} />
-                )}
-                Drill Missed Questions
-              </button>
-            </div>
-
             {/* Mode Content Container with Fixed Min-Height & Transition Animations */}
             <div style={{ minHeight: "440px", display: "flex", flexDirection: "column", position: "relative" }}>
               <AnimatePresence mode="wait">
@@ -1081,144 +1079,26 @@ export default function QuizView({
                   {/* Mode 1: Manual Builder */}
                   {builderMode === "manual" && (
                     <>
-                      {/* Phase 6 — one-click FCPS-style mock papers using the existing timed + board modes */}
-                      <div style={{ display: "flex", gap: "var(--sp-2)", flexWrap: "wrap", marginBottom: "var(--sp-3)" }}>
-                        {MOCK_PRESETS.map((preset) => (
-                          <button
-                            key={preset.key}
-                            type="button"
-                            onClick={() => {
-                              setQuizConfigCategories([]);
-                              setQuizConfigSubCategories([]);
-                              clearScope();
-                              setQuizConfigNumQuestions(Math.max(1, Math.min(preset.questions, totalSystemMCQs || preset.questions)));
-                              setQuizConfigTimerMode("session");
-                              setQuizConfigTimerValue(preset.minutes);
-                              setQuizConfigFeedbackMode("board");
-                              setQuizConfigExcludeMastered(false);
-                              setQuizConfigStep(3);
-                              if (totalSystemMCQs && totalSystemMCQs < preset.questions) {
-                                toast.warning(`Only ${totalSystemMCQs} questions in the bank yet; the paper will use all of them.`);
-                              } else {
-                                toast.success(`${preset.title} set up: review the settings and start.`);
-                              }
-                            }}
-                            style={{
-                              flex: "1 1 240px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: "12px",
-                              padding: "12px 14px",
-                              borderRadius: "12px",
-                              border: "1px dashed var(--sky)",
-                              background: "rgba(48,197,255,0.06)",
-                              color: "var(--text-primary)",
-                              cursor: "pointer",
-                              textAlign: "left",
-                            }}
-                            title="All subjects, unseen questions first, one session timer, answers revealed at the end (75% pass line)"
-                          >
-                            <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                              <span style={{ fontWeight: 700, fontSize: "0.86rem" }}>{preset.title}</span>
-                              <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                                {preset.questions} questions · {preset.minutes} min · all subjects · board mode · unseen first
-                              </span>
-                            </span>
-                            <Clock size={16} style={{ color: "var(--sky)", flexShrink: 0 }} />
-                          </button>
-                        ))}
-                      </div>
-
+                      {/* One builder: Paper 1 or Paper 2 (bank + past papers together), your missed
+                          questions, or a special set. Full timed papers are under Programme exams,
+                          and going through the archive paper by paper is the Past papers tab. */}
                       {getHeaders ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", marginBottom: "var(--sp-2)" }}>
-                          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            FCPS Part 1 by subject &amp; topic
-                          </label>
-                          <PracticePicker getHeaders={getHeaders} scope={practiceScope} setScope={pickScope} onSize={setScopeCount} />
-                        </div>
+                        <PaperPicker
+                          getHeaders={getHeaders}
+                          scope={practiceScope}
+                          setScope={pickScope}
+                          onSize={setScopeCount}
+                          collections={specialCollections}
+                          pickedCollection={quizConfigCategories.length === 1 && !scopeOn ? quizConfigCategories[0] : null}
+                          onPickCollection={(name) => {
+                            setQuizConfigSubCategories([]);
+                            setQuizConfigCategories(name ? [name] : []);
+                          }}
+                          onDrillMissed={() => handleStartDrill?.()}
+                          onStartSet={(id, label) => startAiCustomQuiz?.(id, label)}
+                          busy={quizIsLoading}
+                        />
                       ) : null}
-
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", opacity: scopeOn ? 0.55 : 1 }}>
-                        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                          Other question sets {scopeOn ? <span style={{ textTransform: "none", fontWeight: 400 }}>(picking one replaces the subject selection)</span> : null}
-                        </label>
-                        {groupCategories(mainCategories).map((group) => {
-                          const shown = showSmallCategories ? group.items : group.items.filter((c: any) => categoryCount(c) >= SMALL_CATEGORY);
-                          const hidden = group.items.length - shown.length;
-                          return (
-                            <div key={group.title} style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "10px" }}>
-                              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{group.title}</div>
-                              <div className="config-category-grid" role="group" aria-label={group.title}>
-                                {group.title === CATEGORY_GROUPS[0].title ? (
-                                  <button
-                                    type="button"
-                                    className={`config-category-card ${quizConfigCategories.length === 0 && !scopeOn ? "active" : ""}`}
-                                    onClick={() => { setQuizConfigCategories([]); setQuizConfigSubCategories([]); clearScope(); }}
-                                  >
-                                    <span className="config-category-title">Mixed Practice (All)</span>
-                                    <span className="config-category-subtitle">Every subject you can practise</span>
-                                  </button>
-                                ) : null}
-                                {shown.map((c: any) => {
-                                  const isSelected = quizConfigCategories.includes(c.main_category);
-                                  return (
-                                    <button
-                                      key={c.main_category}
-                                      type="button"
-                                      className={`config-category-card ${isSelected ? "active" : ""}`}
-                                      onClick={() => toggleCategory(c.main_category)}
-                                    >
-                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: "12px" }}>
-                                        <span className="config-category-title" title={c.main_category} style={{ textAlign: "left", flex: 1 }}>{c.main_category}</span>
-                                        <div style={{ flexShrink: 0, marginTop: "2px" }}>
-                                          <Checkbox checked={isSelected} readOnly />
-                                        </div>
-                                      </div>
-                                      <span className="config-category-subtitle">{c.sub_categories.length} subtopics · {categoryCount(c).toLocaleString()} MCQs</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {hidden > 0 ? (
-                                <button type="button" className="btn-workspace" style={{ padding: "3px 10px", fontSize: "0.72rem" }}
-                                  onClick={() => setShowSmallCategories(true)}>
-                                  More ({hidden} small set{hidden > 1 ? "s" : ""})
-                                </button>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", marginTop: "24px" }}>
-                        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                          Sub-Category Topics
-                        </label>
-                        <div className="config-sub-pills-list">
-                          <button
-                            type="button"
-                            className={`config-sub-pill ${quizConfigSubCategories.length === 0 ? "active" : ""}`}
-                            onClick={() => setQuizConfigSubCategories([])}
-                          >
-                            All Subtopics
-                          </button>
-                          {subCategoryOptions.map((s: any, i: number) => {
-                            const isSelected = quizConfigSubCategories.includes(s.name);
-                            return (
-                              <button
-                                key={i}
-                                type="button"
-                                className={`config-sub-pill ${isSelected ? "active" : ""}`}
-                                onClick={() => toggleSubCategory(s.name)}
-                              >
-                                {isSelected ? "✓ " : ""}{s.name} ({s.count})
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
 
                       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "auto", paddingTop: "var(--sp-4)" }}>
                         <button className="btn-primary" onClick={handleNextStep}>

@@ -1,0 +1,1011 @@
+{
+  "generated_at": "2026-10-12T15:51:19",
+  "questions_file": "labs/evaluation/grounding/uncovered_questions.json",
+  "summary": {
+    "n_questions": 8,
+    "grounding_distribution": {
+      "partial": 8
+    },
+    "abstention_rate": 0.0,
+    "mean_citations": 4.25,
+    "mean_sources": 8.0,
+    "mean_supplement_ratio": 0.389,
+    "citations_in_context_rate": 1.0
+  },
+  "results": [
+    {
+      "mechanical": {
+        "id": "unc001",
+        "question": "What is the 2026 ADA Standards of Care HbA1c target for non-pregnant adults over 75 without frailty?",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 2,
+        "n_sources": 8,
+        "top_relevance": -1.5787,
+        "supplement_ratio": 0.432,
+        "citations_in_context": 2,
+        "elapsed_s": 75.3
+      },
+      "labelled": {},
+      "answer_markdown": "The retrieved textbook passages do not contain the 2026 ADA Standards of Care. They provide older, general guidance on HbA1c targets in older adults. Davidson's Medicine states that a higher HbA1c target of 58 mmol/mol (7.5%) may be more appropriate in older patients with pre-existing cardiovascular disease or those at risk of hypoglycaemia [Davidson's Medicine 23e, Page 761]. Katzung Pharmacology notes that for the elderly frail patient an HbA1c greater than 8% may be appropriate, and that less stringent control is appropriate for patients with limited life expectancy [Katzung Pharmacology 14e, Page 779]. Neither source specifies a target for non-pregnant adults over 75 without frailty, nor do they reflect the 2026 ADA Standards of Care.\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\nThe 2026 ADA Standards of Care recommend an HbA1c target of <7.0% (53 mmol/mol) for most non-pregnant adults, including those over 75 years who are healthy and without frailty. For older adults with frailty, limited life expectancy, or high hypoglycaemia risk, a less stringent target such as <8.0% (64 mmol/mol) is advised. The key distinction is that age alone (over 75) does not automatically mandate a higher target if the patient is robust and without comorbidities. Always individualise based on overall health status, hypoglycaemia risk, and patient preference.",
+      "citations": [
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 761,
+          "excerpt": "a higher target of 58 mmol/mol may be more appropriate in older patients with pre-existing cardiovascular disease, or those treated with insulin and therefore at risk of hypoglycaemia"
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 779,
+          "excerpt": "For the elderly frail patient an HbA 1c greater than 8% may be appropriate."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 87772,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Therapeutic goals",
+          "page_number": 761,
+          "snippet": "The target HbA1c depends on the individual patient. Early on in diabetes (i.e. patients managed by diet or one or two oral agents), a target of 48 mmol/mol or less may be appropriate. However, a higher target of 58 mmol/mol may be more appropriate in older patients with pre-existing cardiovascular\u2026",
+          "rank": 1,
+          "relevance_score": -1.5787
+        },
+        {
+          "chunk_id": 394085,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > Glycosylated Hemoglobin (HbA1c)",
+          "page_number": 1341,
+          "snippet": "HbA1c measurements should be obtained three to four times a year to obtain a profile of long- term glycemic control. The lower the HbA1c level, the more likely it is that microvascular complications such as retinopathy and nephropathy will be less severe, delayed in appearance, or even avoided\u2026",
+          "rank": 2,
+          "relevance_score": -1.2222
+        },
+        {
+          "chunk_id": 63790,
+          "book_id": 38,
+          "book_title": "Robbins Basic Pathology 9e",
+          "chapter": "Clinical Features",
+          "page_number": 764,
+          "snippet": "Several large-scale prospective studies have convincingly demonstrated that the long-term complications, and the associated morbidity and mortality, from diabetes are attenuated by strict glycemic control. For patients with type 1 diabetes, insulin replacement therapy is the mainstay of treatment,\u2026",
+          "rank": 3,
+          "relevance_score": -4.8233
+        },
+        {
+          "chunk_id": 208983,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "Glycemic Targets",
+          "page_number": 779,
+          "snippet": "and macrovascular disease. For the elderly frail patient an HbA 1c greater than 8% may be appropriate.",
+          "rank": 4,
+          "relevance_score": -2.1686
+        },
+        {
+          "chunk_id": 263860,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Unit V: Integration of Metabolism > Chapter 25: Diabetes Mellitus > A. Diagnosis",
+          "page_number": 931,
+          "snippet": "osis of diabetes is confirmed by a fasting blood glucose (FBG) level >125 mg/dl (normal is 70 to 99). (Note: Fasting is defined as no caloric intake for at least 8 hours.) An FBG of 100 to 125 mg/dl is categorized as an impaired FBG, or impaired glucose tolerance. Individuals with impaired FBG have\u2026",
+          "rank": 5,
+          "relevance_score": -3.0199
+        },
+        {
+          "chunk_id": 297623,
+          "book_id": 90,
+          "book_title": "Obstetrics by Ten Teachers 21e",
+          "chapter": "16 Neonates 293 > CASE HISTORY 1",
+          "page_number": 185,
+          "snippet": "A 36-year-old woman with a history of type 1 diabetes is referred to the diabetes pregnancy service, as she is considering a pregnancy. She has mild retinopathy, has not had any previous pregnancies and does not currently take any regular medication in addition to her insulin. Her most recent HbA1c\u2026",
+          "rank": 6,
+          "relevance_score": -5.0973
+        },
+        {
+          "chunk_id": 87910,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "20.37 Diabetes management in old age",
+          "page_number": 776,
+          "snippet": "- Glycaemic control : the optimal target for glycaemic control in older people has yet to be determined. Strict glycaemic control should be avoided in frail patients with comorbidities and in older patients with long duration of diabetes. - Cognitive function and affect : may benefit from improved\u2026",
+          "rank": 7,
+          "relevance_score": -1.8437
+        },
+        {
+          "chunk_id": 208746,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "B. Hemoglobin A1c Measurements",
+          "page_number": 766,
+          "snippet": "When plasma glucose levels are in the normal range, about 4-6% of hemoglobin A has one or both of the N terminal valines of their beta chains irreversibly glycated by glucose-referred to as hemoglobin A1c (HbA1c). The HbA1c fraction is abnormally elevated in people with diabetes with chronic\u2026",
+          "rank": 8,
+          "relevance_score": -4.7721
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "unc002",
+        "question": "Which once-daily oral drug received EMA approval in 2026 for transthyretin amyloid cardiomyopathy, and what is its mechanism?",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 3,
+        "n_sources": 8,
+        "top_relevance": -3.3894,
+        "supplement_ratio": 0.504,
+        "citations_in_context": 3,
+        "elapsed_s": 9.7
+      },
+      "labelled": {},
+      "answer_markdown": "The retrieved textbook passages do not contain information about a once-daily oral drug that received EMA approval in 2026 for transthyretin amyloid cardiomyopathy. The passages discuss older or related topics: RNA interference-based therapeutics for hereditary transthyretin-mediated amyloidosis (hATTR) with patisiran, an siRNA-based drug approved in 2018 [Lippincott Biochemistry, Page 1292]; general treatment approaches for transthyretin amyloidosis including liver transplantation and medications that stabilize tetramers or disrupt fibrils [Nelson Pediatrics 22e Vol 1, Page 1540]; and leflunomide, an oral once-daily DMARD for rheumatoid arthritis and juvenile idiopathic arthritis [Nelson Pediatrics 22e Vol 1, Page 1480]. None of these passages mention a 2026 EMA approval or a specific once-daily oral drug for transthyretin amyloid cardiomyopathy.\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\nAs of my knowledge cutoff, no drug has received EMA approval in 2026 for transthyretin amyloid cardiomyopathy (ATTR-CM). The current standard treatments for ATTR-CM include tafamidis (a transthyretin stabilizer) and, more recently, acoramidis (another stabilizer) and RNAi therapeutics like patisiran and vutrisiran (which reduce TTR production). However, these were approved before 2026. It is possible the question refers to a newly approved agent such as a CRISPR-based therapy or an oral stabilizer, but I cannot confirm any 2026 EMA approval. Exam candidates should be aware that tafamidis is the only oral drug approved for ATTR-CM (by EMA in 2020) and works by stabilizing the transthyretin tetramer to prevent dissociation into amyloidogenic monomers. For FCPS-II, focus on the mechanism of TTR stabilizers and the difference between stabilizers and gene silencers.",
+      "citations": [
+        {
+          "book_title": "Lippincott Biochemistry 8e",
+          "page_number": 1292,
+          "excerpt": "In 2018, the first RNAi-based therapy was approved to treat peripheral nerve disease (polyneuropathy) in patients with hereditary transthyretin-mediated amyloidosis (hATTR) caused by a mutation in the gene encoding transthyretin (TTR). The siRNA-based drug, patisiran,"
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 1540,
+          "excerpt": "Transthyretin amyloidosis has been treated with liver transplantation, which removes the source of mutated transthyretin molecules, and several medications that inhibit the synthesis of the mutated protein, stabilize tetramers of the protein, or disrupt fibrils."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 1480,
+          "excerpt": "Leflunomide is a DMARD approved for treatment of RA and also offers an alternative to MTX for treatment of JIA. Dosing is oral, once daily, and weight based"
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 351829,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIV -Rheumatic Diseases of Childhood (Connective Tissue Disease, Collagen Vascular Diseases) > Chapter 206 \u2013 Amyloidosis > TREATMENT",
+          "page_number": 1540,
+          "snippet": "Transthyretin amyloidosis has been treated with liver transplantation, which removes the source of mutated transthyretin molecules, and several medications that inhibit the synthesis of the mutated protein, stabilize tetramers of the protein, or disrupt fibrils.",
+          "rank": 1,
+          "relevance_score": -3.3894
+        },
+        {
+          "chunk_id": 265647,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Unit VII: Storage and Expression of Genetic Information > Chapter 33: Regulation of Gene Expression > B. Messenger RNA processing and use",
+          "page_number": 1293,
+          "snippet": "prevents the production of abnormal TTR protein and reduces the buildup of amyloid deposits containing TTR that form in peripheral nerves and in the heart. Several other RNAi therapeutics are undergoing clinical trials.",
+          "rank": 2,
+          "relevance_score": -4.2447
+        },
+        {
+          "chunk_id": 350597,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIV -Rheumatic Diseases of Childhood (Connective Tissue Disease, Collagen Vascular Diseases) > Chapter 194 \u2013 Evaluation of Suspected Rheumatic Disease > Leflunomide",
+          "page_number": 1480,
+          "snippet": "Leflunomide is a DMARD approved for treatment of RA and also offers an alternative to MTX for treatment of JIA. MTX outperformed leflunomide for treatment of JIA in a randomized trial (at 16 weeks, 89% of patients receiving MTX achieved a 30% response rate vs 68% of those receiving leflunomide),\u2026",
+          "rank": 3,
+          "relevance_score": -3.9172
+        },
+        {
+          "chunk_id": 265646,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Unit VII: Storage and Expression of Genetic Information > Chapter 33: Regulation of Gene Expression > B. Messenger RNA processing and use",
+          "page_number": 1292,
+          "snippet": "endonuclease (Dicer) completes the processing and generates short, double-stranded miRNA. A single strand (the guide or antisense strand) of the miRNA associates with a cytosolic protein complex known as the RNAinduced silencing complex (RISC). The guide strand hybridizes with a complementary\u2026",
+          "rank": 4,
+          "relevance_score": -5.5365
+        },
+        {
+          "chunk_id": 398175,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXV -The Nervous System > Chapter 639 \u2013 Neurodegenerative Disorders of Childhood > https://trungtamthuoc.com/",
+          "page_number": 1543,
+          "snippet": "| on preparation) Glatiramer acetate (daily or 3 times weekly, subcutaneous injection) | Immunomodulator Stimulation of regulatory T- | Th- 2 cells Injection site reactions; transient flushing, chest tightness and shortness of breath. Lipodystrophy at injection sites | \u223c33% decrease in ARR and\u2026",
+          "rank": 5,
+          "relevance_score": -4.2023
+        },
+        {
+          "chunk_id": 351828,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIV -Rheumatic Diseases of Childhood (Connective Tissue Disease, Collagen Vascular Diseases) > Chapter 206 \u2013 Amyloidosis > TREATMENT",
+          "page_number": 1540,
+          "snippet": "Tocilizumab, an anti-IL- 6 receptor antibody, has been shown to attenuate experimental AA amyloid and to reverse AA amyloidosis complicating JIA and RA. A trial using eprodisate disodium in AA amyloid patients failed to meet its primary end- point of reducing progression to end- stage renal disease\u2026",
+          "rank": 6,
+          "relevance_score": -6.4112
+        },
+        {
+          "chunk_id": 351826,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIV -Rheumatic Diseases of Childhood (Connective Tissue Disease, Collagen Vascular Diseases) > Chapter 206 \u2013 Amyloidosis > TREATMENT",
+          "page_number": 1540,
+          "snippet": "The class of medications referred to as the TNF inhibitors have been paramount in the management of RA and other autoimmune diseases, and there are reports documenting the effectiveness of anti- TNF agents in blunting the progression of amyloidosis. Adverse effects of anti- TNF medications include\u2026",
+          "rank": 7,
+          "relevance_score": -7.8258
+        },
+        {
+          "chunk_id": 398178,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXV -The Nervous System > Chapter 639 \u2013 Neurodegenerative Disorders of Childhood > https://trungtamthuoc.com/",
+          "page_number": 1544,
+          "snippet": "| reconstitution syndrome after discontinuation; melanoma Modulates sphingosine- 1- phosphate receptors; causes T- cell sequestration in lymphoid compartments First- dose bradycardia; cardiac arrhythmia; systemic viral infection; persistent lymphopenia with risk of severe herpetic and varicella\u2026",
+          "rank": 8,
+          "relevance_score": -7.6181
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "unc003",
+        "question": "What is the 2025 NICE guideline first-line investigation for suspected chronic kidney disease in a 25-year-old?",
+        "level": "FCPS-II",
+        "intent": "investigations",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 3,
+        "n_sources": 8,
+        "top_relevance": -3.2277,
+        "supplement_ratio": 0.4,
+        "citations_in_context": 3,
+        "elapsed_s": 15.2
+      },
+      "labelled": {},
+      "answer_markdown": "The retrieved textbook passages do not contain the 2025 NICE guideline for suspected chronic kidney disease (CKD) in a 25-year-old. The available nephrology texts address CKD investigation in different contexts: Nelson Pediatrics 22e Vol 2 discusses monitoring of proteinuria and estimation of GFR in children and young adults, noting that creatinine-based estimating equations have reduced accuracy in young adults aged 18\u201325 years and that newer formulas (e.g., CKiD U25) incorporating creatinine and cystatin C improve accuracy [Nelson Pediatrics 22e Vol 2, Page 1053]. Davidson's Medicine 23e lists 'Investigation of renal and urinary tract disease' including GFR, urine investigations, blood tests, and imaging, but the retrieved content is only the table of contents and does not specify first-line investigation for CKD [Davidson's Medicine 23e, Page 400]. Bailey & Love 28e addresses haematuria investigation, recommending serum eGFR assessment and urine culture, with cystoscopy and CT urogram for visible haematuria, but this is not specific to CKD [Bailey & Love 28e, Page 1536]. Ramadas Pathology 2e defines CKD as persistently diminished GFR <60 mL/min/1.73 m\u00b2 for at least 3 months and/or persistent albuminuria, but does not provide guideline-based investigation [Ramadas Pathology 2e, Page 617]. Therefore, the textbook passages do not answer the specific question about the 2025 NICE guideline first-line investigation for suspected CKD in a 25-year-old.\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\nThe 2025 NICE guideline for chronic kidney disease (NG203, updated 2025) recommends that for adults with suspected CKD, the first-line investigation is an estimated glomerular filtration rate (eGFR) using a creatinine-based equation (e.g., CKD-EPI) and a urine albumin-to-creatinine ratio (ACR) on a spot urine sample. For a 25-year-old, the same initial tests apply: serum creatinine for eGFR and urine ACR. NICE advises using the CKD-EPI creatinine equation (or cystatin C-based eGFR if confirmation is needed) and does not recommend routine ultrasound as first-line unless specific indications (e.g., visible haematuria, obstruction, family history of polycystic kidney disease). The diagnosis of CKD requires abnormalities of eGFR (<60 mL/min/1.73 m\u00b2) and/or albuminuria (ACR \u22653 mg/mmol) persisting for at least 3 months. In young adults, additional investigations may include urine microscopy for haematuria and consideration of underlying causes (e.g., glomerulonephritis).",
+      "citations": [
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1053,
+          "excerpt": "estimating GFR by endogenous markers (such as creatinine and/or cystatin C) is the most utilized method to understand severity of renal disease"
+        },
+        {
+          "book_title": "Ramadas Pathology 2e",
+          "page_number": 617,
+          "excerpt": "Chronic kidney disease (previously termed chronic renal failure), Manifestations = Persistently diminished GFR less than 60 mL/minute/1.73 m 2 for at least 3 months, from any cause, and/or persistent albuminuria."
+        },
+        {
+          "book_title": "Bailey & Love 28e",
+          "page_number": 1536,
+          "excerpt": "Serum estimated glomerular filtration rate (eGFR) should be assessed"
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 385122,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXI -Nephrology > Chapter 566 \u2013 Conditions Associated with Proteinuria > GLOMERULAR PROTEINURIA",
+          "page_number": 1026,
+          "snippet": "features of a chronic kidney disease might not yet be apparent. Such patients should have periodic reevaluation (ideally every 4- 6 months unless the patient is or becomes symptomatic). The evaluation should consist of a physical examination with accurate blood pressure measurement, urinalysis,\u2026",
+          "rank": 1,
+          "relevance_score": -3.2277
+        },
+        {
+          "chunk_id": 386076,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXI -Nephrology > Chapter 571 \u2013 Inherited Tubular Transport Abnormalities > TREATMENT/MANAGEMENT",
+          "page_number": 1053,
+          "snippet": "CKD management requires close monitoring of blood studies, urine studies (including quantitative measurement for proteinuria using either a spot urine protein/urine creatinine ratio or 24-hour urine collection), and overall clinical symptomatology. Ambulatory blood pressure monitoring (ABPM) over\u2026",
+          "rank": 2,
+          "relevance_score": -3.0461
+        },
+        {
+          "chunk_id": 216719,
+          "book_id": 44,
+          "book_title": "Bailey & Love 28e",
+          "chapter": "HAEMATURIA",
+          "page_number": 1536,
+          "snippet": "There is a lack of consensus between national guidelines regarding who should be investigated for haematuria. However, all patients should have a digital rectal examination to evaluate prostate size and consistency , urine culture to exclude infection and urine cytology to aid diagnosis of\u2026",
+          "rank": 3,
+          "relevance_score": -2.3603
+        },
+        {
+          "chunk_id": 79474,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Nephrology and urology",
+          "page_number": 400,
+          "snippet": "``` Clinical examination of the kidney and urinary tract 382 Functional anatomy and physiology 384 Investigation of renal and urinary tract disease 386 Glomerular filtration rate 386 Urine investigations 387 Blood tests 388 Imaging 389 Renal biopsy 391 Presenting problems in renal and urinary tract\u2026",
+          "rank": 4,
+          "relevance_score": -1.8251
+        },
+        {
+          "chunk_id": 25719,
+          "book_id": 3,
+          "book_title": "Ramadas Pathology 2e",
+          "chapter": "Clinical Manifestations of Renal Diseases (Table 21.1)",
+          "page_number": 617,
+          "snippet": "TABLE 21.1: Clinical manifestation of renal diseases Glomerular syndromes, Manifestations = . Nephritic syndrome (glomerular disease), Manifestations = Acute onset of either grossly visible hematuria (red blood cells in urine) or microscopic hematuria with dysmorphic red cells and red cell casts on\u2026",
+          "rank": 5,
+          "relevance_score": -1.4715
+        },
+        {
+          "chunk_id": 305531,
+          "book_id": 82,
+          "book_title": "Gynaecology by Ten Teachers 21e",
+          "chapter": "8 Menopause and post-reproductive health > FURTHER READING",
+          "page_number": 144,
+          "snippet": "National Institute for Health and Care Excellence (NICE) (2015). Menopause: Diagnosis and Management. NICE guideline [NG23]. Last updated: 5 December 2019. https://www.nice. org.uk/guidance/ng23.",
+          "rank": 6,
+          "relevance_score": -4.0107
+        },
+        {
+          "chunk_id": 386074,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXI -Nephrology > Chapter 571 \u2013 Inherited Tubular Transport Abnormalities > LABORATORY FINDINGS",
+          "page_number": 1053,
+          "snippet": "Renal function can be measured or estimated by GFR. Inulin clearance is the gold standard to measure GFR, but it is no longer readily available. Other methods to measure GFR in clinical practice include using iohexol or various radioisotopes ( 99m Tc- DTPA, 51 Cr- EDTA, or 125 Iothalamate).\u2026",
+          "rank": 7,
+          "relevance_score": -2.539
+        },
+        {
+          "chunk_id": 378386,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XIX -Diseases of the Blood > Chapter 510 \u2013 Paroxysmal Nocturnal Hemoglobinuria and Acanthocytosis > Renal Disease",
+          "page_number": 772,
+          "snippet": "Sickle cell-associated renal disease starts in infancy and may not become clinically evident until adulthood. Chronic kidney disease is common in adults with sickle cell disease, with high morbidity and mortality. Screening protocols for early signs of sickle nephropathy in children have not been\u2026",
+          "rank": 8,
+          "relevance_score": -4.8839
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "unc004",
+        "question": "A patient with a confirmed COVID-19 infection in 2026: what is the recommended first-line antiviral and the treatment window?",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 6,
+        "n_sources": 8,
+        "top_relevance": 1.6546,
+        "supplement_ratio": 0.325,
+        "citations_in_context": 6,
+        "elapsed_s": 18.1
+      },
+      "labelled": {},
+      "answer_markdown": "For an ambulatory patient with confirmed COVID-19 who is at high risk of progression to severe disease, the first-line oral antiviral is **nirmatrelvir/ritonavir (Paxlovid)**; an alternative is a **3-day course of intravenous remdesivir** [Nelson Pediatrics 22e Vol 2, Page 440]. Nirmatrelvir is an inhibitor of the SARS-CoV-2 main protease, and co-administration with ritonavir (a potent CYP3A inhibitor) raises nirmatrelvir concentrations and prolongs its half-life [Nelson Pediatrics 22e Vol 2, Page 440; Nelson Pediatrics 22e Vol 1, Page 1964]. The recommended adult/\u226512 years and >40 kg dose is nirmatrelvir 300 mg (two 150-mg tablets) plus ritonavir 100 mg (one tablet), all three tablets together, twice daily orally for 5 days [Nelson Pediatrics 22e Vol 1, Page 1964].\n\n**Treatment window:** Paxlovid should be started **within 3 days of symptom onset** \u2014 in the trial, patients treated within 3 days had statistically significantly lower hospitalisation and mortality than placebo [Nelson Pediatrics 22e Vol 1, Page 1964]. Remdesivir is given as a 5\u201310 day IV course in hospitalised patients, or a shorter 3-day course in non-hospitalised high-risk patients [Nelson Pediatrics 22e Vol 1, Page 2054]. For hospitalised patients with SpO2 \u226494% on room air (including those on supplemental oxygen), the IDSA recommends remdesivir, but suggests against routine use in patients on mechanical ventilation and/or ECMO [Nelson Pediatrics 22e Vol 2, Page 440].\n\n**Other points from the texts:** Molnupiravir is an alternative oral agent but is not authorised for patients <18 years because of concerns about cartilage and bone growth, and is not recommended in pregnancy/breastfeeding due to potential teratogenicity [Nelson Pediatrics 22e Vol 1, Page 1964; Levinson's Microbiology 18e, Page 327]. Monoclonal antibodies are no longer authorised because circulating Omicron subvariants have reduced susceptibility [Nelson Pediatrics 22e Vol 2, Page 440; Nelson Pediatrics 22e Vol 1, Page 2054]. Dexamethasone reduces morbidity and mortality in hospitalised patients with COVID-19 pulmonary disease [Nelson Pediatrics 22e Vol 1, Page 2054]. Antivirals against COVID-19 are thought to have retained activity against Omicron and its subvariants [Levinson's Microbiology 18e, Page 327].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam-focused update (2026):** The first-line antiviral for high-risk, non-hospitalised COVID-19 remains **nirmatrelvir/ritonavir (Paxlovid)**, with **remdesivir IV** as the preferred alternative when Paxlovid is contraindicated (e.g. significant drug\u2013drug interactions, severe renal impairment). The treatment window is **within 5 days of symptom onset** for Paxlovid and **within 7 days** for remdesivir \u2014 note that the textbook passage cites the earlier 3-day trial data, but current guidelines (NIH/IDSA) allow up to 5 days for Paxlovid and 7 days for remdesivir. Molnupiravir is now rarely used due to limited efficacy and is contraindicated in pregnancy and <18 years. Monoclonal antibodies (e.g. bebtelovimab) are no longer recommended due to variant escape. For hospitalised patients requiring oxygen, add dexamethasone 6 mg daily for up to 10 days; consider tocilizumab or baricitinib in rapidly escalating oxygen needs or elevated inflammatory markers. Always check renal function and drug interactions before prescribing Paxlovid (e.g. with statins, anticoagulants, immunosuppressants).",
+      "citations": [
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 440,
+          "excerpt": "For ambulatory patients with mild to moderate COVID-19 at high risk for progression to severe disease... current treatment options include nirmatrelvir/ritonavir (\u226512 years of age) or a 3-day course of remdesivir."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 1964,
+          "excerpt": "In patients with SARS-CoV-2 infection who were treated with Paxlovid within 3 days of symptom onset, hospitalization and mortality rates were statistically significantly lower compared with placebo."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 1964,
+          "excerpt": "The FDA Emergency Use Authorization (EUA) includes treatment of children over 12 years of age with a body weight of >40 kg, with a suggested dose of 300 mg nirmatrelvir (two 150-mg tablets) with 100 mg ritonavir (one 100-mg tablet), with all three tablets taken together, twice daily, by oral administration, for 5 days."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 2054,
+          "excerpt": "These antivirals reduce morbidity and mortality in hospitalized patients (5-10 day courses of intravenous remdesivir) as well as nonhospitalized high-risk children and adults (oral agents and shorter 3-day courses of intravenous remdesivir)."
+        },
+        {
+          "book_title": "Levinson's Microbiology 18e",
+          "page_number": 327,
+          "excerpt": "On December 22, 2021, the FDA authorized nirmatrelvir with ritonavir (Paxlovid) for the treatment of COVID-19 in those at high risk of COVID-19 progression."
+        },
+        {
+          "book_title": "Levinson's Microbiology 18e",
+          "page_number": 327,
+          "excerpt": "Antivirals against COVID-19 are thought to have retained activity against omicron and its subvariants."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 294243,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVII -The Respiratory System > Chapter 449 \u2013 Community-Acquired Pneumonia > TREATMENT",
+          "page_number": 440,
+          "snippet": "For ambulatory patients with mild to moderate COVID- 19 at high risk for progression to severe disease (e.g., obesity or overweight, immunosuppression, medical- related technologic dependence, or a chronic medical condition such as kidney disease, diabetes, cardiovascular disease, sickle cell\u2026",
+          "rank": 1,
+          "relevance_score": 1.6546
+        },
+        {
+          "chunk_id": 368293,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XV -Infectious Diseases > Chapter 311 \u2013 Coronaviruses > TREATMENT AND PREVENTION",
+          "page_number": 2054,
+          "snippet": "Therapeutic agents for SARS- CoV- 2 include antivirals that inhibit viral replication such as intravenous remdesivir, oral nirmatrelvir/ ritonavir combination therapy, and oral molnupiravir. These antivirals reduce morbidity and mortality in hospitalized patients (5- 10 day courses of intravenous\u2026",
+          "rank": 2,
+          "relevance_score": 4.5003
+        },
+        {
+          "chunk_id": 365812,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XV -Infectious Diseases > Chapter 292 \u2013 Principles of Antiviral Therapy > ANTIVIRALS USED FOR COVID- 19",
+          "page_number": 1964,
+          "snippet": "riginally developed as an influenza antiviral agent. It is a prodrug of a synthetic nucleoside hydroxycytidine derivative. Its antiviral effect is mediated by the introduction of copying errors during the SARS- CoV- 2 RNA replication cycle. The reported efficacy against hospitalization or death in\u2026",
+          "rank": 3,
+          "relevance_score": 0.6482
+        },
+        {
+          "chunk_id": 310797,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "4 CLINICAL VIROLOGY > 38 Respiratory Viruses > Treatment",
+          "page_number": 327,
+          "snippet": "On December 22, 2021, the FDA authorized nirmatrelvir with ritonavir (Paxlovid) for the treatment of COVID-19 in those at high risk of COVID-19 progression. Nirmatrelvir is an oral protease inhibitor active against SARS-CoV-2 main protease (M PRO ) and is coadministered with ritonavir, a strong\u2026",
+          "rank": 4,
+          "relevance_score": 4.1041
+        },
+        {
+          "chunk_id": 317346,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "9 INFECTIOUS DISEASES > 76 Lower Respiratory Tract Infections > Treatment",
+          "page_number": 656,
+          "snippet": "If influenza is occurring in the community, then oseltamivir should be prescribed. Note that influenza can predispose to bacterial pneumonia, especially caused by S. aureus and S. pneumoniae, so antibiotics may be needed even in a person with established influenza. The main anti-viral drugs\u2026",
+          "rank": 5,
+          "relevance_score": 1.8623
+        },
+        {
+          "chunk_id": 155178,
+          "book_id": 44,
+          "book_title": "Bailey & Love 28e",
+          "chapter": "COVID-19 pandemic",
+          "page_number": 81,
+          "snippet": "Complications in postoperative surgical patients infected with COVID-19 in either an elective or emergency setting may include pneumonia ( Figure 5.12b ), ARDS, multiorgan failure, septic shock and death. Measures to control COVID-19related morbidity and mortality have thus been implemented by many\u2026",
+          "rank": 6,
+          "relevance_score": 1.9859
+        },
+        {
+          "chunk_id": 368316,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XV -Infectious Diseases > Chapter 311 \u2013 Coronaviruses > Table 311.7 Infectious Complications in Patients with COVID- 19",
+          "page_number": 2056,
+          "snippet": "- Co-infections at presentation: Although most individuals present with only SARS- CoV- 2 infection, concomitant viral infections, including influenza and other respiratory viruses, have been reported. Community- acquired bacterial pneumonia also has been reported, but it is uncommon, with a\u2026",
+          "rank": 7,
+          "relevance_score": 1.6434
+        },
+        {
+          "chunk_id": 310790,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "4 CLINICAL VIROLOGY > 38 Respiratory Viruses > Laboratory Diagnosis",
+          "page_number": 327,
+          "snippet": "TABLE 38-6 Important Treatment Modalities Used in COVID-19 | Therapeutic Purpose | Drug | Antibody | |----------------------------------------------------|------------------------------------------------------|---------------------------------------------------------------------| | Inhibit viral\u2026",
+          "rank": 8,
+          "relevance_score": -1.1256
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "hr001",
+        "question": "A 30-year-old with anaphylaxis and a systolic blood pressure of 70 mmHg: what is the exact adrenaline dose and route, and what is the next step if they do not respond?",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 4,
+        "n_sources": 8,
+        "top_relevance": 1.6141,
+        "supplement_ratio": 0.387,
+        "citations_in_context": 4,
+        "elapsed_s": 15.7
+      },
+      "labelled": {},
+      "answer_markdown": "**Immediate management of anaphylaxis with hypotension (SBP 70 mmHg)**\n\nThis is anaphylactic (distributive) shock and requires immediate **intramuscular adrenaline (epinephrine)** \u2014 there should be no delay in its administration [Nelson Pediatrics 22e Vol 1, Page 1453].\n\n**Dose and route (adult):**\n- **Adrenaline 0.5 mg IM (0.5 mL of 1:1000)** into the **lateral thigh** [Davidson's Medicine 23e, Page 223; Katzung Pharmacology 14e, Page 166].\n- Katzung gives the adult range as **0.3\u20130.5 mg (0.3\u20130.5 mL of 1:1000)** and states that **IM is the preferred route** because skin blood flow \u2014 and hence absorption from subcutaneous injection \u2014 is unpredictable in hypotensive patients [Katzung Pharmacology 14e, Page 166].\n- Nelson (paediatric dosing) uses **0.01 mg/kg IM, maximum 0.5 mg**, with 0.3 mg for children \u226525 kg and up to 0.5 mg for older adolescents [Nelson Pediatrics 22e Vol 1, Page 1453].\n\n**If there is no response:**\n- **Repeat the IM dose at 5\u201315 minute intervals** if symptoms persist or worsen [Nelson Pediatrics 22e Vol 1, Page 1453].\n- **If there is no response to multiple IM doses, give IV adrenaline using the 1:10,000 dilution** [Nelson Pediatrics 22e Vol 1, Page 1453]. Davidson's suggests **50 micrograms (0.5 mL of 1:10,000) IV** when expertise is available, to delay cardiac arrest while the cause is identified and other supportive measures instituted [Davidson's Medicine 23e, Page 223].\n- **Adjuncts** (do not replace adrenaline): oxygen, IV fluids, H1 and H2 antihistamines, inhaled beta-2 agonists for bronchospasm, and corticosteroids [Nelson Pediatrics 22e Vol 1, Page 1453; Levinson's Microbiology 18e, Page 579].\n- **Secure the airway** and support respiration and circulation [Levinson's Microbiology 18e, Page 579].\n\n**Mechanism supporting adrenaline as first-line:** adrenaline activates alpha, beta-1 and beta-2 receptors, all of which reverse the pathophysiologic processes of anaphylaxis [Katzung Pharmacology 14e, Page 166].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls and pitfalls (beyond the passages):**\n\n- **Route matters:** IM lateral thigh (vastus lateralis) gives faster, more reliable absorption than deltoid or subcutaneous in shock. Never give the 1:1000 preparation IV.\n- **Auto-injector:** 0.3 mg for adults/children >30 kg; 0.15 mg for 15\u201330 kg. Patients at risk should carry one [Katzung mentions autoinjectors].\n- **IV adrenaline** is for refractory anaphylaxis or peri-arrest, preferably via a controlled infusion (e.g., 0.05\u20130.2 mcg/kg/min) with continuous cardiac monitoring \u2014 bolus 1:10,000 is a temporising measure only.\n- **Fluids:** rapid 500\u20131000 mL crystalloid bolus in adults (10\u201320 mL/kg in children) for distributive shock.\n- **Refractory anaphylaxis:** consider IV adrenaline infusion, glucagon (in beta-blocked patients), and vasopressors (e.g., noradrenaline) if still hypotensive.\n- **Observation:** biphasic reactions can occur up to 12\u201324 hours; observe 4\u20136 hours minimum (longer if severe or asthmatic).\n- **Discharge:** prescribe adrenaline auto-injector, antihistamine, and steroid; refer to allergy for allergen identification and immunotherapy if indicated.\n- **MCQ trap:** confusing the 1:1000 (IM) and 1:10,000 (IV) concentrations \u2014 the commonest fatal error.",
+      "citations": [
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 1453,
+          "excerpt": "Epinephrine should be given by the IM route to the lateral thigh (1:1000 dilution, 0.01 mg/kg; maximum 0.5 mg). ... The IM dose can be repeated at intervals of 5-15 minutes if symptoms persist or worsen. If there is no response to multiple doses of epinephrine, IV epinephrine using the 1:10,000 dilution"
+        },
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 223,
+          "excerpt": "a single dose of intramuscular adrenaline (epinephrine) 0.5 mg (0.5 mL of 1 : 1000) can be life-saving. ... a suggested dose would be 50 \u03bcg (0.5 mL of 1 : 10 000)."
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 166,
+          "excerpt": "epinephrine, 0.3-0.5 mg (0.3-0.5 mL of a 1:1000 epinephrine solution). Intramuscular injection may be the preferred route of administration, since skin blood flow ... is unpredictable in hypotensive patients."
+        },
+        {
+          "book_title": "Levinson's Microbiology 18e",
+          "page_number": 579,
+          "excerpt": "Treatment of anaphylactic reactions includes (1) drugs to counteract the action of mediators, (2) ensuring a protected airway, and (3) support of respiratory and cardiac function."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 349939,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIII -Allergic Disorders > Chapter 189 \u2013 Urticaria (Hives) and Angioedema > TREATMENT",
+          "page_number": 1453,
+          "snippet": "Anaphylaxis is a medical emergency requiring aggressive management with intramuscular (IM, first line) or intravenous (IV) epinephrine. Oral (PO), IM, or IV H1 and H2 antihistamine antagonists, oxygen, IV fluids, inhaled \u03b2- agonists, and corticosteroids are adjunctive medications that may be used\u2026",
+          "rank": 1,
+          "relevance_score": 1.6141
+        },
+        {
+          "chunk_id": 75500,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Initial resuscitation",
+          "page_number": 223,
+          "snippet": "In anaphylactic shock, or undifferentiated shock in a peri-arrest situation, a single dose of intramuscular adrenaline (epinephrine) 0.5 mg (0.5 mL of 1 : 1000) can be life-saving. If expertise is available, a small dose of intravenous adrenaline can delay cardiac arrest long enough to identify the\u2026",
+          "rank": 2,
+          "relevance_score": 2.5069
+        },
+        {
+          "chunk_id": 349943,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIII -Allergic Disorders > Chapter 189 \u2013 Urticaria (Hives) and Angioedema > https://trungtamthuoc.com/",
+          "page_number": 1454,
+          "snippet": "| Table 190.5 Management of a Patient with Anaphylaxis TREATMENT | MECHANISM(S) OF EFFECT | DOSAGE(S) | COMMENTS; ADVERSE REACTIONS |\u2026",
+          "rank": 3,
+          "relevance_score": -4.9492
+        },
+        {
+          "chunk_id": 315821,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "7 IMMUNOLOGY > 65 Hypersensitivity (Allergy) > Treatment & Prevention",
+          "page_number": 579,
+          "snippet": "Anaphylaxis is a life-threatening emergency due to the combination of airway compromise and hypotensive (distributive) shock. Treatment of anaphylactic reactions includes (1) drugs to counteract the action of mediators, (2) ensuring a protected airway, and (3) support of respiratory and cardiac\u2026",
+          "rank": 4,
+          "relevance_score": -4.0537
+        },
+        {
+          "chunk_id": 166457,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "Anaphylaxis",
+          "page_number": 166,
+          "snippet": "Anaphylactic shock and related immediate (type I) IgE-mediated reactions affect both the respiratory and the cardiovascular systems. The syndrome of bronchospasm, mucous membrane congestion, angioedema, and severe hypotension usually responds rapidly to the parenteral administration of epinephrine\u2026",
+          "rank": 5,
+          "relevance_score": 1.0666
+        },
+        {
+          "chunk_id": 297105,
+          "book_id": 90,
+          "book_title": "Obstetrics by Ten Teachers 21e",
+          "chapter": "16 Neonates 293 > MANAGEMENT AND TREATMENT",
+          "page_number": 150,
+          "snippet": "Table 9.2 The management of pregnancy complicated by pre-eclampsia, depending on the degree of hypertension | Management | Hypertension: Blood pressure of 140/90-159/109 mmHg | Severe hypertension: Blood pressure of 160/110 mmHg or more |\u2026",
+          "rank": 6,
+          "relevance_score": -6.1751
+        },
+        {
+          "chunk_id": 349933,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIII -Allergic Disorders > Chapter 189 \u2013 Urticaria (Hives) and Angioedema > CLINICAL MANIFESTATIONS",
+          "page_number": 1453,
+          "snippet": "| Patient Risk Factors for MAY INCREASE RISK FOR ANAPHYLAXIS DIFFICULT TO TREAT such as exercise, infection, menses risk factor for anaphylaxis triggered by food, latex, triggered by most drugs or by insect stings. may not respond optimally to epinephrine treatment polypeptide with\u2026",
+          "rank": 7,
+          "relevance_score": -4.244
+        },
+        {
+          "chunk_id": 349955,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIII -Allergic Disorders > Chapter 189 \u2013 Urticaria (Hives) and Angioedema > WHY PATIENTS AND CAREGIVERS FAIL TO INJECT EPINEPHRINE PROMPTLY",
+          "page_number": 1456,
+          "snippet": "\u2020 Median times to respiratory or cardiac arrest are 5 min in iatrogenic anaphylaxis, 15 min in stinging- insect venom anaphylaxis, and 30 min in food anaphylaxis; however, regardless of the trigger, respiratory or cardiac arrest can occur within 1 min in anaphylaxis.",
+          "rank": 8,
+          "relevance_score": -4.8538
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "hr002",
+        "question": "A trauma patient is haemodynamically unstable with a tension pneumothorax and absent breath sounds on one side: what is the immediate definitive management?",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 5,
+        "n_sources": 8,
+        "top_relevance": 4.1448,
+        "supplement_ratio": 0.435,
+        "citations_in_context": 5,
+        "elapsed_s": 11.8
+      },
+      "labelled": {},
+      "answer_markdown": "In a haemodynamically unstable trauma patient with a tension pneumothorax and absent breath sounds on one side, the immediate definitive management is **needle thoracentesis (needle aspiration) followed by thoracostomy tube insertion** \u2014 this is diagnostic and lifesaving, and must be performed **before obtaining chest radiographs** [Nelson Pediatrics 22e Vol 1, Page 620]. The needle is inserted into the **second intercostal space in the midclavicular line** [Nelson Pediatrics 22e Vol 2, Page 495]. This approach is effective emergency room management for tension pneumothorax [Nelson Pediatrics 22e Vol 2, Page 495]. The clinical picture is supported by characteristic findings: cyanosis, tachypnea, asymmetric chest rise, contralateral tracheal deviation, diminished breath sounds on the ipsilateral side, and signs of shock [Nelson Pediatrics 22e Vol 1, Page 620]. Tension pneumothorax occurs when intrapleural pressure exceeds atmospheric pressure, impairing ventilation in both lungs due to mediastinal shift and interfering with venous return by compressing the vena cava and twisting the great vessels [Nelson Pediatrics 22e Vol 1, Page 1108]. The diagnosis may be confirmed by a 'hiss' of rapid air exit upon thoracostomy tube insertion [Nelson Pediatrics 22e Vol 2, Page 494]. In tension pneumothorax, tracheal deviation is away from the side of the lesion [First Aid Step 1 2024, Page 719].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\nIn current trauma practice (e.g., ATLS), the immediate decompression of a tension pneumothorax in an unstable patient is **needle decompression** (or finger thoracostomy) followed by **tube thoracostomy**. Needle decompression is typically performed in the 5th intercostal space at the anterior axillary line (or 2nd intercostal space midclavicular line) using a large-bore needle/catheter. Definitive management is **chest tube insertion** (thoracostomy). Avoid positive pressure ventilation before decompression, as it can worsen the tension. In FCPS/MBBS exams, remember: **tension pneumothorax is a clinical diagnosis \u2014 never wait for a chest X-ray** in an unstable patient. The classic signs include hypotension, distended neck veins, absent breath sounds, and hyperresonance. Needle decompression is a temporizing measure; definitive treatment is tube thoracostomy. In children, the 2nd intercostal space midclavicular line is often used, but the 5th intercostal space anterior axillary line is increasingly preferred in adults to avoid damage to the internal mammary artery.",
+      "citations": [
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 620,
+          "excerpt": "When suspected, a tension pneumothorax should be treated before obtaining chest radiographs. Needle thoracentesis, followed by thoracostomy tube insertion, is diagnostic and lifesaving."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 495,
+          "excerpt": "Needle aspiration into the second intercostal space in the midclavicular line may be required on an emergency basis for tension pneumothorax and is as effective as tube thoracostomy in the emergency room management of primary spontaneous pneumothorax."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 1108,
+          "excerpt": "Tension pneumothorax occurs if an accumulation of air within the pleural space is sufficient to elevate intrapleural pressure above atmospheric pressure. Unilateral tension pneumothorax results in impaired ventilation not only in the ipsilateral lung but also in the contralateral lung because of a shift in the mediastinum toward the contralateral side. Compression of the vena cava and torsion of the great vessels may interfere with venous return."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 494,
+          "excerpt": "On occasion, the diagnosis of tension pneumothorax is made only based on evidence of circulatory compromise or on hearing a 'hiss' of rapid exit of air under tension with the insertion of the thoracostomy tube."
+        },
+        {
+          "book_title": "First Aid Step 1 2024",
+          "page_number": 719,
+          "excerpt": "Tension pneumothorax, TRACHEAL DEVIATION = Away from side of lesion."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 329671,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVII -The Respiratory System > Chapter 461 \u2013 Pneumothorax > TREATMENT",
+          "page_number": 495,
+          "snippet": "Needle aspiration into the second intercostal space in the midclavicular line may be required on an emergency basis for tension pneumothorax and is as effective as tube thoracostomy in the emergency room management of primary spontaneous pneumothorax. If the pneumothorax is recurrent, secondary, or\u2026",
+          "rank": 1,
+          "relevance_score": 4.1448
+        },
+        {
+          "chunk_id": 340987,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part X -The Fetus and the Neonatal Infant > Chapter 132 \u2013 Pulmonary Air Leaks- Pneumothorax, Pneumomediastinum, Pulmonary Interstitial Emphysema, Pneumopericardium > CLINICAL MANIFESTATIONS",
+          "page_number": 1108,
+          "snippet": "The physical findings of a clinically asymptomatic pneumothorax are hyperresonance and diminished ipsilateral breath sounds with or without tachypnea. Symptomatic pneumothorax is characterized by respiratory distress, which varies from merely high respiratory rate to severe dyspnea, tachypnea, and\u2026",
+          "rank": 2,
+          "relevance_score": 1.9654
+        },
+        {
+          "chunk_id": 364344,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part VII -Emergency Medicine, Critical Care, and Anesthesia > Chapter 80 \u2013 Acute Care of Multiple Trauma > Breathing",
+          "page_number": 620,
+          "snippet": "(see Chapter 461). Both ventilation and cardiac output are impaired. Characteristic findings include cyanosis, tachypnea, retractions, asymmetric chest rise, contralateral tracheal deviation, diminished breath sounds on the ipsilateral (more than contralateral) side, and signs of shock. When\u2026",
+          "rank": 3,
+          "relevance_score": 1.708
+        },
+        {
+          "chunk_id": 329662,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVII -The Respiratory System > Chapter 461 \u2013 Pneumothorax > DIAGNOSIS AND DIFFERENTIAL DIAGNOSIS",
+          "page_number": 494,
+          "snippet": "It may be difficult to determine whether a pneumothorax is under tension. Tension pneumothorax is present when there is a shift of mediastinal structures away from the side of the air leak. A shift may be absent in situations in which the other hemithorax resists the shift, such as in the case of\u2026",
+          "rank": 4,
+          "relevance_score": -1.369
+        },
+        {
+          "chunk_id": 39974,
+          "book_id": 4,
+          "book_title": "First Aid Step 1 2024",
+          "chapter": "Physical findings in select lung diseases",
+          "page_number": 719,
+          "snippet": "Pleural effusion, BREATH SOUNDS = \u0090. Pleural effusion, PERCUSSION = Dull. Pleural effusion, FREMITUS = \u0090. Pleural effusion, TRACHEAL DEVIATION = None if small Away from side of lesion if large. Atelectasis, BREATH SOUNDS = \u0090. Atelectasis, PERCUSSION = Dull. Atelectasis, FREMITUS = \u0090. Atelectasis,\u2026",
+          "rank": 5,
+          "relevance_score": -2.8127
+        },
+        {
+          "chunk_id": 334383,
+          "book_id": 84,
+          "book_title": "Junqueira's Basic Histology 16e",
+          "chapter": "17 The Respiratory System > Pleural Membranes > \u203a\u203a \u203a MEDICAL APPLICATION",
+          "page_number": 379,
+          "snippet": "The condition pneumothorax is a partially or completely collapsed lung caused by air trapped in the pleural cavity, typically resulting from blunt or penetrating trauma to the chest and producing shortness of breath and hypoxia. Inflammation of the pleura, a condition called either pleuritis or\u2026",
+          "rank": 6,
+          "relevance_score": -3.121
+        },
+        {
+          "chunk_id": 340355,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part X -The Fetus and the Neonatal Infant > Chapter 123 \u2013 Neonatal Resuscitation and Delivery Room Emergencies > Pulmonary Disorders",
+          "page_number": 1083,
+          "snippet": "In infants with a prenatal diagnosis of hydrops, pleural effusions may be present at delivery, preventing adequate lung expansion and gas exchange. Similarly, infants requiring PPV in the delivery room are at risk for pneumothorax. Infants with pulmonary hypoplasia or meconium- stained fluid are at\u2026",
+          "rank": 7,
+          "relevance_score": -1.29
+        },
+        {
+          "chunk_id": 364348,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part VII -Emergency Medicine, Critical Care, and Anesthesia > Chapter 80 \u2013 Acute Care of Multiple Trauma > https://trungtamthuoc.com/",
+          "page_number": 621,
+          "snippet": "| Table 80.2 | Differential Diagnosis of Immediately Life- Threatening Cardiopulmonary Injuries - TENSION PNEUMOTHORAX | Differential Diagnosis of Immediately Life- Threatening Cardiopulmonary Injuries - MASSIVE HEMOTHORAX | CARDIAC TAMPONADE |\u2026",
+          "rank": 8,
+          "relevance_score": -2.8604
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "hr003",
+        "question": "A child with diabetic ketoacidosis has a pH of 6.9 and a depressed level of consciousness: what is the fluid resuscitation and insulin regimen, and what is the most dangerous early complication to prevent?",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 5,
+        "n_sources": 8,
+        "top_relevance": -1.7718,
+        "supplement_ratio": 0.313,
+        "citations_in_context": 5,
+        "elapsed_s": 20.4
+      },
+      "labelled": {},
+      "answer_markdown": "**Fluid resuscitation**\n\nJudicious fluid resuscitation is the first step in the medical management of DKA, and correction of fluid deficits must be tempered by the potential risk of cerebral edema [Nelson Pediatrics 22e Vol 2, Page 1332]. Typically, an initial intravenous bolus of 10\u201320 mL/kg of a glucose-free isotonic sodium salt solution such as Ringer lactate or 0.9% sodium chloride is given over 1 to 2 hours; further fluid boluses should be given only for hemodynamically unstable patients [Nelson Pediatrics 22e Vol 2, Page 1332]. This bolus is given as isotonic saline because the patient is inevitably hypertonic, keeping most of the initial infusion in the intravascular space [Nelson Pediatrics 22e Vol 2, Page 1332]. Subsequent fluid replacement then consists of 0.45% or 0.9% sodium chloride infused at a rate calculated to replace the fluid deficit (after subtracting the initial fluid bolus) over 24\u201348 hours plus maintenance [Nelson Pediatrics 22e Vol 2, Page 1332]. The fluid deficit can be calculated empirically if a recent weight is available, estimated at 5\u201310% of body weight based upon clinical severity, or by assuming a standard water deficit (85 mL/kg); practically this is generally equivalent to a rate of \u223c1.5 times maintenance [Nelson Pediatrics 22e Vol 2, Page 1332]. Patients should not be allowed oral fluids until rehydration is well underway and significant electrolyte shifts are no longer likely; limited ice chips may be given as a minimal oral intake, and all fluid intake and output should be closely monitored [Nelson Pediatrics 22e Vol 2, Page 1332].\n\n**Insulin regimen**\n\nThe retrieved passages do not give the exact insulin infusion dose or the timing of its initiation; they state that therapy is tailored to the degree of insulinopenia at presentation [Nelson Pediatrics 22e Vol 2, Page 1332] and that early bolus administration of insulin has been identified as a risk factor for cerebral edema [Nelson Pediatrics 22e Vol 2, Page 1335]. The protocol is summarised in Figure 629.5 [Nelson Pediatrics 22e Vol 2, Page 1335]. Any child can be transitioned to oral intake and subcutaneous insulin when DKA has resolved (total CO2 >15 mEq/L; pH >7.30; sodium stable between 135 and 145 mEq/L; anion gap closed; no emesis); a dose of long-acting insulin is given (or continuous subcutaneous infusion is started via pump) and the insulin drip is discontinued approximately 30 minutes later, typically timed around mealtime so that short-acting insulin can be given as well [Nelson Pediatrics 22e Vol 2, Page 1335]. Frequent (every 2\u20133 hours) short-acting insulin bolusing may need to be given until ketosis resolves [Nelson Pediatrics 22e Vol 2, Page 1335].\n\n**Most dangerous early complication to prevent**\n\nCerebral edema is an important cause of morbidity and mortality in children and adolescents with T1DM [Nelson Pediatrics 22e Vol 2, Page 1335]. A case-control study of DKA suggested that baseline acidosis and abnormalities of sodium, potassium, and blood urea nitrogen concentrations were important predictors of risk of cerebral edema; early bolus administration of insulin and high volumes of fluid were also identified as risk factors [Nelson Pediatrics 22e Vol 2, Page 1335]. For all but the mildest cases, monitoring includes frequent neurologic checks for any signs of increasing intracranial pressure, such as a change of consciousness, depressed respiration, worsening headache, bradycardia, apnea, pupillary changes, papilledema, ptosis, posturing, and seizures [Nelson Pediatrics 22e Vol 2, Page 1335]. In the event of the development of cerebral edema, immediate interventions should include elevation of the head of the bed, reduction in IV fluid rate, and administration of mannitol (typically 1 g/kg infused intravenously over 20 minutes) [Nelson Pediatrics 22e Vol 2, Page 1335]. Children with moderate to severe DKA have a higher overall risk of cerebral edema and should be treated in a hospital environment where appropriate monitoring can occur [Nelson Pediatrics 22e Vol 2, Page 1335].\n\nOther complications to anticipate during therapy include hypoglycemia and hypokalemia [Nelson Pediatrics 22e Vol 2, Page 1332]. Although patients with DKA have a total body potassium deficit, the initial serum level is often normal or elevated; with therapy potassium returns to the cell and improved hydration increases renal excretion, so serum potassium may decline dramatically, especially in severe DKA, precipitating changes in cardiac conductivity, flattening of T waves, prolongation of the QRS complex, and skeletal muscle weakness or ileus [Nelson Pediatrics 22e Vol 2, Page 1334]. Potassium should be added to the IV fluids once serum potassium declines below 5.5 mEq/L and titrated, typically using a 1:1 mixture of potassium chloride (or acetate) and potassium phosphate; rarely, the IV insulin must be temporarily held if serum potassium levels drop below 3 mEq/L [Nelson Pediatrics 22e Vol 2, Page 1334].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Insulin infusion (not stated in the passages):** Start a continuous IV infusion of regular/soluble insulin at **0.05\u20130.1 units/kg/hour** (commonly 0.1 units/kg/hr in children; some protocols use 0.05 units/kg/hr in young children or after an initial bolus). **Do not give a bolus dose of insulin** \u2014 early bolus insulin is a recognised risk factor for cerebral edema. Begin the infusion **1\u20132 hours after starting fluid resuscitation**, once the initial fluid bolus has been given. Target a fall in blood glucose of **~5 mmol/L (90 mg/dL) per hour**; if the fall is faster, increase the dextrose concentration rather than stopping insulin. Add dextrose (usually 5\u201310%) to the IV fluids when blood glucose falls below ~14\u201317 mmol/L (250\u2013300 mg/dL) to allow continued insulin infusion and clearance of ketones.\n\n**Fluid choice and rate:** Use 0.9% NaCl for the initial bolus; subsequent rehydration may use 0.45% or 0.9% NaCl with potassium added once urine output is established and potassium <5.5 mEq/L. Aim to replace the deficit evenly over 48 hours; avoid rapid boluses beyond the initial one unless the child is shocked.\n\n**Cerebral edema \u2014 practical points:** Suspect it if there is headache, irritability, drowsiness, vomiting, bradycardia, hypertension, or a fall in oxygen saturation. Treat immediately with **mannitol 0.5\u20131 g/kg IV over 10\u201320 minutes** (or 3% hypertonic saline 2.5\u20135 mL/kg if mannitol unavailable). Elevate the head of the bed and reduce the IV fluid rate. Do not wait for imaging.\n\n**Exam pearls:**\n- pH 6.9 indicates **severe DKA** (pH <7.1). These children are at highest risk of cerebral edema and should be managed in a high-dependency or intensive care setting.\n- The most dangerous early complication to prevent is **cerebral edema** \u2014 it typically occurs 4\u201312 hours after starting treatment, but can occur before or during therapy.\n- Avoid bicarbonate unless pH <6.9 with shock or life-threatening hyperkalemia; it can worsen cerebral edema and hypokalemia.\n- Monitor neurological status hourly, and check electrolytes, glucose, and blood gases every 2\u20134 hours.\n- Remember that potassium is the electrolyte most likely to cause sudden death during DKA treatment \u2014 always add potassium to maintenance fluids once serum K+ <5.5 mEq/L.",
+      "citations": [
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1332,
+          "excerpt": "Typically, an initial intravenous bolus of 10- 20 mL/kg of glucosefree isotonic sodium salt solution such as Ringer lactate or 0.9% sodium chloride is given over 1 to 2 hours."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1332,
+          "excerpt": "Subsequent fluid replacement then consists of 0.45% or 0.9% sodium chloride infused at a rate calculated to replace the fluid deficit (after subtracting initial fluid bolus) over 2448 hours plus maintenance."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1335,
+          "excerpt": "Cerebral edema is an important cause of morbidity and mortality in children and adolescents with T1DM."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1335,
+          "excerpt": "In the event of the development of cerebral edema, immediate interventions should include elevation of the head of the bed, reduction in IV fluid rate, and administration of mannitol (typically 1 g/kg infused intravenously over 20 minutes)."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1334,
+          "excerpt": "Potassium should be added to the IV fluids once serum potassium declines below 5.5 mEq/L and titrated."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 393825,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > Dehydration and Hyperglycemia",
+          "page_number": 1332,
+          "snippet": "Calculation of fluid deficits using clinical signs is difficult in children with DKA because intravascular volume is better maintained in the hypertonic state. For any degree of tachycardia, delayed capillary refill, decreased skin temperature, or orthostatic blood pressure change, the child with\u2026",
+          "rank": 1,
+          "relevance_score": -1.7718
+        },
+        {
+          "chunk_id": 393928,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > Diabetic Ketoacidosis Protocol",
+          "page_number": 1335,
+          "snippet": "Even though DKA can be of variable severity, a common approach to all cases simplifies the therapeutic regimen and can be safely used for most children. Fluids are best calculated based on weight, not body surface area (m 2 ), because heights are rarely available for the acutely critically ill\u2026",
+          "rank": 2,
+          "relevance_score": -3.3299
+        },
+        {
+          "chunk_id": 393819,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > TREATMENT",
+          "page_number": 1332,
+          "snippet": "Therapy is tailored to the degree of insulinopenia at presentation. Most children with new- onset T1DM have mild to moderate symptoms, have minimal dehydration with no history of emesis, and have not progressed to ketoacidosis. They can be started on subcutaneous insulin therapy directly. About\u2026",
+          "rank": 3,
+          "relevance_score": 0.1028
+        },
+        {
+          "chunk_id": 393920,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > https://trungtamthuoc.com/",
+          "page_number": 1334,
+          "snippet": "in severe DKA. This can precipitate changes in cardiac conductivity, flattening of T waves, and prolongation of the QRS complex and can cause skeletal muscle weakness or ileus. The risk of myocardial dysfunction is increased with shock and acidosis. Potassium levels must be closely followed and\u2026",
+          "rank": 4,
+          "relevance_score": -4.1071
+        },
+        {
+          "chunk_id": 393824,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > Dehydration and Hyperglycemia",
+          "page_number": 1332,
+          "snippet": "Judicious fluid resuscitation is the first step in the medical management of DKA. Correction of fluid deficits must be tempered by the potential risk of cerebral edema. It is prudent to approach any child in any hyperosmotic state with cautious rehydration. The effective serum osmolality (Eosm = 2\u2026",
+          "rank": 5,
+          "relevance_score": -1.3642
+        },
+        {
+          "chunk_id": 393930,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > Cerebral Edema",
+          "page_number": 1335,
+          "snippet": "Cerebral edema is an important cause of morbidity and mortality in children and adolescents with T1DM. Despite the clinical significance of this complication, its etiology remains incompletely understood. A case control study of DKA suggested that baseline acidosis and abnormalities of sodium,\u2026",
+          "rank": 6,
+          "relevance_score": 1.2782
+        },
+        {
+          "chunk_id": 393823,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > Treatment of Diabetic Ketoacidosis",
+          "page_number": 1332,
+          "snippet": "Reversal of DKA is associated with inherent risks that include hypoglycemia, hypokalemia, and cerebral edema. Any protocol must be used with caution and close monitoring of the patient. Adjustments based on sound medical judgment may be necessary for any given level of DKA (Figs. 629.5 and 629.6).",
+          "rank": 7,
+          "relevance_score": -3.38
+        },
+        {
+          "chunk_id": 393911,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > Immediate assessment",
+          "page_number": 1333,
+          "snippet": "Fig. 629.5 Algorithm for the management of diabetic ketoacidosis. CE, cerebral edema; ECG, electrocardiogram; KCl, potassium chloride; SC, subcutaneous. (Adapted from Pinhas-Hamiel O, Sperling M. Diabetic ketoacidosis. In: Hochberg Z, ed. Practical Algorithms in Pediatric Endocrinology. 3rd ed.\u2026",
+          "rank": 8,
+          "relevance_score": -1.8953
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "hr004",
+        "question": "A patient with a suspected hyperkalaemia has a peaked T-wave on ECG and a potassium of 7.0: what is the immediate first-line cardiac protection, followed by potassium-lowering therapy?",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 6,
+        "n_sources": 8,
+        "top_relevance": 1.6005,
+        "supplement_ratio": 0.319,
+        "citations_in_context": 6,
+        "elapsed_s": 16.6
+      },
+      "labelled": {},
+      "answer_markdown": "**Immediate first-line cardiac protection: IV calcium.** In acute and/or severe hyperkalaemia (plasma potassium >6.5\u20137.0 mmol/L), the first step should be infusion of 10 mL 10% calcium gluconate to stabilise conductive tissue membranes, since calcium has the opposite effect to potassium on conduction of an action potential [Davidson's Medicine, Page 382]. Calcium stabilises the cell membrane of heart cells, preventing arrhythmias; it is given IV over a few minutes and its action is almost immediate [Nelson Pediatrics 22e Vol 1, Page 545]. (Caution: calcium should be given over 30 minutes in a patient receiving digitalis, because the calcium may cause arrhythmias [Nelson Pediatrics 22e Vol 1, Page 545].)\n\n**Then shift K+ intracellularly (rapid, minutes to 30 min):**\n- **Insulin + glucose:** insulin causes K+ to move intracellularly but must be given with glucose to avoid hypoglycaemia; the combination works within 30 minutes [Nelson Pediatrics 22e Vol 1, Page 545]. Davidson's specifies IV glucose (50 mL of 50% solution) and insulin (5 IU Actrapid) [Davidson's Medicine, Page 382].\n- **Nebulised \u03b22-agonist (e.g. albuterol):** by stimulation of \u03b21-adrenergic receptors, leads to rapid intracellular movement of K+; advantage of not requiring an IV route, allowing it to be given concurrently with other measures [Nelson Pediatrics 22e Vol 1, Page 545]. Davidson's lists an inhaled \u03b22-adrenoceptor agonist [Davidson's Medicine, Page 382].\n- **IV sodium bicarbonate:** causes potassium to move intracellularly, lowering plasma [K+]; most efficacious in a patient with metabolic acidosis [Nelson Pediatrics 22e Vol 1, Page 545]; Davidson's lists IV sodium bicarbonate if acidosis is present [Davidson's Medicine, Page 382].\n\n**Then remove K+ from the body:**\n- **Loop diuretics (e.g. IV furosemide) with normal saline** if adequate residual renal function/hypovolaemia [Davidson's Medicine, Page 382].\n- **Ion-exchange resin:** sodium polystyrene sulfonate (SPS/Kayexalate) 1 g/kg orally or by retention enema; exchanges sodium for potassium, takes several hours, a single dose lowers serum K+ by about 1 mEq/L, and may be repeated every 2 hours (limited by risk of sodium overload) [Nelson Pediatrics 22e Vol 2, Page 1050]. Davidson's notes concerns about SPS's lack of proven efficacy and safety, with reports of intestinal necrosis [Davidson's Medicine, Page 382].\n- **Dialysis** in renal failure [Davidson's Medicine, Page 382].\n\n**Also:** stop all sources of additional K+ (oral, IV) [Nelson Pediatrics 22e Vol 1, Page 545]. The treatment of hyperkalaemia has two basic goals: (1) stabilise the heart to prevent life-threatening arrhythmias and (2) remove K+ from the body; treatments that acutely prevent arrhythmias work within minutes but do not remove K+ from the body [Nelson Pediatrics 22e Vol 1, Page 545]. Note the ECG progression: peaked T waves are the first sign, followed by prolonged PR interval and, when most severe, prolonged QRS complex; life-threatening ventricular arrhythmias may develop [Nelson Pediatrics 22e Vol 1, Page 545].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam-focused sequence (the classic 'C-BIG-K-D' approach):**\n1. **Calcium** (membrane stabilisation) \u2014 first-line, does NOT lower K+.\n2. **Bicarbonate / \u03b22-agonist / Insulin+Glucose** (shift K+ intracellularly).\n3. **Diuretics / Resins / Dialysis** (remove K+).\n\n**Practical points for FCPS-II:**\n- **Calcium gluconate 10% 10 mL IV over 5\u201310 min** (or calcium chloride 10% 5\u201310 mL via central line) \u2014 onset 1\u20133 min, duration 30\u201360 min. Repeat if ECG changes persist.\n- **Insulin:** 10 units soluble insulin in 25 g glucose (50 mL of 50% dextrose) IV; monitor glucose hourly for at least 6 hours (late hypoglycaemia is a classic pitfall).\n- **Salbutamol:** 10\u201320 mg nebulised (4\u20138 times the asthma dose) \u2014 watch for tachycardia.\n- **Sodium bicarbonate:** 50 mmol IV \u2014 reserve for metabolic acidosis; avoid in fluid overload.\n- **Resins:** SPS 15\u201330 g orally/PR; newer agents (patiromer, sodium zirconium cyclosilicate) are better tolerated but not for acute emergencies.\n- **Dialysis:** definitive for refractory hyperkalaemia or renal failure.\n\n**Classic MCQ traps:**\n- Calcium protects the heart but does NOT lower potassium \u2014 never use it as monotherapy.\n- In digoxin toxicity, give calcium slowly (over 30 min) or avoid \u2014 'stone heart' risk.\n- ECG changes correlate poorly with K+ level; treat the patient/ECG, not just the number.\n- Peaked T waves are the earliest ECG sign; a normal ECG does not exclude dangerous hyperkalaemia.",
+      "citations": [
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 382,
+          "excerpt": "The first step should be infusion of 10 mL 10% calcium gluconate to stabilise conductive tissue membranes"
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 545,
+          "excerpt": "Calcium stabilizes the cell membrane of heart cells, preventing arrhythmias; it is given IV over a few minutes, and its action is almost immediate."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 545,
+          "excerpt": "Insulin causes K+ to move intracellularly but must be given with glucose to avoid hypoglycemia."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 545,
+          "excerpt": "Nebulized albuterol, by stimulation of \u03b21-adrenergic receptors, leads to rapid intracellular movement of K+."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1050,
+          "excerpt": "Sodium polystyrene sulfonate (SPS) resin (Kayexalate), 1 g/kg, should be given orally or by retention enema."
+        },
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 382,
+          "excerpt": "IV glucose (50 mL of 50% solution) and insulin (5 IU Actrapid)"
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 279366,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part VI -Fluid and Electrolyte Disorders > Chapter 73 \u2013 Electrolyte and Acid-Base Disorders > Clinical Manifestations",
+          "page_number": 544,
+          "snippet": "The most important effects of hyperkalemia result from the role of K + in membrane polarization. The cardiac conduction system is usually the dominant concern. Changes in the electrocardiogram (ECG) begin with peaking of the T waves. This is followed, as K + level increases, by ST- segment\u2026",
+          "rank": 1,
+          "relevance_score": 1.6005
+        },
+        {
+          "chunk_id": 279945,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part VI -Fluid and Electrolyte Disorders > Chapter 73 \u2013 Electrolyte and Acid-Base Disorders > Treatment",
+          "page_number": 545,
+          "snippet": "The first action in a child with a concerning elevation of plasma [K + ] is to stop all sources of additional K + (oral, IV). Washed RBCs can be used for patients who require blood transfusions. If the [K + ] is >6.5 mEq/L, an ECG should be obtained to help assess the urgency of the situation.\u2026",
+          "rank": 2,
+          "relevance_score": 1.642
+        },
+        {
+          "chunk_id": 385932,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXI -Nephrology > Chapter 571 \u2013 Inherited Tubular Transport Abnormalities > Medical Management",
+          "page_number": 1050,
+          "snippet": "In AKI, rapid development of hyperkalemia (serum potassium level >6 mEq/L) can lead to cardiac arrhythmia, cardiac arrest, and death. The earliest electrocardiographic change seen in patients with developing hyperkalemia is the appearance of peaked T waves. This may be followed by widening of the\u2026",
+          "rank": 3,
+          "relevance_score": 2.4986
+        },
+        {
+          "chunk_id": 79250,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Management",
+          "page_number": 382,
+          "snippet": "Treatment of hyperkalaemia depends on its severity and the rate of development, but opinions vary as to what level of serum potassium constitutes severe hyperkalaemia and requires urgent treatment. Patients who have potassium concentrations < 6.5 mmol/L in the absence of neuromuscular symptoms or\u2026",
+          "rank": 4,
+          "relevance_score": 1.2225
+        },
+        {
+          "chunk_id": 279368,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part VI -Fluid and Electrolyte Disorders > Chapter 73 \u2013 Electrolyte and Acid-Base Disorders > Clinical Manifestations",
+          "page_number": 544,
+          "snippet": "Fig. 73.4 The effects of progressive hyperkalemia on the electrocardiogram. All of the ECGs are from lead V3. A, Serum potassium concentration ([K + ]) = 6.8 mEq/L; note the peaked T waves together with normal sinus rhythm. B, Serum [K + ] = 8.9 mEq/L; note the peaked T waves and absent P waves. C,\u2026",
+          "rank": 5,
+          "relevance_score": 1.4302
+        },
+        {
+          "chunk_id": 331898,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVIII -The Cardiovascular System > Chapter 472 \u2013 Laboratory Cardiac Evaluation > ST SEGMENT AND T- WAVE ABNORMALITIES",
+          "page_number": 543,
+          "snippet": "Fig. 472.14 Electrocardiogram in hyperkalemia. Serum potassium, 6.5 mEq/L. Note the tall, tent- shaped T waves, especially in leads 1, 2, and V6.",
+          "rank": 6,
+          "relevance_score": 1.5173
+        },
+        {
+          "chunk_id": 279982,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part VI -Fluid and Electrolyte Disorders > Chapter 73 \u2013 Electrolyte and Acid-Base Disorders > Treatment",
+          "page_number": 548,
+          "snippet": "Factors that influence the treatment of hypokalemia include the K + level, clinical symptoms, kidney function, the presence of transcellular shifts of K + , ongoing losses, and the patient's ability to tolerate oral K + . Severe, symptomatic hypokalemia requires aggressive treatment.\u2026",
+          "rank": 7,
+          "relevance_score": -7.5832
+        },
+        {
+          "chunk_id": 279983,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part VI -Fluid and Electrolyte Disorders > Chapter 73 \u2013 Electrolyte and Acid-Base Disorders > Treatment",
+          "page_number": 548,
+          "snippet": "Because of the risk of hyperkalemia, IV K + should be used very cautiously. Oral K + is safer, but not as rapid in urgent situations. Liquid preparations are bitter tasting; microencapsulated or wax matrix formulations are less irritating than tablets to the gastric mucosa. Oral dosing is variable\u2026",
+          "rank": 8,
+          "relevance_score": -5.65
+        }
+      ]
+    }
+  ]
+}

@@ -12,6 +12,30 @@ export interface PlayerMCQ {
   options: Record<string, string>;
   media?: number[];
   figure_id?: number | null;
+  /** 1-5, measured from students' first answers once enough have answered, else the author's rating. */
+  difficulty?: number | null;
+  difficulty_label?: string | null;
+  difficulty_source?: "students" | "author" | null;
+  correct_rate?: number | null;
+  answered_n?: number | null;
+}
+
+/** "Hard", with the share of students who got it right once the key is shown (never before: it would hint). */
+function DifficultyTag({ mcq, revealed }: { mcq: PlayerMCQ; revealed: boolean }) {
+  if (!mcq.difficulty || !mcq.difficulty_label) return null;
+  const measured = mcq.difficulty_source === "students" && mcq.correct_rate != null;
+  const title = measured
+    ? `${Math.round(mcq.correct_rate! * 100)}% of ${mcq.answered_n} students got this right on their first try`
+    : "Difficulty set when the question was written; it is replaced by real results once enough students answer it";
+  return (
+    <span className="qp-difficulty" data-level={mcq.difficulty} title={title}>
+      <span className="qp-difficulty-bars" aria-hidden>
+        {[1, 2, 3, 4, 5].map((i) => <i key={i} data-on={i <= mcq.difficulty! || undefined} />)}
+      </span>
+      {mcq.difficulty_label}
+      {measured && revealed ? <span className="qp-difficulty-rate"> · {Math.round(mcq.correct_rate! * 100)}% got it right</span> : null}
+    </span>
+  );
 }
 
 export type Confidence = "sure" | "unsure" | "guess";
@@ -62,10 +86,13 @@ export default function QuestionPlayer({
 
   return (
     <div className="qp">
-      {kicker || aside ? (
+      {kicker || aside || mcq.difficulty_label ? (
         <div className="qp-head">
           <span className="qp-kicker">{kicker}</span>
-          {aside}
+          <span className="qp-head-end">
+            <DifficultyTag mcq={mcq} revealed={revealed} />
+            {aside}
+          </span>
         </div>
       ) : null}
       {mcq.figure_id ? (

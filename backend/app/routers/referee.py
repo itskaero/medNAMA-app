@@ -3,7 +3,7 @@
 Moved verbatim from app/main.py (routes keep their paths)."""
 
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -20,6 +20,29 @@ class RefereeRequest(BaseModel):
     answer: str | None = None                 # recall style: "question = answer"
     options: dict[str, str] | None = None     # MCQ style
     key: str | None = None                    # published key for the MCQ, if any
+
+@router.post("/api/referee/read-photo", dependencies=[Depends(rate_limiter(limit=10, window=60))])
+async def read_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_student_or_admin),
+):
+    """A photographed MCQ -> {question, options, key, answer} for Check an answer to fill in. Transcription only:
+    the student sees and can correct the text before the Referee judges it (app/photo_mcq.py)."""
+    from starlette.concurrency import run_in_threadpool
+
+    from app.photo_mcq import MAX_BYTES, PhotoUnavailable, read_mcq
+
+    image = await file.read(MAX_BYTES + 1)
+    try:
+        return await run_in_threadpool(read_mcq, image, (file.content_type or "").lower())
+    except PhotoUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception:
+        logger.exception("Reading an MCQ photo failed")
+        raise HTTPException(status_code=502, detail="The photo could not be read right now. Try again, or type the question.")
+
 
 class RecallReviewRequest(BaseModel):
     review_status: str                        # confirmed | corrected | rejected | unreviewed
@@ -38,9 +61,12 @@ def _serialize_recall(r) -> dict:
 def referee_question(
     req: RefereeRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_student_or_admin),
 ):
-    """Check a recall answer or MCQ key against the textbooks (verified quotes only)."""
+    """Check a recall answer or MCQ key against the textbooks (verified quotes only).
+
+    Open to students (Utilities > Check an answer). A full MCQ the app does not hold yet is kept
+    (app/checked_mcqs.py), reported back under "bank"; the recall bank itself stays admin-only."""
     from app.referee import judge
 
     if not (req.question or "").strip():
@@ -48,9 +74,19 @@ def referee_question(
     if not req.answer and not req.options:
         raise HTTPException(status_code=400, detail="Give the published answer, or the options (and key).")
     try:
-        return judge(db, req.question, answer=req.answer, options=req.options, key=req.key)
+        result = judge(db, req.question, answer=req.answer, options=req.options, key=req.key)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    if req.options and result.get("verdict"):
+        from app.checked_mcqs import remember
+
+        try:
+            result["bank"] = remember(db, current_user, req.question, req.options, req.key, result)
+        except Exception:
+            logger.exception("Keeping a checked MCQ failed")
+            db.rollback()
+            result["bank"] = {"status": "skipped", "reason": "It could not be added to the bank this time."}
+    return result
 
 @router.get("/api/recalls")
 def list_recalls(

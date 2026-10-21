@@ -182,8 +182,12 @@ def _load_second_stage(name: str):
         try:
             from sentence_transformers import CrossEncoder
 
+            import torch
+
             logger.info("Loading second-stage reranker (%s)...", name)
-            _second_stage_model = CrossEncoder(name, max_length=512)
+            # Raw logits, not sentence-transformers' default sigmoid: sigmoid saturates near 1.0 for strong
+            # matches (ties), and the exam-level bonus below is added on this scale.
+            _second_stage_model = CrossEncoder(name, max_length=512, activation_fn=torch.nn.Identity())
         except Exception as e:  # e.g. offline NAS without the model cached
             logger.warning("Second-stage reranker %s unavailable, using single stage: %s", name, e)
             _second_stage_failed = True
@@ -774,9 +778,9 @@ class RetrievalService:
         # cut-off is calibrated on them); only the order changes.
         second = get_second_stage_reranker() if deep_rerank else None
         top_n = settings.reranker_second_stage_top_n
+        s2: dict[int, float] = {}
         if second is not None and len(ranked) > 1:
             head, tail = ranked[:top_n], ranked[top_n:]
-            s2: dict[int, float] = {}
             for q in queries:
                 from app.ingestion import RERANK_LOCK
                 with RERANK_LOCK:
@@ -805,11 +809,18 @@ class RetrievalService:
                 if narrowed:
                     wanted = narrowed
             if wanted:
+                # The bonus goes on the score of the stage that ordered each passage: the second-stage
+                # score inside the re-ordered head, the first-stage score below it. Re-sorting everything
+                # by first-stage score + bonus (as before 2026-10-10) threw the second stage's order away
+                # whenever a level was set.
                 def _preference(item: tuple[Any, float]) -> float:
                     subject = (item[0].book.subject if item[0].book else None) or ""
-                    return item[1] + (LEVEL_SUBJECT_BONUS if subject in wanted else 0.0)
+                    base = s2.get(item[0].id, item[1])
+                    return base + (LEVEL_SUBJECT_BONUS if subject in wanted else 0.0)
 
-                ranked = sorted(ranked, key=_preference, reverse=True)
+                head = [r for r in ranked if r[0].id in s2]
+                tail = [r for r in ranked if r[0].id not in s2]
+                ranked = sorted(head, key=_preference, reverse=True) + sorted(tail, key=_preference, reverse=True)
 
         if exclude_chunk_ids:
             fresh = [r for r in ranked if r[0].id not in exclude_chunk_ids]

@@ -7,7 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app import exam_levels
 from app.auth import require_student_or_admin
+from app.study_plan import focus_topics
 from app.deps import get_db
 from app.models import MCQ, AttemptAnswer, DailySession, QuizAttempt, User
 
@@ -37,11 +39,20 @@ def today(db: Session = Depends(get_db), user: User = Depends(require_student_or
         focus = mastery(db, user).get("focus", [])[:3]
     except Exception:   # the map is a nice-to-have here
         focus = []
+    # Paper 1 topics weighted by how often past papers ask them (app/study_plan.py). Paper 2 has no topic tags.
+    plan_topics = []
+    if exam_levels.normalise(user.exam_level) in (None, "FCPS-I", "MBBS", "USMLE"):
+        try:
+            plan_topics = focus_topics(db, user.id)
+        except Exception:
+            db.rollback()
+            plan_topics = []
     return {
         "continue": cont,
         "dose": {"started": dose is not None, "completed": bool(dose and dose.completed_at),
                  "done": sum(1 for i in items if i.get("done")), "total": len(items)},
         "focus": focus,
+        "plan_topics": plan_topics,
     }
 
 
@@ -91,6 +102,7 @@ def mistakes(limit: int = 300, db: Session = Depends(get_db), user: User = Depen
 def resume(attempt_id: int, db: Session = Depends(get_db), user: User = Depends(require_student_or_admin)):
     """An unfinished session as it was served: its questions in order (keys hidden in board mode) and the answers
     already given, so the student continues from the first unanswered question."""
+    from app.answer_stats import difficulty_info
     from app.past_papers import paper_years, question_media, recall_info
 
     a = db.query(QuizAttempt).filter(QuizAttempt.id == attempt_id, QuizAttempt.user_id == user.id).first()
@@ -112,5 +124,5 @@ def resume(attempt_id: int, db: Session = Depends(get_db), user: User = Depends(
         "mcqs": [{"id": m.id, "question_text": m.question_text, "options": m.options,
                   "correct_option": None if board else m.correct_option, "main_category": m.main_category,
                   "sub_category": m.sub_category, "media": media.get(m.id, []), "paper_years": years.get(m.id, []),
-                  **recalls.get(m.id, {})} for m in ordered],
+                  **recalls.get(m.id, {}), **difficulty_info(m)} for m in ordered],
     }

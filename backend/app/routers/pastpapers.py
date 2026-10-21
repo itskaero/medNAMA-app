@@ -49,7 +49,7 @@ def past_papers_scope(req: PastPaperScopeRequest, db: Session = Depends(get_db),
 def _past_paper_mcq(db: Session, mcq_id: int, user: User) -> MCQ:
     _require_past_papers(user)
     mcq = db.get(MCQ, mcq_id)
-    if mcq is None or mcq.status == "private":
+    if mcq is None or mcq.status != "ready":
         raise HTTPException(status_code=404, detail="Question not found.")
     return mcq
 

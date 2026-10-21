@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.account import delete_user_data
 from app.auth import hash_password, require_admin
 from app.deps import get_db
 from app.models import AnswerEvent, InviteCode, User
@@ -73,6 +74,18 @@ def reset_password(user_id: int, db: Session = Depends(get_db), admin: User = De
     db.commit()
     return {"username": user.username, "temporary_password": temp,
             "note": "Shown once. The student should change it after signing in."}
+
+
+@router.delete("/api/admin/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """Delete a student account and all of its data (§10 deletion). Admins cannot delete themselves."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="No such user.")
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="You can't delete your own account.")
+    delete_user_data(db, user.id)
+    return {"deleted": user_id, "username": user.username}
 
 
 @router.get("/api/admin/invites")

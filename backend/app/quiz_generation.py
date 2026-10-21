@@ -305,7 +305,7 @@ def _build_prompts(prompt_text: str, profile: dict, difficulty: int | None, cont
         '      "question_text": "Stem...",\n'
         f'      "options": {{{options_example}}},\n'
         f'      "correct_option": "{keys[0]}",\n'
-        '      "explanation": "Why the answer is right and each distractor wrong.",\n'
+        '      "explanation": "Why the answer is right (1-3 sentences), then one short line per other option, e.g. **B.** why it is wrong.",\n'
         '      "tested_concept": "Topic - specific fact tested (max 8 words)",\n'
         '      "buzzword": "One-line exam association, e.g. Olive-shaped mass + projectile non-bilious vomiting -> IHPS",\n'
         '      "source_chunk": 1\n'

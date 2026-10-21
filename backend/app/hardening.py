@@ -114,7 +114,7 @@ def _base_query(db: Session, user: User):
     from app.retention import access_scope
 
     # Never harden a hardened question: it would compound rewrites and blind the dedup check.
-    return access_scope(db.query(MCQ).filter(MCQ.status != "private"), user).filter(
+    return access_scope(db.query(MCQ).filter(MCQ.status == "ready"), user).filter(
         or_(MCQ.main_category.is_(None), MCQ.main_category != CATEGORY))
 
 

@@ -94,7 +94,7 @@ export default function MCQBankView({
               { value: "all", label: "All Subjects" },
               ...categories.map((c: any) => ({
                 value: c.main_category,
-                label: c.main_category,
+                label: c.main_category === "Seed · PGET Paper I (MBBS)" ? "PGET · Paper 1 (Basic Sciences)" : c.main_category,
               })),
             ]}
             value={mcqFilterCategory}

@@ -22,6 +22,7 @@ import BasicDropdown from "@/components/ui/basic-dropdown";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { examLevelItems, fromLevelValue, levelHint, toLevelValue } from "@/lib/examLevels";
+import { VoiceButton } from "@/components/VoiceButton";
 import { groupConversations } from "@/utils/quizHelpers";
 
 export interface ChatScope {
@@ -613,6 +614,7 @@ export default function ChatView({
 
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span className="keyboard-send-hint">⏎ to send</span>
+                <VoiceButton value={inputValue} onChange={setInputValue} disabled={isSearching} />
                 <button
                   className="send-btn"
                   onClick={() => sendQuery(inputValue)}

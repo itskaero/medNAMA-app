@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, BookOpen, CheckCircle2, HelpCircle, ImageDown, Loader2, Scale, Search, XCircle } from "lucide-react";
+import { AlertTriangle, BookOpen, Camera, CheckCircle2, HelpCircle, ImageDown, Loader2, Scale, Search, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { API } from "@/lib/constants";
 import { shareCard } from "@/lib/shareCard";
@@ -26,7 +26,15 @@ export interface RefereeResult {
   explanation: string | null;
   ai_reasoning?: string;
   error?: string;
+  /** A full MCQ the app did not hold is kept (backend app/checked_mcqs.py). */
+  bank?: { status: "added" | "pending" | "exists" | "skipped"; mcq_id?: number; where?: string; reason?: string };
 }
+
+const BANK_LINE: Record<string, string> = {
+  added: "New to medNAMA: added to the question bank with the textbook answer, so others can practise it.",
+  pending: "New to medNAMA: kept for review, because the textbooks did not settle the answer.",
+  exists: "Already in medNAMA",
+};
 
 interface RecallRow extends RefereeResult {
   id: number;
@@ -43,7 +51,7 @@ interface RecallRow extends RefereeResult {
 const VERDICT_STYLE: Record<Verdict, { label: string; color: string; icon: React.ReactNode }> = {
   supported: { label: "Textbook-supported", color: "var(--sea-green)", icon: <CheckCircle2 size={14} /> },
   contradicted: { label: "Textbooks disagree with the key", color: "var(--error)", icon: <XCircle size={14} /> },
-  books_conflict: { label: "Books conflict", color: "#f59e0b", icon: <AlertTriangle size={14} /> },
+  books_conflict: { label: "The books disagree", color: "#f59e0b", icon: <AlertTriangle size={14} /> },
   textbooks_silent: { label: "Textbooks silent", color: "var(--text-muted)", icon: <HelpCircle size={14} /> },
 };
 
@@ -104,6 +112,37 @@ async function shareVerdict(r: RefereeResult, question: string, keyGiven: string
   }
 }
 
+/** Two standard textbooks saying different things is worth knowing, not an error: show each book's own words side
+ *  by side (every quote was checked verbatim against its page) so the student learns both and which one a key follows. */
+function BooksDisagree({ evidence }: { evidence: Evidence[] }) {
+  const byBook = new Map<string, Evidence[]>();
+  for (const e of evidence) {
+    const k = e.book_title || "Textbook";
+    byBook.set(k, [...(byBook.get(k) || []), e]);
+  }
+  if (byBook.size < 2) return null;
+  return (
+    <div className="books-disagree">
+      <p className="books-disagree-lead">
+        Standard books differ here. Examiners like these points: learn what each book says, and which one your key follows.
+      </p>
+      <div className="books-disagree-grid">
+        {[...byBook.entries()].map(([book, quotes]) => (
+          <figure key={book} className="books-disagree-book">
+            <figcaption><BookOpen size={12} aria-hidden /> {book}</figcaption>
+            {quotes.map((e, i) => (
+              <blockquote key={i}>
+                “{e.quote}”
+                {e.page_number ? <> <CiteLink bookTitle={e.book_title} page={e.page_number} excerpt={e.quote}>p.{e.page_number}</CiteLink></> : null}
+              </blockquote>
+            ))}
+          </figure>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function VerdictCard({ r, share }: { r: RefereeResult; share?: { question: string; keyGiven: string } }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "8px", border: "1px solid var(--border-light)", borderRadius: "12px", padding: "12px 14px" }}>
@@ -123,19 +162,32 @@ function VerdictCard({ r, share }: { r: RefereeResult; share?: { question: strin
           {r.agrees_with_key === true ? <span style={{ color: "var(--sea-green)", fontWeight: 700 }}> · matches the published key</span> : null}
         </div>
       ) : null}
-      <EvidenceList evidence={r.evidence || []} />
+      {r.verdict === "books_conflict" ? <BooksDisagree evidence={r.evidence || []} /> : <EvidenceList evidence={r.evidence || []} />}
       {r.explanation ? <div style={{ fontSize: "0.82rem", color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{r.explanation}</div> : null}
       {r.ai_reasoning ? (
         <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
           <b>AI reasoning (not from the textbooks):</b> {r.ai_reasoning}
         </div>
       ) : null}
+      {r.bank && r.bank.status !== "skipped" ? (
+        <div style={{ fontSize: "0.76rem", color: r.bank.status === "added" ? "var(--sea-green)" : "var(--text-muted)", borderTop: "1px solid var(--border-light)", paddingTop: "6px" }}>
+          {BANK_LINE[r.bank.status]}{r.bank.status === "exists" && r.bank.where ? ` (${r.bank.where})` : ""}{r.bank.status === "exists" ? "." : ""}
+        </div>
+      ) : r.bank?.reason ? (
+        <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>{r.bank.reason}</div>
+      ) : null}
     </div>
   );
 }
 
-export default function RefereeView({ token }: { token: string | null }) {
-  const [tab, setTab] = useState<"check" | "bank" | "map">("check");
+type RefereeTab = "check" | "bank" | "map";
+
+/** Admin > Recall bank shows all three tabs. Utilities shows one of the student tabs on its own
+ *  (Check an answer, High-yield map): the recall bank stays admin-only until it is licensed. */
+export default function RefereeView({ token, tabs = ["check", "bank", "map"] }: { token: string | null; tabs?: RefereeTab[] }) {
+  // Each Utilities tab mounts its own instance (keyed in app/page.tsx), so the first tab is enough.
+  const [tab, setTab] = useState<RefereeTab>(tabs[0]);
+  const adminView = tabs.includes("bank");
   const [freq, setFreq] = useState<{ chapter: string; recalls: number; headlines: number; disputed: number; share: number }[] | null>(null);
   const headers = useCallback((): HeadersInit => {
     const t = (typeof window !== "undefined" && localStorage.getItem("token")) || token;
@@ -149,6 +201,30 @@ export default function RefereeView({ token }: { token: string | null }) {
   const [key, setKey] = useState("");
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<RefereeResult | null>(null);
+  const [reading, setReading] = useState(false);
+
+  /** A photo or screenshot of the question fills the form; the student checks the text, then referees it. */
+  const readPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setReading(true);
+    setCheckResult(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${API}/api/referee/read-photo`, { method: "POST", headers: headers(), credentials: "include", body: form });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((body && body.detail) || `HTTP ${res.status}`);
+      setQuestion(body.question || "");
+      setOptionsText(body.options ? Object.entries(body.options as Record<string, string>).map(([k, v]) => `${k}. ${v}`).join("\n") : "");
+      setAnswer(body.answer || "");
+      setKey(body.key || "");
+      toast.success("Read from the photo. Check the text, then referee it.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReading(false);
+    }
+  };
 
   const parseOptions = (txt: string): Record<string, string> | null => {
     const out: Record<string, string> = {};
@@ -260,16 +336,18 @@ export default function RefereeView({ token }: { token: string | null }) {
     <div className="dashboard-view" role="region" aria-label="Answer-key referee" style={{ maxWidth: "900px", margin: "0 auto" }}>
       <div className="dashboard-header">
         <h1 className="dashboard-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <Scale size={20} /> Answer-Key Referee
+          <Scale size={20} /> {adminView ? "Recall bank" : tab === "map" ? "High-yield map" : "Check an answer"}
         </h1>
         <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-          Checks a recall answer or MCQ key against the textbooks and shows the exact passages. Private recall sources are
-          never used as evidence. Admin-only while the recall bank is private.
+          {tab === "map"
+            ? "Which systems the past papers ask about most, from the recall bank."
+            : "Checks a recall answer or an MCQ key against the textbooks and shows the exact passages. Works on any question, including one that is not in medNAMA: a new MCQ is added to the bank."}
+          {adminView ? " The recall bank is admin-only while it is private." : ""}
         </p>
       </div>
 
-      <div style={{ display: "flex", gap: "6px", marginBottom: "var(--sp-4)" }}>
-        {(["check", "bank", "map"] as const).map((t) => (
+      <div style={{ display: tabs.length > 1 ? "flex" : "none", gap: "6px", marginBottom: "var(--sp-4)" }}>
+        {tabs.map((t) => (
           <button key={t} className="btn-workspace" onClick={() => setTab(t)}
             style={{ borderColor: tab === t ? "var(--sky)" : undefined, color: tab === t ? "var(--sky)" : undefined }}>
             {t === "check" ? "Check an answer" : t === "bank" ? "Recall bank" : "High-yield map"}
@@ -301,6 +379,13 @@ export default function RefereeView({ token }: { token: string | null }) {
         </div>
       ) : tab === "check" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <label className="photo-pick" aria-disabled={reading || undefined}>
+            <input type="file" accept="image/*" capture="environment" disabled={reading}
+              onChange={(e) => { readPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+            {reading ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} />}
+            <span>{reading ? "Reading the photo…" : "Photo or screenshot of the question"}</span>
+            <small>fills the fields below</small>
+          </label>
           <textarea rows={3} placeholder="Question / stem, e.g. 'Pericardial cavity lies between'" value={question} onChange={(e) => setQuestion(e.target.value)} style={inputStyle} />
           <input placeholder="Published answer (recall style), e.g. 'Visceral and parietal layer of fibrous pericardium'" value={answer} onChange={(e) => setAnswer(e.target.value)} style={inputStyle} />
           <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>…or paste MCQ options, one per line (A. … to E. …), with the published key:</div>

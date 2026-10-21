@@ -25,7 +25,7 @@ def export_mcqs_csv(
 
     from app.retention import access_scope
 
-    query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user).order_by(MCQ.id.asc())
+    query = access_scope(db.query(MCQ).filter(MCQ.status == "ready"), current_user).order_by(MCQ.id.asc())
 
     def rows():
         buf = io.StringIO()

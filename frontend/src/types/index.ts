@@ -54,6 +54,10 @@ export interface AnswerResponse {
   /** Uncited AI clinical knowledge beyond the textbooks. */
   supplementary_markdown?: string;
   grounding?: Grounding;
+  /** How much of the answer is textbook-backed: high | medium | low (see app.generation). */
+  grounding_confidence?: "high" | "medium" | "low";
+  /** Human-readable caution when the answer leans on AI knowledge; null when well grounded. */
+  uncertainty_note?: string | null;
   status?: "ok" | "llm_error" | "not_configured";
   /** Books with a strong matching passage that the answer did not cite. */
   also_in?: { book_title: string; page_number: number | null; chunk_id?: number }[];
@@ -108,6 +112,8 @@ export interface SavedSheet {
   chapter: string | null;
   topic: string | null;
   length: "quick" | "full";
+  /** The programme it was written for; reopening asks for the same one. */
+  level?: string | null;
   created_at: string | null;
 }
 

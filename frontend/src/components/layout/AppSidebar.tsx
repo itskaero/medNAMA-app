@@ -14,8 +14,10 @@ import {
   GraduationCap,
   History,
   Shield,
+  LayoutGrid,
 } from "lucide-react";
-import { HUBS, hubOf, HubId, ViewId } from "@/lib/nav";
+import { HUBS, hubOf, visibleTabs, HubId, ViewId } from "@/lib/nav";
+import { EXAM_LEVELS, fromLevelValue, levelHint, toLevelValue } from "@/lib/examLevels";
 
 interface AppSidebarProps {
   activeView: ViewId;
@@ -30,6 +32,14 @@ interface AppSidebarProps {
   setTheme: (v: "dark" | "light" | "balanced" | "warm") => void;
   handleLogout: () => void;
   onChangePassword?: () => void;
+  /** The exam the student is preparing for, shared by Chat, Revise and the MCQ generator (null = general). */
+  level?: string | null;
+  setLevel?: (level: string | null) => void;
+  /** the learner sits a clinical paper (shows TOACS) */
+  clinical?: boolean;
+  /** the paper chosen in onboarding, shown under "Preparing for"; clicking it reopens the setup */
+  paperTitle?: string | null;
+  onEditPrep?: () => void;
 }
 
 const HUB_ICON: Record<HubId, React.ReactNode> = {
@@ -37,10 +47,11 @@ const HUB_ICON: Record<HubId, React.ReactNode> = {
   learn: <BookOpenCheck size={15} style={{ color: "var(--sea-green)" }} />,
   practise: <GraduationCap size={15} style={{ color: "var(--sky)" }} />,
   review: <History size={15} />,
+  more: <LayoutGrid size={15} />,
   admin: <Shield size={15} />,
 };
 
-/** Sidebar: four hubs (Today, Learn, Practise, Review) plus Admin. The current hub's tabs are listed under it, so
+/** Sidebar: the four core hubs (Today, Study, Practise, Review), More, and Admin. The current hub's tabs are listed under it, so
  *  every screen is two clicks away at most; the same tabs sit above the page in the hub bar. */
 export default function AppSidebar({
   activeView,
@@ -55,6 +66,11 @@ export default function AppSidebar({
   setTheme,
   handleLogout,
   onChangePassword,
+  level = null,
+  setLevel,
+  clinical = true,
+  paperTitle = null,
+  onEditPrep,
 }: AppSidebarProps) {
   const current = hubOf(activeView).id;
   const lastTab = (hub: HubId): ViewId => {
@@ -142,6 +158,22 @@ export default function AppSidebar({
         </button>
       </div>
 
+      {/* One exam setting for the whole app: changing it here changes Chat, Revise and the MCQ generator */}
+      {setLevel ? (
+        <label className="sidebar-level" title={levelHint(level)}>
+          <span>Preparing for</span>
+          <select value={toLevelValue(level)} onChange={(e) => setLevel(fromLevelValue(e.target.value))}>
+            {EXAM_LEVELS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+      ) : null}
+      {onEditPrep ? (
+        <button type="button" className="sidebar-paper" onClick={() => { onEditPrep(); setMobileMenuOpen(false); }}
+          title="Change your paper, exam date or daily study time">
+          {paperTitle ? <>Paper: <b>{paperTitle}</b></> : <>Choose your paper</>}
+        </button>
+      ) : null}
+
       {/* Hubs; the current one lists its tabs */}
       <nav aria-label="Main" className="hub-nav">
         {HUBS.filter((h) => !h.admin || isAdmin).map((h) => {
@@ -156,7 +188,7 @@ export default function AppSidebar({
               </button>
               {on ? (
                 <div className="hub-subnav">
-                  {h.tabs.map((t) => (
+                  {visibleTabs(h, clinical, activeView).map((t) => (
                     <button key={t.view} className={`hub-subitem ${t.view === activeView ? "active" : ""}`} title={t.title}
                       onClick={() => go(t.view)}>
                       {t.label}{t.view === "library" && bookCount ? <span className="hub-count">{bookCount}</span> : null}

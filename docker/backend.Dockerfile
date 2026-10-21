@@ -29,6 +29,9 @@ RUN pip install --upgrade pip \
 
 # Copy the application source (build context = repo root)
 COPY backend/ /app/backend/
+# The Tables of Specifications the TOS screens read (app/tos.py looks in /app/data). Baked in so a
+# recreated container keeps them; they used to be copied into the running container by hand.
+COPY data/pget_tos.json data/fcps_part1_tos.json data/mbbs_tos.json /app/data/
 COPY docker/backend-entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh && mkdir -p /models/huggingface /tmp /app/mcqs

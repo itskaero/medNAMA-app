@@ -8,6 +8,7 @@ so a different model (e.g. MedGemma behind vLLM) can be trialled for one role
 without touching the code. Every client has a bounded timeout and retry count.
 """
 
+import json
 import logging
 import random
 import threading
@@ -75,7 +76,7 @@ def get_client(role: str = "chat") -> OpenAI:
 
 def chat_completion(messages: list[dict], *, json_mode: bool = False, temperature: float = 0.0,
                     max_tokens: int | None = None, thinking: bool | None = None, label: str = "llm",
-                    role: str = "chat") -> str:
+                    role: str = "chat", timeout: float | None = None) -> str:
     """Run one chat completion on the role's endpoint and return the message text.
 
     `thinking=None` uses settings.llm_thinking. The thinking switch is a
@@ -87,6 +88,8 @@ def chat_completion(messages: list[dict], *, json_mode: bool = False, temperatur
         kwargs["response_format"] = {"type": "json_object"}
     if max_tokens:
         kwargs["max_tokens"] = max_tokens
+    if timeout:   # a long answer (an outlined revision sheet) needs longer than the default limit
+        kwargs["timeout"] = timeout
     use_thinking = settings.llm_thinking if thinking is None else thinking
     if ep.is_deepseek and not use_thinking:
         kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
@@ -100,6 +103,20 @@ def chat_completion(messages: list[dict], *, json_mode: bool = False, temperatur
         label, role, ep.model, elapsed, getattr(usage, "completion_tokens", "?"),
     )
     return response.choices[0].message.content or ""
+
+
+def llm_json(messages: list[dict], *, role: str = "chat", temperature: float = 0.2, max_tokens: int | None = None,
+             label: str = "llm-json", timeout: float | None = None) -> dict:
+    """One JSON-mode completion parsed into a dict. Raises ValueError when the reply is not a JSON object
+    (a stray markdown fence around it is tolerated)."""
+    raw = chat_completion(messages, json_mode=True, temperature=temperature, max_tokens=max_tokens, label=label,
+                          role=role, timeout=timeout).strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`").removeprefix("json").strip()
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise ValueError("The AI reply was not a JSON object.")
+    return data
 
 
 def key_instruction(n: int = 1, keys: str = "ABCDE") -> str:

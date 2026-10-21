@@ -22,6 +22,7 @@ export const viewport: Viewport = {
 
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { ApiErrorShim } from "@/components/ApiErrorShim";
 
 export default function RootLayout({
   children,
@@ -35,6 +36,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body style={{ height: "100%" }}>
+        <ApiErrorShim />
         {children}
         <Toaster position="top-center" />
         <ServiceWorker />

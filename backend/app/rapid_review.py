@@ -158,8 +158,9 @@ def build_summary(db: Session, user: User, scope: dict[str, Any]) -> TopicSummar
                         "## Look-alikes & traps\n## Mnemonics\n"
                         "Rules: every bullet states one fact found in a passage and ends with its reference exactly as "
                         "shown, e.g. [Guyton Hall Physiology, Page 331]. Never state anything the passages do not say. "
-                        "A mnemonic you invent ends with '(AI mnemonic)' instead of a reference. At most 22 bullets in "
-                        "total, one line each. Reply with the markdown only."
+                        "A mnemonic you invent ends with '(AI mnemonic)' instead of a reference. One fact per line; "
+                        "no set number of bullets - write what the passages support for this topic and stop. "
+                        "Reply with the markdown only."
                     )},
                     {"role": "user", "content": f"TOPIC: {topic}\n\nEXAM THEMES: {themes}\n\nTEXTBOOK PASSAGES:\n{passages[:15000]}"},
                 ],

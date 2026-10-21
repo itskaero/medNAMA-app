@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>medNAMA Control Hub</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Custom Frameless Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M19 10.5h-5.5V5c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v5.5H5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5h5.5V19c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-5.5H19c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5z"/></svg>
+      </div>
+      <div class="brand-title">med<span>NAMA</span> Control Hub</div>
+    </div>
+
+    <div class="titlebar-meta">
+      <div class="meta-pill" id="nasHeaderStatus">
+        <span class="meta-dot"></span> NAS 192.168.1.42 (Active)
+      </div>
+      <div class="meta-pill">
+        <span>76,232 MCQs</span> · <span>792 PGET</span>
+      </div>
+    </div>
+
+    <div class="window-controls">
+      <button class="win-btn" id="btnMinimize" title="Minimize">─</button>
+      <button class="win-btn" id="btnMaximize" title="Maximize">□</button>
+      <button class="win-btn close" id="btnClose" title="Close">✕</button>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Top Header & Navigation -->
+    <div class="nav-header">
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-tab="services">
+          <span>⚡</span> Services Hub
+        </button>
+        <button class="nav-tab" data-tab="nas">
+          <span>🌐</span> NAS & Cloudflare
+        </button>
+        <button class="nav-tab" data-tab="pget">
+          <span>🧬</span> PGET & Exam Studio
+        </button>
+        <button class="nav-tab" data-tab="embedded">
+          <span>🖥️</span> Embedded Viewer
+        </button>
+        <button class="nav-tab" data-tab="terminal">
+          <span>📜</span> Live Console
+        </button>
+      </div>
+
+      <div class="master-actions">
+        <button class="btn btn-emerald" id="btnStartCore">
+          <span>▶</span> Start Core Apps
+        </button>
+        <button class="btn btn-primary" id="btnStartAll">
+          <span>⚡</span> Start All Services
+        </button>
+        <button class="btn btn-rose" id="btnStopAll">
+          <span>⏹</span> Stop All
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="content-area">
+      <!-- 1. Services Hub Pane -->
+      <div class="tab-pane active" id="pane-services">
+        <!-- Standalone Pipeline Launchers (.exe) Section -->
+        <div class="section-panel" style="margin-bottom: 20px; border-color: rgba(0, 240, 255, 0.25); background: linear-gradient(180deg, rgba(13, 19, 34, 0.95), rgba(7, 10, 18, 0.95));">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span style="color: var(--cyan);">⚡</span> Standalone Pipeline Launchers (.exe)
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--mono);">
+              Hardware-Accelerated Circuit Flow · Native Windows .exe
+            </div>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.45; margin-bottom: 12px;">
+            Standalone animated node-pipeline launchers featuring 60fps laser connection graph and real-time progress indicators:
+          </p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+            <button class="btn btn-primary" style="display: flex; flex-direction: column; align-items: flex-start; padding: 10px 14px; gap: 4px; text-align: left;" onclick="window.api.launchExe('Launch-medNAMA')">
+              <span style="font-weight: 800; font-size: 0.86rem; color: #fff;">▶ Launch medNAMA</span>
+              <span style="font-size: 0.72rem; color: rgba(255,255,255,0.7); font-family: var(--mono);">DB + Backend + Frontend</span>
+            </button>
+            <button class="btn" style="display: flex; flex-direction: column; align-items: flex-start; padding: 10px 14px; gap: 4px; text-align: left; border-color: var(--indigo);" onclick="window.api.launchExe('Launch-RAG-Lab')">
+              <span style="font-weight: 800; font-size: 0.86rem; color: #fff;">🧪 Launch RAG Lab</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--mono);">Vector Store & Benchmarks :8765</span>
+            </button>
+            <button class="btn" style="display: flex; flex-direction: column; align-items: flex-start; padding: 10px 14px; gap: 4px; text-align: left; border-color: var(--amber);" onclick="window.api.launchExe('Launch-Seed-Studio')">
+              <span style="font-weight: 800; font-size: 0.86rem; color: #fff;">🧬 Launch Seed Studio</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--mono);">TOS Blueprint Studio :8770</span>
+            </button>
+            <button class="btn btn-emerald" style="display: flex; flex-direction: column; align-items: flex-start; padding: 10px 14px; gap: 4px; text-align: left;" onclick="window.api.launchExe('Transfer-to-NAS')">
+              <span style="font-weight: 800; font-size: 0.86rem; color: #fff;">🌐 Transfer to NAS</span>
+              <span style="font-size: 0.72rem; color: rgba(255,255,255,0.8); font-family: var(--mono);">Custom Selection & Fast Sync</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="services-grid" id="servicesGrid">
+          <!-- Dynamically populated by renderer.js -->
+          <div style="color: var(--text-muted); font-size: 0.9rem; padding: 20px;">Connecting to medNAMA service hub...</div>
+        </div>
+      </div>
+
+      <!-- 2. NAS & Cloudflare Pane -->
+      <div class="tab-pane" id="pane-nas">
+        <!-- NAS Status Panel -->
+        <div class="section-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span style="color: var(--cyan);">🌐</span> Synology NAS Host (192.168.1.42)
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn" id="btnCheckNas">Refresh Telemetry</button>
+              <button class="btn btn-emerald" id="btnOpenNasWeb">Open NAS Web (:3000)</button>
+            </div>
+          </div>
+
+          <div class="panel-grid">
+            <div class="stat-box">
+              <div class="stat-label">Active Database</div>
+              <div class="stat-value" style="font-size: 1rem; color: var(--emerald);" id="nasActiveDb">medrag_20261012_220436</div>
+              <div class="stat-subtitle">35 User Accounts · 97 Attempts Retained</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Total Questions</div>
+              <div class="stat-value" id="nasTotalMcqs">76,232</div>
+              <div class="stat-subtitle">Full Textbook Bank + Recalls</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">PGET Seeded Pool</div>
+              <div class="stat-value" style="color: var(--cyan);" id="nasPgetCount">792</div>
+              <div class="stat-subtitle">MBBS & Paediatrics Paper I/II</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">SSH & Port 3000 Status</div>
+              <div class="stat-value" style="font-size: 1.05rem;" id="nasPortsStatus">SSH: OK · HTTP: 200</div>
+              <div class="stat-subtitle">Docker Bridge Network 'mednama'</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="btn" id="btnSyncNasDry">Test DB Transfer (Dry Run)</button>
+            <button class="btn btn-emerald" id="btnSyncNasFull">Sync Seeded Database to NAS</button>
+            <button class="btn btn-primary" id="btnDeployImages">Transfer & Deploy Updated Images</button>
+          </div>
+        </div>
+
+        <!-- Cloudflare Zero Trust Tunnel Panel -->
+        <div class="section-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span style="color: #f38020;">☁️</span> Cloudflare Zero Trust Remote Tunnel
+            </div>
+            <span class="status-pill running" id="cfPill">
+              <span class="dot"></span> Tunnel Ready
+            </span>
+          </div>
+
+          <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+            Enables secure remote access to medNAMA worldwide via Cloudflare Zero Trust without opening router ports.
+            Traffic routes securely from Cloudflare edge into <code>http://frontend:3000</code> inside the NAS Docker network.
+          </p>
+
+          <div class="stat-box" style="margin-bottom: 14px;">
+            <div class="stat-label">Tunnel Routing Target</div>
+            <div style="font-family: var(--mono); font-size: 0.88rem; color: var(--cyan);">
+              HTTP -> http://frontend:3000 &nbsp;(Network aliases: frontend, mednama-frontend)
+            </div>
+            <div class="stat-subtitle" style="margin-top: 4px; color: var(--text-muted);">
+              CORS configured with wildcard and trycloudflare regex support in FastAPI.
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <label style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+              Update Cloudflare Tunnel Token on NAS (.env)
+            </label>
+            <div class="input-group">
+              <input type="password" class="text-input" id="cfTokenInput" placeholder="Paste Cloudflare Tunnel Token (eyJh...) to activate">
+              <button class="btn btn-primary" id="btnSaveCfToken">Save & Restart Tunnel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. PGET & Exam Studio Pane -->
+      <div class="tab-pane" id="pane-pget">
+        <div class="section-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span style="color: var(--cyan);">🧬</span> PGET Examination Question Pool
+            </div>
+            <button class="btn btn-primary" id="btnOpenPgetApp">Launch PGET Custom Exam</button>
+          </div>
+
+          <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
+            792 PGET Paediatrics & MBBS Paper I questions are fully verified, classified, and seeded into the live NAS database under category <code>Seed · PGET Paper I (MBBS)</code>.
+          </p>
+
+          <div class="panel-grid">
+            <div class="stat-box">
+              <div class="stat-label">Anatomy</div>
+              <div class="stat-value">150</div>
+              <div class="stat-subtitle">Head & Neck, Thorax, Abdomen, Neuro</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Physiology</div>
+              <div class="stat-value">173</div>
+              <div class="stat-subtitle">CVS, Respiratory, Renal, Neuro, Endocrine</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Pathology</div>
+              <div class="stat-value">97</div>
+              <div class="stat-subtitle">General Pathology, Neoplasia, Genetics</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Pharmacology</div>
+              <div class="stat-value">115</div>
+              <div class="stat-subtitle">ANS, CVS, Antimicrobials, Chemo</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Biochemistry</div>
+              <div class="stat-value">80</div>
+              <div class="stat-subtitle">Metabolism, Enzymes, Vitamins</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Community Medicine</div>
+              <div class="stat-value">86</div>
+              <div class="stat-subtitle">Epidemiology, Biostats, EBM</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Microbiology</div>
+              <div class="stat-value">46</div>
+              <div class="stat-subtitle">Bacteriology, Virology, Immunology</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Behavioral Sciences</div>
+              <div class="stat-value">45</div>
+              <div class="stat-subtitle">Doctor-Patient, Ethics, Stress</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-panel" style="margin-top: 16px;">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span style="color: var(--indigo);">🧪</span> Specialized Labs & MCQ Studios
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn" id="btnOpenSeedStudio">Open TOS MCQ Seed Studio (:8770)</button>
+            <button class="btn" id="btnOpenRagLab">Open RAG Experiment Lab (:8765)</button>
+            <button class="btn" id="btnOpenShowcase">Open Product Showcase (:8080)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Embedded App Viewer Pane -->
+      <div class="tab-pane" id="pane-embedded">
+        <div class="webview-container">
+          <div class="webview-toolbar">
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">Switch View:</span>
+            <button class="btn" id="wvLocalApp">Local Web (:3000)</button>
+            <button class="btn" id="wvNasApp">NAS Web (192.168.1.42:3000)</button>
+            <button class="btn" id="wvSeedStudio">TOS Studio (:8770)</button>
+            <button class="btn" id="wvRagLab">RAG Lab (:8765)</button>
+            <button class="btn" id="wvSite">Showcase (:8080)</button>
+            <div style="flex: 1;"></div>
+            <button class="btn" id="wvReload">↻ Reload</button>
+            <button class="btn btn-primary" id="wvPopout">↗ Open in Browser</button>
+          </div>
+          <iframe id="embeddedFrame" class="webview-frame" src="http://192.168.1.42:3000"></iframe>
+        </div>
+      </div>
+
+      <!-- 5. Live Terminal Console Pane -->
+      <div class="tab-pane" id="pane-terminal">
+        <div class="terminal-window">
+          <div class="terminal-bar">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: #fff;">LIVE TERMINAL FEED</span>
+              <select id="logFilter" class="text-input" style="padding: 4px 8px; font-size: 0.74rem;">
+                <option value="all">All Services & Operations</option>
+                <option value="nas">NAS Transfer & Sync</option>
+                <option value="backend">FastAPI Backend</option>
+                <option value="frontend">Next.js Frontend</option>
+                <option value="seed_studio">TOS Seed Studio</option>
+                <option value="rag_lab">RAG Experiment Lab</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn" id="btnClearLogs">Clear</button>
+              <button class="btn" id="btnCopyLogs">Copy Feed</button>
+            </div>
+          </div>
+          <div class="terminal-body" id="terminalFeed">Initializing live terminal log stream...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
+

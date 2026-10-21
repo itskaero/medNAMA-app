@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>medNAMA Pipeline Launcher</title>
+  <style>
+    :root {
+      --bg: #070a12;
+      --bg-card: #0d1322;
+      --border: #1a253c;
+      --orange: #ff7b00;
+      --orange-glow: rgba(255, 123, 0, 0.4);
+      --cyan: #00f0ff;
+      --cyan-glow: rgba(0, 240, 255, 0.4);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.4);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --mono: "SF Mono", Consolas, "JetBrains Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Ambient background grid & video */
+    .bg-video {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      min-width: 100%;
+      min-height: 100%;
+      width: auto;
+      height: auto;
+      transform: translate(-50%, -50%);
+      object-fit: cover;
+      opacity: 0.25;
+      z-index: 0;
+      pointer-events: none;
+      filter: saturate(1.3) brightness(0.7);
+    }
+
+    .bg-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 40%, rgba(7, 10, 18, 0.4) 0%, rgba(7, 10, 18, 0.88) 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        radial-gradient(circle at 50% 30%, rgba(14, 165, 233, 0.08) 0%, transparent 60%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Header Bar */
+    header {
+      padding: 16px 24px;
+      background: rgba(9, 14, 26, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .progress-bar-container {
+      width: 280px;
+      background: rgba(255, 255, 255, 0.06);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--orange), var(--cyan), var(--emerald));
+      border-radius: 4px;
+      transition: width 0.4s ease;
+      box-shadow: 0 0 10px var(--cyan-glow);
+    }
+
+    .progress-label {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--cyan);
+      min-width: 48px;
+      text-align: right;
+    }
+
+    /* Options Drawer (for NAS Transfer) */
+    #optionsSection {
+      padding: 12px 24px;
+      background: rgba(13, 19, 34, 0.9);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      z-index: 9;
+      font-size: 0.84rem;
+    }
+
+    .checkbox-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: #cbd5e1;
+    }
+
+    .checkbox-pill input {
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      color: white;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.3);
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: #0284c7;
+      transform: translateY(-1px);
+    }
+
+    /* Perspective Node Canvas */
+    .viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+      z-index: 1;
+      position: relative;
+    }
+
+    .circuit-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 580px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      padding: 20px 0;
+    }
+
+    /* Node Card */
+    .node-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      transition: all 0.3s ease;
+      z-index: 2;
+    }
+
+    .node-card.idle {
+      border-color: rgba(255, 255, 255, 0.08);
+      opacity: 0.6;
+    }
+
+    .node-card.active {
+      border-color: var(--orange);
+      box-shadow: 0 0 20px var(--orange-glow), inset 0 0 12px rgba(255, 123, 0, 0.1);
+      transform: scale(1.02);
+      opacity: 1;
+    }
+
+    .node-card.success {
+      border-color: var(--emerald);
+      box-shadow: 0 0 16px var(--emerald-glow);
+      opacity: 1;
+    }
+
+    .node-card.failed {
+      border-color: #ef4444;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+    }
+
+    .node-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .node-step-badge {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--muted);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .node-card.active .node-step-badge {
+      border-color: var(--orange);
+      color: var(--orange);
+      background: rgba(255, 123, 0, 0.15);
+    }
+
+    .node-card.success .node-step-badge {
+      border-color: var(--emerald);
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .node-info-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .node-info-detail {
+      font-size: 0.76rem;
+      color: var(--muted);
+      margin-top: 2px;
+      font-family: var(--mono);
+    }
+
+    .node-status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-family: var(--mono);
+    }
+
+    /* Laser Connectors between nodes */
+    .connector-wire {
+      position: absolute;
+      left: 31px;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.08);
+      z-index: 1;
+    }
+
+    .connector-wire.pulsing {
+      background: linear-gradient(180deg, var(--orange), var(--cyan));
+      box-shadow: 0 0 8px var(--orange);
+    }
+
+    .connector-wire.done {
+      background: var(--emerald);
+      box-shadow: 0 0 6px var(--emerald);
+    }
+
+    /* Laser Particle Pulse */
+    @keyframes laserPulse {
+      0% { top: 0; opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    .laser-particle {
+      position: absolute;
+      left: -2px;
+      width: 6px;
+      height: 12px;
+      background: #fff;
+      box-shadow: 0 0 10px #fff, 0 0 20px var(--cyan);
+      border-radius: 4px;
+      animation: laserPulse 0.8s infinite linear;
+    }
+
+    /* Live Output Terminal */
+    .terminal-drawer {
+      height: 130px;
+      background: #04070e;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .terminal-header {
+      padding: 6px 16px;
+      background: #090e1a;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .terminal-body {
+      flex: 1;
+      padding: 10px 16px;
+      font-family: var(--mono);
+      font-size: 0.74rem;
+      color: #93c5fd;
+      overflow-y: auto;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    /* Final Launch Banner */
+    #finalBanner {
+      display: none;
+      position: absolute;
+      bottom: 145px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--emerald);
+      box-shadow: 0 0 30px var(--emerald-glow);
+      backdrop-filter: blur(16px);
+      padding: 12px 24px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 20;
+    }
+  </style>
+</head>
+<body>
+  <video class="bg-video" autoplay loop muted playsinline id="bgVideo" style="display: none;">
+    <source id="bgVideoSource" src="" type="video/mp4">
+  </video>
+  <div class="bg-overlay"></div>
+  <div class="bg-grid"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand-title">
+      <span id="appTitle">medNAMA Unified Launcher</span>
+      <span class="brand-badge" id="appModeBadge">PIPELINE</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+      <div class="progress-label" id="progressPercent">0%</div>
+    </div>
+  </header>
+
+  <!-- Options Drawer (for configurable transfer) -->
+  <div id="optionsSection" style="display: none;">
+    <span style="font-weight: 700; color: var(--cyan);">TRANSFER TARGETS:</span>
+    <label class="checkbox-pill">
+      <input type="checkbox" id="optDb" checked> Database Snapshot (76k MCQs)
+    </label>
+    <label class="checkbox-pill">
+      <input type="checkbox" id="optImages" checked> Frontend & Backend Images
+    </label>
+    <label class="checkbox-pill">
+      <input type="checkbox" id="optCompose" checked> Compose & Configs
+    </label>
+    <label class="checkbox-pill">
+      <input type="checkbox" id="optDryRun"> Dry Run Check
+    </label>
+    <button class="btn-action" id="btnStartPipeline">Start Pipeline</button>
+  </div>
+
+  <!-- Circuit Viewport -->
+  <div class="viewport">
+    <div class="circuit-wrapper" id="circuitNodes">
+      <!-- Dynamically filled with nodes -->
+    </div>
+  </div>
+
+  <!-- Completion Banner -->
+  <div id="finalBanner" style="display: none;">
+    <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">
+      <span style="color: var(--emerald);">✓</span> <span id="finalMsg">All Systems Operational!</span>
+    </div>
+    <button class="btn-action" id="btnOpenApp">Open Application</button>
+    <button class="btn-action" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);" id="btnCloseWindow">Close</button>
+  </div>
+
+  <!-- Terminal Drawer -->
+  <div class="terminal-drawer">
+    <div class="terminal-header">
+      <span>LIVE PIPELINE LOGS</span>
+      <span id="terminalStatus">READY</span>
+    </div>
+    <div class="terminal-body" id="termOutput">Initializing pipeline...</div>
+  </div>
+
+  <script>
+    const state = {
+      steps: [],
+      targetUrl: "http://localhost:3000",
+    };
+
+    function initPipeline(title, mode, steps, targetUrl, showOptions = false) {
+      document.getElementById("appTitle").textContent = title;
+      document.getElementById("appModeBadge").textContent = mode;
+      state.steps = steps;
+      state.targetUrl = targetUrl;
+
+      if (showOptions) {
+        document.getElementById("optionsSection").style.display = "flex";
+      }
+
+      renderNodes();
+    }
+
+    function renderNodes() {
+      const container = document.getElementById("circuitNodes");
+      container.innerHTML = state.steps.map((s, idx) => {
+        const isLast = idx === state.steps.length - 1;
+        return `
+          <div class="node-card idle" id="node-${s.id}">
+            <div class="node-left">
+              <div class="node-step-badge">0${idx + 1}</div>
+              <div>
+                <div class="node-info-title">${s.title}</div>
+                <div class="node-info-detail" id="node-detail-${s.id}">${s.detail || 'Standby'}</div>
+              </div>
+            </div>
+            <div class="node-status-indicator" id="node-status-${s.id}">
+              <span style="color: var(--muted);">PENDING</span>
+            </div>
+          </div>
+          ${!isLast ? `<div class="connector-wire" id="wire-${idx}" style="top: ${(idx * 78) + 60}px; height: 32px;"></div>` : ''}
+        `;
+      }).join('');
+    }
+
+    function updateStep(stepId, status, detail) {
+      const card = document.getElementById(`node-${stepId}`);
+      const detailEl = document.getElementById(`node-detail-${stepId}`);
+      const statusEl = document.getElementById(`node-status-${stepId}`);
+
+      if (!card) return;
+
+      card.className = `node-card ${status}`;
+      if (detail) detailEl.textContent = detail;
+
+      if (status === 'active') {
+        statusEl.innerHTML = `<span style="color: var(--orange);">● EXECUTING</span>`;
+      } else if (status === 'success') {
+        statusEl.innerHTML = `<span style="color: var(--emerald);">✓ DONE</span>`;
+      } else if (status === 'failed') {
+        statusEl.innerHTML = `<span style="color: #ef4444;">✕ FAILED</span>`;
+      }
+    }
+
+    function updateProgress(percent, statusMsg) {
+      const pct = Math.min(100, Math.max(0, percent));
+      document.getElementById("progressBar").style.width = pct + "%";
+      document.getElementById("progressPercent").textContent = pct + "%";
+      if (statusMsg) {
+        document.getElementById("terminalStatus").textContent = statusMsg;
+      }
+    }
+
+    function appendLog(line) {
+      const term = document.getElementById("termOutput");
+      term.textContent += line + "\n";
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function completePipeline(msg) {
+      document.getElementById("finalMsg").textContent = msg || "All Systems Operational!";
+      document.getElementById("finalBanner").style.display = "flex";
+      updateProgress(100, "COMPLETE");
+    }
+
+    document.getElementById("btnOpenApp").addEventListener("click", () => {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.open_external(state.targetUrl);
+      } else {
+        window.open(state.targetUrl, "_blank");
+      }
+    });
+
+    document.getElementById("btnCloseWindow").addEventListener("click", () => {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.close();
+      } else {
+        window.close();
+      }
+    });
+
+    document.getElementById("btnStartPipeline").addEventListener("click", () => {
+      document.getElementById("optionsSection").style.display = "none";
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.start_transfer({
+          db: document.getElementById("optDb").checked,
+          images: document.getElementById("optImages").checked,
+          compose: document.getElementById("optCompose").checked,
+          dryRun: document.getElementById("optDryRun").checked,
+        });
+      }
+    });
+  </script>
+</body>
+</html>
+

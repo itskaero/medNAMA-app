@@ -4,9 +4,10 @@ Two jobs that used to be mixed together in one screen:
 
   * /api/mocks/custom/*     filter-based: pick sources, subjects, topics, years and rules,
                             see how many questions match at every step, then sit the paper
-  * /api/mocks/programmes   programme-based: FCPS-I / FCPS-II / PGET full papers, each
-                            reporting a truthful question count so an empty programme is
-                            never offered as if it worked
+  * /api/mocks/programmes   programme-based: each programme's papers (FCPS-I is two, Paper 1
+                            basic sciences and Paper 2 the specialty, 100 questions each), with
+                            a truthful question count so an empty programme is never offered
+                            as if it worked
 
 Nothing here invents selection logic. Filtering is practice_scope.restrict() (the one
 scope -> SQL translator), availability counts come from the same query shape as
@@ -40,28 +41,42 @@ MIN_MINUTES = 5
 MAX_MINUTES = 300
 OVERFETCH = 6000          # same cap create_timed_paper uses before bucketing
 
-# Programmes that can be offered, and the paper each one sits. Only those with a pool:
-# MBBS, MD, MS and USMLE have no questions in this database (see scripts/tag_programmes.py),
-# and are reported as unavailable rather than hidden, so the gap is visible instead of
-# looking like a bug.
-PROGRAMME_PAPERS: dict[str, dict[str, Any]] = {
-    "FCPS-I": {"questions": 100, "minutes": 120, "label": "FCPS-I full paper"},
-    "FCPS-II": {"questions": 100, "minutes": 120, "label": "FCPS-II full paper"},
-    "PGET": {"questions": 100, "minutes": 120, "label": "PGET full paper"},
-    "MBBS": {"questions": 100, "minutes": 120, "label": "MBBS paper"},
-    "MD": {"questions": 100, "minutes": 120, "label": "MD paper"},
-    "MS": {"questions": 100, "minutes": 120, "label": "MS paper"},
-    "USMLE": {"questions": 100, "minutes": 120, "label": "USMLE paper"},
+# The papers each programme sits. A paper is a Practice scope (app/practice_scope.py), so it
+# draws on the bank and the past papers together exactly as Custom exam does; "specialty" means
+# the student picks theirs first. FCPS Part 1 is two papers of 100, sat separately. A programme
+# with no paper here is served from its 'programme' tag (scripts/tag_programmes.py, imports) and
+# is reported as unavailable while that tag is empty, so the gap is visible instead of looking
+# like a bug.
+PROGRAMME_PAPERS: dict[str, list[dict[str, Any]]] = {
+    "FCPS-I": [
+        {"key": "paper1", "label": "Paper 1 · Basic sciences", "scope": {"paper": "1"},
+         "questions": 100, "minutes": 120, "specialty": False},
+        {"key": "paper2", "label": "Paper 2 · Specialty", "scope": {"paper": "2"},
+         "questions": 100, "minutes": 120, "specialty": True},
+    ],
+    # PGET: Paper 1 is basic sciences from PGET pool, Paper 2 is specialty from faculty pools.
+    "PGET": [
+        {"key": "paper1", "label": "Paper 1 · Basic sciences (MBBS)", "scope": {"paper": "pget1", "sources": ["bank"]},
+         "questions": 100, "minutes": 120, "specialty": False},
+        {"key": "paper2", "label": "Paper 2 · Specialty", "scope": {"paper": "2", "sources": ["bank"]},
+         "questions": 100, "minutes": 120, "specialty": True},
+    ],
 }
+TAGGED_PAPER = {"questions": 100, "minutes": 120}
+PROGRAMMES_TTL_S = 600
+_PROGRAMMES_CACHE: dict[int, tuple[float, dict]] = {}   # per user: access rules differ by account
 
 
 class CustomMockRequest(BaseModel):
-    scope: dict | None = None          # app/practice_scope.py: sources, subjects, topics, years
-    programme: str | None = None       # instead of a scope: that programme's whole pool
+    scope: dict | None = None          # app/practice_scope.py: paper, sources, subjects, topics, specialties, years
+    programme: str | None = None       # instead of a scope: that programme's whole pool, or with
+    part: str | None = None            # one of its PROGRAMME_PAPERS (+ the specialty for a Paper 2)
+    specialty: str | None = None
     questions: int = 100
     minutes: int = 120
     label: str | None = None
     unseen_only: bool = False          # skip questions this user has already been served
+    difficulty: str | None = None      # easier | medium | harder (practice_scope.DIFFICULTY_BANDS)
 
 
 def _base_query(db: Session, user: User):
@@ -77,16 +92,62 @@ def _programme_ids(db: Session, programme: str):
     return db.query(MCQTag.mcq_id).filter(MCQTag.axis == "programme", MCQTag.label == programme)
 
 
+def _part(req: CustomMockRequest) -> dict | None:
+    for part in PROGRAMME_PAPERS.get(req.programme or "", []):
+        if part["key"] == req.part:
+            return part
+    return None
+
+
+def _scope(req: CustomMockRequest) -> dict | None:
+    """The Practice scope a request means: its own, or a programme paper's (with the specialty)."""
+    part = _part(req)
+    if part is not None:
+        scope = dict(part["scope"])
+        if part["specialty"] and req.specialty:
+            scope["specialties"] = [req.specialty]
+        return {**scope, "difficulty": req.difficulty} if req.difficulty else scope
+    if req.difficulty and req.scope is not None:
+        return {**req.scope, "difficulty": req.difficulty}
+    return req.scope
+
+
 def _filtered(db: Session, user: User, req: CustomMockRequest):
-    """The question pool for a request: a Practice scope, or a whole programme."""
+    """The question pool for a request: a Practice scope, a programme paper, or a whole programme."""
     from app.practice_scope import restrict
 
     query = _base_query(db, user)
-    if req.programme:
+    scope = _scope(req)
+    if req.programme and _part(req) is None:
         query = query.filter(MCQ.id.in_(_programme_ids(db, req.programme)))
-    if req.scope is not None:
-        query = restrict(db, query, req.scope)
+    if scope is not None:
+        query = restrict(db, query, scope)
     return query
+
+
+def _group_names(db: Session, scope: dict | None, rows: list) -> dict[int, str]:
+    """The group each question is mixed by: its subject on Paper 1, its specialty on Paper 2."""
+    from app.practice_scope import SPECIALTIES, normalise
+
+    ids = [r[0] for r in rows]
+    sc = normalise(scope)
+    if sc["paper"] == "pget1":
+        return {r[0]: (r[2] or "General") for r in rows}
+    if sc["paper"] != "2":
+        return dict(db.query(MCQTag.mcq_id, MCQTag.label)
+                    .filter(MCQTag.axis == "fcps_subject", MCQTag.mcq_id.in_(ids)).all())
+    spelling = {x: name for name, spell in SPECIALTIES.items() for src in ("bank", "past") for x in spell[src]}
+    chosen = set(sc["specialties"])
+    out: dict[int, str] = {}
+    for mcq_id, label in (db.query(MCQTag.mcq_id, MCQTag.label)
+                          .filter(MCQTag.axis == "specialty", MCQTag.mcq_id.in_(ids)).all()):
+        name = spelling.get(label)
+        if name and (not chosen or name in chosen) and mcq_id not in out:
+            out[mcq_id] = name
+    for mcq_id, _, sub_category in rows:
+        if mcq_id not in out and sub_category in spelling:
+            out[mcq_id] = spelling[sub_category]
+    return out
 
 
 def _seen_ids(db: Session, user: User) -> set[int]:
@@ -112,12 +173,23 @@ def custom_preview(req: CustomMockRequest, db: Session = Depends(get_db),
     unseen = (pool.order_by(None).filter(~MCQ.id.in_(seen) if seen else True)
               .with_entities(func.count(func.distinct(group))).scalar() or 0) if total else 0
 
-    # Per subject, using the canonical taxonomy tag the builder filters on.
-    subject = (db.query(MCQTag.label, func.count(func.distinct(group)))
-               .select_from(MCQ)
-               .join(MCQTag, (MCQTag.mcq_id == MCQ.id) & (MCQTag.axis == "fcps_subject"))
-               .filter(MCQ.id.in_(pool.order_by(None).with_entities(MCQ.id)))
-               .group_by(MCQTag.label).order_by(MCQTag.label).all()) if total else []
+    # Per subject (Paper 1) or per specialty (Paper 2), as the paper will be mixed.
+    from app.practice_scope import SPECIALTIES, normalise, restrict
+
+    scope = _scope(req)
+    if total and scope is not None and normalise(scope)["paper"] == "2":
+        subject = []
+        for name in normalise(scope)["specialties"] or list(SPECIALTIES):
+            n = (restrict(db, _base_query(db, user), scope, (name, None)).order_by(None)
+                 .with_entities(func.count(func.distinct(group))).scalar() or 0)
+            if n:
+                subject.append((name, n))
+    else:
+        subject = (db.query(MCQTag.label, func.count(func.distinct(group)))
+                   .select_from(MCQ)
+                   .join(MCQTag, (MCQTag.mcq_id == MCQ.id) & (MCQTag.axis == "fcps_subject"))
+                   .filter(MCQ.id.in_(pool.order_by(None).with_entities(MCQ.id)))
+                   .group_by(MCQTag.label).order_by(MCQTag.label).all()) if total else []
 
     asked = max(MIN_QUESTIONS, min(MAX_QUESTIONS, int(req.questions or 100)))
     usable = unseen if req.unseen_only else total
@@ -163,11 +235,9 @@ def custom_create(req: CustomMockRequest, db: Session = Depends(get_db),
         raise HTTPException(status_code=400,
                             detail="Not enough questions match this selection to build a paper.")
 
-    # Round-robin across subjects so the paper is mixed like a real one, taking one version of
-    # each recalled question. Subject comes from the canonical tag where the question has one.
-    tags = dict(db.query(MCQTag.mcq_id, MCQTag.label)
-                .filter(MCQTag.axis == "fcps_subject",
-                        MCQTag.mcq_id.in_([r[0] for r in rows])).all())
+    # Round-robin across subjects (Paper 1) or specialties (Paper 2) so the paper is mixed like
+    # a real one, taking one version of each recalled question.
+    tags = _group_names(db, _scope(req), rows)
     buckets: dict[str, list[int]] = {}
     taken: set[int] = set()
     for mcq_id, recall_group, sub_category in rows:
@@ -185,7 +255,9 @@ def custom_create(req: CustomMockRequest, db: Session = Depends(get_db),
     if len(picked) < MIN_QUESTIONS:
         raise HTTPException(status_code=400, detail="Not enough distinct questions for a paper.")
 
-    title = req.label or (f"{req.programme} paper" if req.programme else "Custom exam")
+    part = _part(req)
+    title = req.label or (" · ".join(x for x in (req.programme, part["label"] if part else "paper", req.specialty) if x)
+                          if req.programme else "Custom exam")
     mock = WeeklyMock(week_start=date.today(), part="custom",
                       track=f"u{user.id}:{uuid.uuid4().hex[:10]}",
                       title=f"{title} · {len(picked)} questions",
@@ -202,27 +274,60 @@ def custom_create(req: CustomMockRequest, db: Session = Depends(get_db),
 @router.get("/api/mocks/programmes")
 def programme_availability(db: Session = Depends(get_db),
                            current_user: User = Depends(require_student_or_admin)):
-    """Each programme with how many questions it really has, so the UI can disable empty ones."""
+    """Each programme with its papers and how many questions each really has, so the UI can
+    disable empty ones. A specialty paper also lists the specialties it can be sat in."""
+    import time
+
     from app import exam_levels
+    from app.practice_scope import SPECIALTIES, restrict
 
     user = db.get(User, current_user.id)
+    # Two dozen counts over the whole bank: seconds on the NAS, and they change only on an import.
+    cached = _PROGRAMMES_CACHE.get(user.id)
+    if cached and time.monotonic() - cached[0] < PROGRAMMES_TTL_S:
+        return cached[1]
+    group = func.coalesce(MCQ.recall_group, -MCQ.id)
+
+    def count(scope: dict, bucket=None) -> int:
+        return int(restrict(db, _base_query(db, user), scope, bucket).order_by(None)
+                   .with_entities(func.count(func.distinct(group))).scalar() or 0)
+
     base = _base_query(db, user).order_by(None).with_entities(MCQ.id).subquery()
-    counts = dict(db.query(MCQTag.label, func.count(MCQTag.mcq_id))
+    tagged = dict(db.query(MCQTag.label, func.count(MCQTag.mcq_id))
                   .join(base, base.c.id == MCQTag.mcq_id)
                   .filter(MCQTag.axis == "programme").group_by(MCQTag.label).all())
     out = []
     for option in exam_levels.options(include_unset=False):
         code = option["value"]
-        paper = PROGRAMME_PAPERS.get(code) or {}
-        available = int(counts.get(code, 0))
+        papers = []
+        for part in PROGRAMME_PAPERS.get(code, []):
+            specialties = []
+            if part["specialty"]:
+                for name in SPECIALTIES:
+                    n = count(part["scope"], (name, None))
+                    if n:
+                        specialties.append({"specialty": name, "available": n, "can_start": n >= MIN_QUESTIONS})
+            available = count(part["scope"])
+            papers.append({
+                "key": part["key"], "label": part["label"], "available": available,
+                "questions": part["questions"], "minutes": part["minutes"],
+                "needs_specialty": part["specialty"], "specialties": specialties,
+                "can_start": available >= MIN_QUESTIONS,
+            })
+        if not papers and int(tagged.get(code, 0)):
+            available = int(tagged[code])
+            papers.append({"key": None, "label": f"{option['label']} paper", "available": available,
+                           **TAGGED_PAPER, "needs_specialty": False, "specialties": [],
+                           "can_start": available >= MIN_QUESTIONS})
         out.append({
             "programme": code,
             "label": option["label"],
             "description": option["description"],
-            "available": available,
-            "questions": paper.get("questions", 100),
-            "minutes": paper.get("minutes", 120),
-            "can_start": available >= MIN_QUESTIONS,
-            "note": "" if available else "No questions for this programme yet.",
+            "available": sum(p["available"] for p in papers),
+            "papers": papers,
+            "can_start": any(p["can_start"] for p in papers),
+            "note": "" if papers else "No questions for this programme yet.",
         })
-    return {"programmes": out}
+    result = {"programmes": out}
+    _PROGRAMMES_CACHE[user.id] = (time.monotonic(), result)
+    return result

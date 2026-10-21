@@ -43,7 +43,7 @@ interface StudyViewProps {
   reviewFlashcard: (id: number, rating: number) => Promise<void>;
   deleteSheet: (id: number) => Promise<void>;
   /** Reopen a saved sheet: switches to Revise from books with that scope. */
-  onOpenSheet: (scope: { book_ids: number[]; chapter: string | null; topic: string | null; length: "quick" | "full" }) => void;
+  onOpenSheet: (scope: { book_ids: number[]; chapter: string | null; topic: string | null; length: "quick" | "full"; level: string | null }) => void;
   /** Jump to the Revise from books builder to write a first sheet. */
   onWriteSheet: () => void;
 }
@@ -555,7 +555,7 @@ export default function StudyView({
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-                      <button className="btn-workspace" onClick={() => onOpenSheet({ book_ids: s.book_ids, chapter: s.chapter, topic: s.topic, length: s.length })} title="Reopen this sheet" aria-label={`Open sheet ${s.label}`} style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", fontSize: "0.7rem" }}>
+                      <button className="btn-workspace" onClick={() => onOpenSheet({ book_ids: s.book_ids, chapter: s.chapter, topic: s.topic, length: s.length, level: s.level ?? null })} title="Reopen this sheet" aria-label={`Open sheet ${s.label}`} style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", fontSize: "0.7rem" }}>
                         <Eye size={10} /> Open
                       </button>
                       <button

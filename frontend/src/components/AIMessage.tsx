@@ -189,6 +189,22 @@ export function AIMessage({
         {msg.type === "ai" && msg.answer ? (
           <>
             <GroundingBadge grounding={msg.answer.grounding} />
+            {msg.answer.uncertainty_note ? (
+              <div
+                role="note"
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: "6px",
+                  marginTop: "var(--sp-2)", padding: "6px 10px",
+                  borderRadius: "8px", fontSize: "0.72rem",
+                  border: `1px solid ${msg.answer.grounding_confidence === "high" ? "var(--error)" : "var(--warning, #d9a441)"}`,
+                  color: "var(--text-secondary)",
+                  background: msg.answer.grounding_confidence === "high" ? "rgba(239,68,68,0.07)" : "rgba(217,164,65,0.07)",
+                }}
+              >
+                <AlertCircle size={13} style={{ flexShrink: 0, marginTop: "1px" }} />
+                <span>{msg.answer.uncertainty_note}</span>
+              </div>
+            ) : null}
             <div
               className="prose"
               dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.answer.answer_markdown) }}

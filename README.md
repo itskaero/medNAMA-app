@@ -1,151 +1,78 @@
-# medNAMA - Clinical Knowledge & Practice Assistant
+# medNAMA
 
-medNAMA is a clinical-first, evidence-based Retrieval-Augmented Generation (RAG) platform and board exam practice quiz environment. Designed specifically for healthcare professionals and medical students, the application cross-references queries against verified medical reference textbooks to retrieve grounded clinical answers with inline footnotes, relevant medical figures, and interactive board practice questions.
+medNAMA is a study platform for FCPS, PGET and MBBS candidates, grounded in the textbooks they actually study. Answers, revision sheets and MCQs come from retrieval over 25 ingested medical textbooks, with page-level citations that are checked against the retrieved pages. Around that sit the following:
 
----
+- **Practice:** a question bank, a past-paper archive, mocks and duels.
+- **Retention:** Daily Dose, FSRS flashcards and mistake review.
+- **Content tools:** an answer-key referee and seeding from Tables of Specifications.
 
-## Key Features
+The public product page lives in [`site/`](site/) and is published to **itskaero/medNAMA** (GitHub Pages). This repository, `medNAMA-app`, is private.
 
-- **Evidence-Based RAG Q&A Engine**: Ask complex diagnostic or treatment queries and receive answers synthesized by AI, grounded strictly in uploaded reference textbooks.
-- **Inline Footnotes & Citations**: Every medical claim is cited inline referencing the exact book title and page number (e.g. `[Snell's Clinical Anatomy, Page 120]`), accompanied by collapsible quotation drawer verification.
-- **Diagram & Figure Extraction**: Dynamically retrieves and displays high-resolution diagrams, figures, and anatomical charts linked to the context of the medical topic.
-- **Interactive Mock Builder**:
-  - **Manual Mode**: Select specific subjects and subtopics from a **12,717 pre-loaded board question bank**.
-  - **AI MCQs Mode**: Generate tailored custom practice sets using natural language prompts grounded in selected medical textbooks.
-  - **Quiz History Mode**: Save, search, and revisit previously generated custom quiz sets.
-- **Custom Practice Session Rules**: Configure exam durations (10 to 180 mins), question counts (5 to 100 MCQs), mode (Tutor Mode with instant rationale vs Exam Mode), and passing thresholds.
-- **On-Demand RAG Explanation Engine**: Cost-efficient, RAG-grounded explanations are synthesized and cached in the database on-demand whenever a user clicks 
----
-
-## Tech Stack & Architecture
-
-### Frontend (User Interface)
-- **Framework**: Next.js 16+ (App Router), React 19, TypeScript.
-- **Styling**: Vanilla CSS tokens & Tailwind CSS v4 with HSL dark/light clinical color system.
-- **Animations**: Framer Motion & Tailwind Animate (`AnimatePresence`, floating keyframes, glassmorphic blurs).
-- **Icons**: Lucide React.
-- **Typography**: `Bespoke Serif` & `Gambarino` (academic headers) + `Excon` & `Pally` (sans body UI) + `JetBrains Mono` (data/code).
-
-### Backend (API & Diagnostic Engine)
-- **Framework**: FastAPI (Python 3.11+).
-- **Database**: PostgreSQL with `pgvector` extension for vector search.
-- **ORM**: SQLAlchemy with connection pooling and transaction management.
-- **Semantic Vector Embedding**: `BAAI/bge-large-en-v1.5` (1024-dimensional embeddings).
-- **Reranking**: `BAAI/bge-reranker-large` Cross-Encoder (top-5 reranking).
-- **LLM Synthesis**: DeepSeek API for grounded clinical answer synthesis.
-
----
-
-## Project Structure
+## Map of the repo
 
 ```
-medNAMA/
-├── backend/
-│   ├── app/
-│   │   ├── auth.py           # JWT Authentication, rate limiting, and RBAC
-│   │   ├── config.py         # App settings and environment variables
-│   │   ├── database.py       # SQLAlchemy engine and session factories
-│   │   ├── generation.py     # RAG text synthesis and verification engine
-│   │   ├── ingestion.py      # PDF parser, image extraction, and chunk indexer
-│   │   ├── main.py           # API endpoints (Q&A, stats, figures, library, quizzes)
-│   │   ├── models.py         # SQLAlchemy database models
-│   │   └── retrieval.py      # Hybrid Vector + BM25 keyword search service
-│   ├── scripts/
-│   │   ├── seed_mcqs.py      # MCQ extraction, categorization, and ingestion
-│   │   ├── test_rag_queries.py # RAG validation query suite
-│   │   └── update_db_schema.py# PostgreSQL schema migration utility
-│   └── requirements.txt      # Python dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── globals.css   # Clinical CSS variables, keyframe animations, themes
-│   │   │   ├── layout.tsx    # Next.js root layout with Sonner Toaster
-│   │   │   └── page.tsx      # Main application view manager
-│   │   ├── components/
-│   │   │   ├── layout/       # AuthCard, AppSidebar, Navigation
-│   │   │   ├── ui/           # BasicDropdown, Checkbox, Glassmorphic Modal
-│   │   │   └── views/        # DashboardView, ChatView, QuizView, MCQBankView
-│   │   ├── hooks/            # useQuiz, useTheme, useChat
-│   │   └── types.ts          # TypeScript domain interfaces
-│   ├── package.json          # Node.js dependencies
-│   └── next.config.ts        # Next.js configuration
-├── mcqs/                     # 123 Board MCQ files structured by medical subtopics
-└── schema.sql                # Complete SQL database reference schema
+backend/            FastAPI app (Python): retrieval, generation, practice, retention, auth
+  app/              the application: one module per concern (see "Where things live")
+    routers/        HTTP endpoints, one file per area
+  alembic/          database migrations (run on the dev DB: docker exec ... alembic upgrade head)
+  scripts/          one-off and batch jobs: ingestion, seeding, tagging, transfers to the NAS
+  tests/            end-to-end checks (tests/e2e)
+frontend/           Next.js app (TypeScript): src/components/views has one file per screen
+site/               the public product page (static HTML), published to itskaero/medNAMA
+labs/               internal tools beside the app (not shipped to students)
+  rag_lab/          RAG playground: compare retrieval/rerank/generation set-ups side by side
+  seed_studio/      Seed Studio: TOS-driven bulk MCQ + revision-note seeding with a live dashboard
+  evaluation/       reranker benchmark (questions, gold predicates, results)
+docs/               plans, analyses and runbooks (index below)
+docker/             Dockerfiles for the local stack
+NAS/                production compose + Dockerfiles for the ZimaOS NAS        (local only)
+mednama-nas-deploy/ deploy bundle: deploy.sh, rollback.sh, restore_nas.sh       (local only)
+scripts/            local_up.sh (local stack), make_nas_bundle.sh (NAS bundle)
+data/               TOS PDFs, taxonomy caches, transfer files                   (local only)
+pdfs/  mcqs/        source textbooks and MCQ banks                              (local only)
+logs/               ingestion and job logs                                      (local only)
+_local/             old dumps, duplicate PDFs, scratch: safe to ignore          (local only)
 ```
 
----
+"Local only" folders are gitignored: they hold data, credentials or machine-specific files.
 
-## Database Schema Overview
+## Where things live (backend/app)
 
-Programmatically managed via SQLAlchemy, the platform operates on 8 core tables:
-1. **`books`**: Tracks uploaded medical reference textbooks and ingestion statuses (`ready`, `processing`).
-2. **`chunks`**: Stores raw textbook page segments, page numbers, metadata, and 1024-d vector embeddings.
-3. **`figures`**: Stores binary diagram image data, AI-generated captions, page numbers, and MIME types.
-4. **`users`**: Manages credentials and roles (`student`, `admin`).
-5. **`mcqs`**: Stores board questions, option blocks, correct letters, main/sub-categories, and RAG-grounded explanations.
-6. **`ai_quiz_sets`**: Stores user-created AI custom quiz metadata and prompt configurations.
-7. **`quiz_attempts`**: Records test session logs, starting/completion times, and student scores.
-8. **`attempt_answers`**: Links specific attempt records to chosen options and correctness statuses.
+| Area | Modules |
+|---|---|
+| Retrieval and answers | `retrieval.py` (hybrid vector + full-text, RRF, rerankers), `generation.py` (chat answers, MCQ explanations, citation validation), `llm.py` |
+| Exam programmes | `exam_levels.py` (MBBS, FCPS-I/II, PGET, MD, MS, USMLE: guidance, intent, preferred books) |
+| Revision | `revision.py` (one-page sheets), `rapid_review.py` |
+| MCQs | `quiz_generation.py` (grounded AI MCQs), `hardening.py` (harder versions), `twists.py`, `checked_mcqs.py`, `photo_mcq.py` |
+| Practice | `practice_scope.py` (Paper 1/2 scopes), `past_papers.py`, `answer_stats.py` (difficulty from answers), `study_plan.py` (yield-weighted topics) |
+| Retention | `retention.py` (Daily Dose, concepts), `fsrs.py`, `study_modes.py`, `stats.py` |
+| Answer keys | `referee.py` (textbook verdicts on recall keys), `textbook_refs.py` |
+| Books | `ingestion.py`, `reingest.py`, `book_meta.py`, `book_pages.py`, `book_structure.py`, `taxonomy.py` |
+| Data | `models.py` (app tables), `seed_models.py` (Seed Studio tables), `database.py`, `config.py`, `auth.py` |
 
----
+## Run it
 
-## Local Installation & Setup
+| What | How |
+|---|---|
+| Local stack (app on :3000) | `bash scripts/local_up.sh`, which passes the root `.env` (AI keys) |
+| Seed Studio (:8770) | double-click `labs\seed_studio\run_seed_studio.cmd`, or `.venv-gpu\Scripts\python.exe -m labs.seed_studio.server` |
+| RAG Lab (:8765) | `.venv-gpu\Scripts\python.exe -m labs.rag_lab.server` |
+| Reranker benchmark | `.venv-gpu\Scripts\python.exe labs\evaluation\reranker\run.py --help` |
+| Seed Studio tests | `.venv-gpu\Scripts\python.exe -m pytest labs/seed_studio/tests -q` |
+| NAS deploy | `bash scripts/make_nas_bundle.sh`, copy, then `deploy.sh --keep-env` on the NAS (see `NAS/DEPLOY.md`) |
+| Publish the product page | `git subtree split --prefix site -b site-main && git push site site-main:main` |
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL (with `vector` extension installed)
+The dev database is the `mednama-dev-db` container on port 5434. Docker Desktop must be running for anything above.
 
-### 1. Database Setup
-Create a PostgreSQL database and enable `pgvector`:
-```sql
-CREATE DATABASE medrag;
-\c medrag
-CREATE EXTENSION IF NOT EXISTS vector;
-```
+## Docs
 
-### 2. Backend Setup
-```bash
-cd backend
-python -m venv venv
-
-# Windows
-.\venv\Scripts\activate
-# macOS/Linux
-source venv/bin/activate
-
-pip install -r requirements.txt
-```
-
-Create a `.env` file in the root project directory:
-```env
-DATABASE_URL=postgresql://username:password@localhost:5432/medrag
-DEEPSEEK_API_KEY=your_deepseek_api_key
-JWT_SECRET=your_jwt_secret
-```
-
-Initialize database tables and seed MCQ bank:
-```bash
-python scripts/update_db_schema.py
-python scripts/seed_mcqs.py
-```
-
-Launch FastAPI server:
-```bash
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-### 3. Frontend Setup
-```bash
-cd ../frontend
-npm install
-npm run dev
-```
-
-Open **`http://localhost:3000`** in your browser.
-
----
-
-## License & Credits
-
-Built for medical education and evidence-based clinical decision support.
+| Document | What it is |
+|---|---|
+| [docs/MEDNAMA_IMPROVEMENT_PLAN.md](docs/MEDNAMA_IMPROVEMENT_PLAN.md) | The improvement plan |
+| [docs/competitor_gap_analysis.md](docs/competitor_gap_analysis.md) | AMBOSS, Osmosis, PrepFCPS, Medmacs, NEETPGAI and others against medNAMA, with recommendations |
+| [docs/reranker_benchmark_architecture.md](docs/reranker_benchmark_architecture.md) | How the reranker benchmark is built |
+| [docs/DB_TRANSFER_TO_NAS.md](docs/DB_TRANSFER_TO_NAS.md) | Moving the database to the NAS |
+| [docs/analysis.md](docs/analysis.md) | Earlier analysis notes |
+| [labs/seed_studio/README.md](labs/seed_studio/README.md) | Seed Studio: run, design, limitations |
+| [labs/rag_lab/README.md](labs/rag_lab/README.md) | RAG Lab: configurations and reports |
+| [labs/evaluation/reranker/RECOMMENDATION.md](labs/evaluation/reranker/RECOMMENDATION.md) | Reranker benchmark result |

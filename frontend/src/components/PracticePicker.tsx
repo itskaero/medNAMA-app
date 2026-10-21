@@ -4,28 +4,46 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { API } from "@/lib/constants";
 
-/** A Practice selection (backend: app/practice_scope.py). Topics are "Subject|Topic". */
+/** A Practice selection (backend: app/practice_scope.py). Topics are "Subject|Topic".
+ *  `paper` picks FCPS Part 1's Paper 1 (basic sciences: subjects, topics) or Paper 2 (the
+ *  specialty: specialties); absent means Paper 1, which is what older selections were. */
 export interface PracticeScope {
+  paper?: "1" | "2" | "pget1";
   sources: ("bank" | "past")[];
   subjects: string[];
   topics: string[];
+  specialties?: string[];
   years: number[];
+  /** Only questions of this difficulty (measured from students where enough answered, else the author's rating). */
+  difficulty?: "easier" | "medium" | "harder";
 }
 
 export const EMPTY_SCOPE: PracticeScope = { sources: ["past", "bank"], subjects: [], topics: [], years: [] };
-export const scopeActive = (s: PracticeScope | null | undefined) => !!s && (s.subjects.length > 0 || s.topics.length > 0);
+/** A paper picked counts as a selection on its own: "all of Paper 1" is a real choice. */
+export const scopeActive = (s: PracticeScope | null | undefined) =>
+  !!s && (!!s.paper || s.subjects.length > 0 || s.topics.length > 0 || (s.specialties?.length ?? 0) > 0);
 
-/** "Upper Limb, Renal" / "Anatomy, Physiology" (+ source when not both) for session titles. */
+/** "Paper 1 · Upper Limb, Renal" / "Paper 2 · Medicine" / "PGET Paper 1" (+ source when not both) for session titles. */
 export function describeScope(s: PracticeScope): string {
+  if (s.paper === "pget1") {
+    const subs = s.subjects.length ? s.subjects.join(", ") : "All subjects";
+    return `PGET Paper 1 · ${subs}`;
+  }
   const topicSubjects = new Set(s.topics.map((t) => t.split("|")[0]));
-  const parts = [...s.topics.map((t) => t.split("|")[1]), ...s.subjects.filter((x) => !topicSubjects.has(x))];
+  const parts = s.paper === "2"
+    ? [...(s.specialties || [])]
+    : [...s.topics.map((t) => t.split("|")[1]), ...s.subjects.filter((x) => !topicSubjects.has(x))];
+  const paper = s.paper === "2" ? "Paper 2" : s.paper === "1" ? "Paper 1" : "";
+  const what = [paper, parts.join(", ")].filter(Boolean).join(" · ") || "Practice";
   const from = s.sources.length === 1 ? (s.sources[0] === "past" ? " · past papers" : " · question bank") : "";
-  return `${parts.join(", ") || "Practice"}${from}${s.years.length ? ` · ${s.years.join(", ")}` : ""}`;
+  return `${what}${from}${s.years.length ? ` · ${s.years.join(", ")}` : ""}`;
 }
 
-interface TreeTopic { topic: string; bank: number; past: number }
-interface TreeSubject { subject: string; topics: TreeTopic[]; bank: number; past: number }
-interface Tree { subjects: TreeSubject[]; years: number[] }
+export interface TreeTopic { topic: string; bank: number; past: number }
+export interface TreeSubject { subject: string; topics: TreeTopic[]; bank: number; past: number }
+export interface TreeSpecialty { specialty: string; bank: number; past: number }
+export interface TreePget { subject: string; count: number }
+export interface Tree { subjects: TreeSubject[]; years: number[]; specialties?: TreeSpecialty[]; pget?: TreePget[] }
 
 const SOURCE_CHOICES: { key: string; label: string; sources: ("bank" | "past")[]; hint: string }[] = [
   { key: "both", label: "Past papers + question bank", sources: ["past", "bank"], hint: "Past papers first, then the Paper 1 bank" },

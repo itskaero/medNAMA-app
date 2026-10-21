@@ -49,15 +49,16 @@ from app.retention import _embed, restricted_allowed
 
 logger = logging.getLogger(__name__)
 
-# Upper bound on bullets, not a target. Asking for "about 22 bullets" made every sheet the
-# same size whatever was asked: a sheet on "DKA management" spent half its lines defining
-# diabetes because padding to the count was the only way to reach it. The length control now
-# caps a sheet ("quick" = the one-minute read, "full" = the evening-before page) and the
-# model is told to stop when the passages stop saying anything new.
-LENGTHS = {"quick": 10, "full": 22}
+# No bullet count, as a target or as a cap. Asking for "about 22 bullets" made every sheet
+# the same size whatever was asked: a sheet on "DKA management" spent half its lines defining
+# diabetes because padding to the count was the only way to reach it, and a number given as
+# a cap was still read as a target. The length control now only says how deep to go
+# ("quick" = the one-minute read, "full" = the evening-before page); how many bullets that
+# takes is decided by what the passages say about what was asked.
+LENGTHS = ("quick", "full")
 LENGTH_HINT = {
-    "quick": "at most 10 bullets - only the few facts that matter most",
-    "full": "at most 22 bullets",
+    "quick": "a short sheet: only the essentials an examiner is most likely to ask",
+    "full": "a complete sheet: everything examinable the passages say about it",
 }
 
 # How much of the scope is read. Parents (parent_id IS NULL) are whole paragraphs and
@@ -65,6 +66,7 @@ LENGTH_HINT = {
 MAX_CHUNKS = 16
 MAX_TOPIC_CHUNKS = 12
 CHAR_BUDGET = 15000
+SECTION_CHAR_BUDGET = 30000   # an outlined sheet (one share per section)
 MAX_FIGURES = 6
 MAX_GAPS = 8
 
@@ -184,11 +186,41 @@ def scope_key(scope: dict[str, Any]) -> str:
         "chapter": (scope.get("chapter") or "").strip() or None,
         "topic": " ".join((scope.get("topic") or "").split()).lower() or None,
         "length": scope.get("length") if scope.get("length") in LENGTHS else "full",
-        # Part of the key: the same topic at FCPS-I and FCPS-II is two different sheets, and
-        # without this the first one cached would be served to both.
-        "level": normalise(scope.get("level")),
     }
+    # Part of the key: the same topic at FCPS-I and FCPS-II is two different sheets, and
+    # without this the first one cached would be served to both. Added only when set, so a
+    # sheet written with no programme keeps the key it was cached under before levels existed.
+    level = normalise(scope.get("level"))
+    if level:
+        norm["level"] = level
+    # Syllabus-driven sheets (Seed Studio) are a different sheet from the template one. Added only when set.
+    sections = _sections(scope)
+    if sections:
+        # A plain syllabus item keys as its heading alone, so sheets cached before outlines existed keep their key.
+        norm["sections"] = [s["heading"] if s["item"] and not s["focus"] else [s["heading"], s["focus"], s["item"]]
+                            for s in sections]
     return "books:" + hashlib.sha1(json.dumps(norm, sort_keys=True).encode()).hexdigest()
+
+
+def _sections(scope: dict[str, Any]) -> list[dict[str, Any]]:
+    """Explicit sections, as {heading, focus, item}. Empty = the template.
+
+    A plain string is a syllabus item ("Forces of filtration and absorption"). A dict comes from an outline an AI
+    planned for the topic (Seed Studio): `focus` says what to cover under the heading, and `item` marks headings
+    that are items the syllabus lists, as against angles the planner added because examiners ask about them."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for s in scope.get("sections") or []:
+        if isinstance(s, dict):
+            heading, focus, item = s.get("heading"), s.get("focus"), bool(s.get("item", True))
+        else:
+            heading, focus, item = s, "", True
+        heading = " ".join(str(heading or "").split())[:160]
+        focus = " ".join(str(focus or "").split())[:240]
+        if heading and heading.lower() not in seen:
+            seen.add(heading.lower())
+            out.append({"heading": heading, "focus": focus, "item": item})
+    return out[:12]
 
 
 def scope_label(scope: dict[str, Any], titles: dict[int, str] | None = None) -> str:
@@ -355,6 +387,20 @@ def _passage_block(chunks: list[Any], titles: dict[int, str]) -> tuple[str, set[
     return "\n\n".join(text), valid
 
 
+def _outline_prompt(sections: list[dict[str, Any]]) -> str:
+    """The section instruction for explicit sections: syllabus items are written when the passages cover them;
+    headings an outline added are written only when the passages clearly support them."""
+    lines = []
+    for s in sections:
+        tag = "" if s["item"] else " (optional)"
+        lines.append(f"## {s['heading']}{tag}" + (f"\n   cover: {s['focus']}" if s["focus"] else ""))
+    return ("Write one section per heading below, with that exact heading (leave out the '(optional)' tag and the "
+            "'cover:' line), in this order. Under each, give what an examiner asks about it; a 'cover:' line says "
+            "which facets matter. SKIP a section the passages do not cover, and an optional one they do not clearly "
+            "support; never fill a section from memory. Give every section its share: write the most examinable facts of each section "
+            "before going deeper on any one, so a long first section never crowds out the rest:\n" + "\n".join(lines))
+
+
 def build(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary:
     from app.retrieval import retrieval_service
 
@@ -372,7 +418,26 @@ def build(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary:
     titles = {b.id: b.title for b in books}
     book_ids = [b.id for b in books]
 
-    if topic:
+    explicit = _sections(scope)
+    if topic and explicit:
+        # One search per listed item, so every item the syllabus names is looked for, not only the ones the
+        # topic's own wording happens to retrieve.
+        # Each section gets an equal share of the passage budget: read in one list, the first section's passages
+        # filled the whole budget and the sheet covered one item of four.
+        chunks, seen_ids = [], set()
+        share = SECTION_CHAR_BUDGET // len(explicit)
+        for s in explicit:
+            probe = f"{topic}: {s['heading']}" + (f" ({s['focus']})" if s["focus"] else "")
+            used = 0
+            for c in _read_topic(db, book_ids, chapter, probe[:500], level=programme):
+                size = len(c.content or "") + 60
+                if c.id in seen_ids or (used and used + size > share):
+                    continue
+                seen_ids.add(c.id)
+                chunks.append(c)
+                used += size
+        coverage = {"kind": "topic", "read": len(chunks), "own": None, "extended": False, "sections": len(explicit)}
+    elif topic:
         chunks = _read_topic(db, book_ids, chapter, topic, level=programme)
         # Retrieval is a best match by design, not a sweep, so there is no whole to
         # have covered; say so rather than implying the book was read end to end.
@@ -384,6 +449,7 @@ def build(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary:
         raise RuntimeError(f"No text found in {scope_label(scope, titles)}. Try a different chapter or topic.")
 
     passages, valid = _passage_block(chunks, titles)
+    budget = SECTION_CHAR_BUDGET if explicit else CHAR_BUDGET
     label = scope_label(scope, titles)
     subject = (chapter or topic).strip()
 
@@ -395,15 +461,21 @@ def build(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary:
                 [
                     {"role": "system", "content": (
                         f"You are writing a revision sheet that a medical student reads the night before an exam. "
-                        f"Use ONLY the TEXTBOOK PASSAGES. Write {LENGTH_HINT[length]}, one line each — but write "
-                        "only as many as the passages actually support: a narrow topic deserves a short sheet. "
+                        f"Use ONLY the TEXTBOOK PASSAGES. Write {LENGTH_HINT[length]}, one fact per line. "
+                        "There is no set number of bullets: write as many as the passages support for what was "
+                        "asked, so a narrow topic gets a short sheet and a broad one a longer sheet. "
                         "Never pad, never repeat a fact in two bullets, and never add a bullet that is not about "
                         "what was asked.\n"
                         f"{exam_levels.revision_guidance(programme)}\n"
-                        + (f"{exam_levels.intent_line(intent)}\n" if exam_levels.intent_line(intent) else "")
-                        + "Use these sections, in this order, and SKIP any you cannot fill from the passages or "
-                        "that the topic does not call for:\n"
-                        + "\n".join(f"## {s}" for s in exam_levels.sections_for(programme, intent)) + "\n"
+                        # an outline already carries the intent, heading by heading
+                        + (f"{exam_levels.intent_line(intent)}\n" if exam_levels.intent_line(intent) and not explicit
+                           else "")
+                        + ((
+                            _outline_prompt(explicit)) if explicit else (
+                            "Use these sections, in this order, and SKIP any you cannot fill from the passages or "
+                            "that the topic does not call for:\n"
+                            + "\n".join(f"## {s}" for s in exam_levels.sections_for(programme, intent))))
+                        + "\n"
                         "Rules: every bullet states one fact that is in a passage and ends with that passage's "
                         "reference exactly as shown, e.g. [Guyton Hall Physiology, Page 331]. Prefer the numbers, "
                         "thresholds, drug doses and named signs an examiner asks for. Never state anything the "
@@ -411,9 +483,12 @@ def build(db: Session, user: User, scope: dict[str, Any]) -> TopicSummary:
                         "you invent yourself must end with '(AI mnemonic)' instead of a reference. "
                         "Reply with the markdown only."
                     )},
-                    {"role": "user", "content": f"SUBJECT: {subject}\n\nTEXTBOOK PASSAGES:\n{passages[:CHAR_BUDGET]}"},
+                    {"role": "user", "content": f"SUBJECT: {subject}\n\nTEXTBOOK PASSAGES:\n{passages[:budget]}"},
                 ],
-                temperature=0.1, max_tokens=2400, label="revision-sheet", role="chat",
+                temperature=0.1, label="revision-sheet", role="chat",
+                # an outlined sheet writes every section, so it gets room (and time) for all of them
+                max_tokens=min(6000, 2400 + 600 * len(explicit)) if explicit else 2400,
+                timeout=min(240.0, 60.0 + 30.0 * len(explicit)) if explicit else None,
             )
             written = re.sub(r"^```(?:markdown)?\s*|\s*```$", "", (raw or "").strip()).strip()
         except Exception as e:
@@ -557,6 +632,12 @@ def serialize(row: TopicSummary, cached: bool) -> dict[str, Any]:
 
 # ─── the user's saved sheets (Study Corner) ─────────────────────────────────────────
 
+def _level(scope: dict[str, Any]) -> str | None:
+    from app.exam_levels import normalise
+
+    return normalise(scope.get("level"))
+
+
 def save_sheet(db: Session, user: User, scope: dict[str, Any], label: str) -> SavedSheet:
     """Remember a freshly written sheet under this user's Study Corner.
 
@@ -575,6 +656,7 @@ def save_sheet(db: Session, user: User, scope: dict[str, Any], label: str) -> Sa
         chapter=(scope.get("chapter") or "").strip() or None,
         topic=" ".join((scope.get("topic") or "").split()).strip() or None,
         length=scope.get("length") if scope.get("length") in LENGTHS else "full",
+        level=_level(scope),
     )
     db.add(row)
     db.commit()
@@ -592,6 +674,7 @@ def saved_sheets(db: Session, user: User) -> list[dict[str, Any]]:
         "chapter": s.chapter,
         "topic": s.topic,
         "length": s.length if s.length in LENGTHS else "full",
+        "level": s.level,
         "created_at": s.created_at.isoformat() if s.created_at else None,
     } for s in rows]
 

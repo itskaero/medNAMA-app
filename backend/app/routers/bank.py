@@ -27,7 +27,7 @@ def get_all_mcqs(
     The number of matching questions is in the X-Total-Count header."""
     from app.retention import access_scope
 
-    query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user)
+    query = access_scope(db.query(MCQ).filter(MCQ.status == "ready"), current_user)
     if category and category != "all":
         query = query.filter(MCQ.main_category == category)
     if search:

@@ -63,7 +63,7 @@ def get_dashboard_stats(
 
     total_books = db.query(Book).count()
     # What this user can practise: restricted past papers only with access, recall-derived rows never.
-    total_mcqs = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user).count()
+    total_mcqs = access_scope(db.query(MCQ).filter(MCQ.status == "ready"), current_user).count()
     total_quizzes_taken = db.query(QuizAttempt).filter(QuizAttempt.user_id == current_user.id).count()
     
     attempts = db.query(QuizAttempt).filter(
@@ -82,7 +82,7 @@ def get_dashboard_stats(
         MCQ.main_category,
         MCQ.sub_category,
         func.count(MCQ.id)
-    ).filter(MCQ.status != "private")
+    ).filter(MCQ.status == "ready")
     from app.retention import access_scope as _access_scope
 
     categories_query = _access_scope(categories_query, current_user).group_by(MCQ.main_category, MCQ.sub_category).all()
@@ -165,8 +165,8 @@ def explain_mcq_endpoint(
     mcq.explanation_markdown = explanation_data.get("answer_markdown")
     mcq.explanation_citations = explanation_data.get("citations")
     mcq.explanation_figures = explanation_data.get("figures")
-    if mcq.status != "private":   # explaining a private question must not publish it
-        mcq.status = "ready"
+    # Explaining never publishes: a private (recall) or pending (held for review, e.g. Seed Studio) question
+    # keeps its status.
     db.commit()
 
     return explanation_data
@@ -452,7 +452,7 @@ def start_quiz_endpoint(
 
     # Private (recall-derived) questions are served only through the Daily Dose; restricted
     # (imported past-paper) questions only to users allowed by PAST_PAPERS_ACCESS.
-    query = access_scope(db.query(MCQ).filter(MCQ.status != "private"), current_user)
+    query = access_scope(db.query(MCQ).filter(MCQ.status == "ready"), current_user)
     if req.mcq_ids:
         query = query.filter(MCQ.id.in_(req.mcq_ids[:500]))
     if req.scope is not None:
@@ -556,6 +556,7 @@ def start_quiz_endpoint(
     db.refresh(attempt)
     
     # Format questions (excluding deep explanation details initially)
+    from app.answer_stats import difficulty_info
     from app.past_papers import paper_years, question_media, recall_info
 
     media = question_media(db, [m.id for m in mcqs])
@@ -574,6 +575,7 @@ def start_quiz_endpoint(
             "media": media.get(m.id, []),
             "paper_years": years.get(m.id, []),
             **recalls.get(m.id, {}),
+            **difficulty_info(m),
         })
         
     return {

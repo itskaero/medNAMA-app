@@ -42,6 +42,11 @@ const QUIZ_POLL_MS = 2500;
  * topic or a chapter/section heading, choose quick vs full, then (for single books) ask
  * for a drill on the same scope.
  */
+/** A scope handed over in localStorage by Study Corner, Library or this page's last visit. */
+type IncomingScope = {
+  book_ids?: number[]; chapter?: string | null; topic?: string | null; length?: string; level?: string | null;
+};
+
 export default function ReviseView({
   token,
   isAdmin,
@@ -89,42 +94,68 @@ export default function ReviseView({
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const openRef = useRef(false);        // a Study Corner "Open" asked us to show a saved sheet
   const builtOnceRef = useRef(false);   // only the first auto-open builds
+  // The scope stored by whoever sent us here (Study Corner, Library), read during the first
+  // render. The persist effect below writes the empty initial form on mount, before the books
+  // have loaded, so reading the stored scope after the fetch found only that empty form and an
+  // opened sheet arrived with no books: nothing was built and the page looked dead.
+  const incomingRef = useRef<{ saved: IncomingScope | null; open: boolean; topic: string | null } | null>(null);
+  if (incomingRef.current === null) {
+    let saved: IncomingScope | null = null, open = false, linked: string | null = null;
+    try {
+      saved = JSON.parse(localStorage.getItem("mednama_revise_scope") || "null");
+      open = localStorage.getItem("mednama_revise_open") === "1";
+      linked = localStorage.getItem("mednama_revise_topic");
+    } catch {
+      /* storage unavailable */
+    }
+    incomingRef.current = { saved, open, topic: linked };
+  }
+  // A saved sheet keeps the programme it was written for; reopening asks for that one, so the
+  // cached sheet is served instead of being written again under today's selection.
+  const openLevelRef = useRef<string | null | undefined>(undefined);
+  const restoredRef = useRef(false);    // do not persist the empty form over the incoming scope
 
   // Load the books once; restore a previously saved scope so the page survives refresh.
   useEffect(() => {
+    try {
+      localStorage.removeItem("mednama_revise_open");     // one-shot hand-offs, consumed above
+      localStorage.removeItem("mednama_revise_topic");
+    } catch {
+      /* storage unavailable */
+    }
     const load = async () => {
       try {
         const r = await fetch(`${API}/api/study/revision-books`, { headers: headers(), credentials: "include" });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const list: BookOption[] = await r.json();
         setBooks(list);
-        try {
-          const saved = JSON.parse(localStorage.getItem("mednama_revise_scope") || "null");
-          if (saved && Array.isArray(saved.book_ids)) {
-            const ids = saved.book_ids.filter((n: number) => list.some((b) => b.id === n));
-            if (ids.length) setBookIds(ids);
-            if (typeof saved.chapter === "string" && saved.chapter) setChapter(saved.chapter);
-            if (typeof saved.topic === "string") setTopic(saved.topic);
-            if (saved.length === "full") setLength("full");
-            if (localStorage.getItem("mednama_revise_open") === "1") {
-              openRef.current = true;                 // opened from Study Corner: build it once
-              localStorage.removeItem("mednama_revise_open");
+        const { saved, open, topic: linked } = incomingRef.current || { saved: null, open: false, topic: null };
+        if (saved && Array.isArray(saved.book_ids)) {
+          const ids = saved.book_ids.filter((n: number) => list.some((b) => b.id === n));
+          if (ids.length) setBookIds(ids);
+          if (typeof saved.chapter === "string" && saved.chapter) setChapter(saved.chapter);
+          if (typeof saved.topic === "string") setTopic(saved.topic);
+          if (saved.length === "full") setLength("full");
+          if (open) {
+            if (!ids.length) {
+              toast.error("The books this sheet was written from are no longer in the library.");
+            } else {
+              openRef.current = true;               // opened from Study Corner: build it once
+              if ("level" in saved) openLevelRef.current = saved.level ?? null;
             }
           }
-          // "Revise <topic>" from Mistakes, Today or Stats: that topic across the chosen books (all of them if none)
-          const linked = localStorage.getItem("mednama_revise_topic");
-          if (linked) {
-            localStorage.removeItem("mednama_revise_topic");
-            setTopic(linked);
-            setChapter(null);
-            setBookIds((cur) => (cur.length ? cur : list.map((b) => b.id)));
-            openRef.current = true;
-          }
-        } catch {
-          /* storage unavailable */
+        }
+        // "Revise <topic>" from Mistakes, Today or Stats: that topic across the chosen books (all of them if none)
+        if (linked) {
+          setTopic(linked);
+          setChapter(null);
+          setBookIds((cur) => (cur.length ? cur : list.map((b) => b.id)));
+          openRef.current = true;
         }
       } catch {
         /* offline or not ready; the view still works for what it can show */
+      } finally {
+        restoredRef.current = true;
       }
     };
     load();
@@ -140,6 +171,7 @@ export default function ReviseView({
 
   // Persist the scope, so "revise this again tomorrow" survives a refresh.
   useEffect(() => {
+    if (!restoredRef.current) return;
     try {
       localStorage.setItem("mednama_revise_scope", JSON.stringify({ book_ids: bookIds, chapter, topic, length }));
     } catch {
@@ -190,7 +222,7 @@ export default function ReviseView({
     setSheet(null);
   };
 
-  const build = async (regenerate = false) => {
+  const build = async (regenerate = false, levelOverride?: string | null) => {
     if (!buildEnabled && !regenerate) return;
     setSheetState("loading");
     setSheetError(null);
@@ -202,7 +234,7 @@ export default function ReviseView({
           chapter: chapter || null,
           topic: topic.trim() || null,
           length,
-          level,
+          level: levelOverride !== undefined ? levelOverride : level,
           regenerate: isAdmin && regenerate,
         }),
       });
@@ -222,7 +254,8 @@ export default function ReviseView({
     if (openRef.current && buildEnabled && !builtOnceRef.current) {
       openRef.current = false;
       builtOnceRef.current = true;
-      build(false);
+      build(false, openLevelRef.current);
+      openLevelRef.current = undefined;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildEnabled]);
@@ -396,7 +429,7 @@ export default function ReviseView({
                     background: length === l ? "rgba(48,197,255,0.16)" : "transparent",
                     color: "var(--text-primary)", fontWeight: length === l ? 700 : 400,
                   }}>
-                  {l === "quick" ? "Quick · up to 10" : "Full · up to 22"}
+                  {l === "quick" ? "Quick · essentials" : "Full · everything examinable"}
                 </button>
               ))}
             </div>

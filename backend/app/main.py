@@ -81,10 +81,20 @@ for d in trusted_domains:
     if d not in raw_origins:
         raw_origins.append(d)
 
+allow_all = "*" in raw_origins or settings.allowed_origins.strip() == "*"
+if allow_all and "*" in raw_origins:
+    raw_origins.remove("*")
+
+origin_regex = (
+    r"^https?://.*"
+    if allow_all
+    else r"https://.*(\.vercel\.app|\.trycloudflare\.com|\.cloudflareaccess\.com)"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=raw_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,7 +108,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     from fastapi.responses import JSONResponse
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal Server Error: {str(exc)}"},
+        content={"detail": "Internal Server Error"},
     )
 
 
@@ -120,6 +130,8 @@ def warmup_models():
     print("WARMING UP SECOND-STAGE (BIOMEDICAL) RERANKER...")
     _ = get_second_stage_reranker()
     print("Warmup complete. All models preloaded and INT8 quantized in RAM.")
+    from app.answer_stats import start_background_refresh
+    start_background_refresh()
     print("="*60 + "\n")
 
 
@@ -128,8 +140,8 @@ def warmup_models():
 # /api/mocks/{mock_id}/start) must keep that order. mocks_custom goes before pastpapers:
 # /api/mocks/custom/preview would otherwise be matched by /api/mocks/{mock_id}/submit
 # and rejected as a bad int path param.
-from app.routers import auth, books, query, chat, bank, stats, notes, export, reports, study, referee, duels, modes, mocks_custom, pastpapers, rapid, pages, practice, admin_users, refs, offline, hub  # noqa: E402
+from app.routers import auth, books, query, chat, bank, stats, notes, export, reports, study, referee, duels, modes, mocks_custom, pastpapers, rapid, pages, practice, admin_users, refs, offline, hub, tos, stations, prep  # noqa: E402
 from app.deps import get_db  # noqa: E402,F401  (kept importable from app.main)
 
-for _module in (auth, books, query, chat, bank, stats, notes, export, reports, study, referee, duels, modes, mocks_custom, pastpapers, rapid, pages, practice, admin_users, refs, offline, hub):
+for _module in (auth, books, query, chat, bank, stats, notes, export, reports, study, referee, duels, modes, mocks_custom, pastpapers, rapid, pages, practice, admin_users, refs, offline, hub, tos, stations, prep):
     app.include_router(_module.router)

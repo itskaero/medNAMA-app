@@ -39,6 +39,7 @@ import UsersView from "@/components/views/UsersView";
 import OfflineView from "@/components/views/OfflineView";
 import LibraryView from "@/components/views/LibraryView";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import PrepSetupDialog, { type PrepProfile } from "@/components/PrepSetupDialog";
 import DuelView from "@/components/views/DuelView";
 import WeeklyMockView from "@/components/views/WeeklyMockView";
 import LookalikesView from "@/components/views/LookalikesView";
@@ -49,6 +50,9 @@ import PageViewer from "@/components/PageViewer";
 import HubBar from "@/components/layout/HubBar";
 import TodayView from "@/components/views/TodayView";
 import ExamsView from "@/components/views/ExamsView";
+import TOSPrepView from "@/components/views/TOSPrepView";
+import ToacsView from "@/components/views/ToacsView";
+import StationRunner from "@/components/views/StationRunner";
 import MistakesView from "@/components/views/MistakesView";
 import ReportsView from "@/components/views/ReportsView";
 import ContentView from "@/components/views/ContentView";
@@ -57,6 +61,10 @@ import InstallHint from "@/components/InstallHint";
 import { hubOf, ViewId, ADMIN_VIEWS, AppLinks } from "@/lib/nav";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
+// Utilities: one Referee tab each (stable references, so the view does not reset on render).
+const CHECK_TABS: ("check" | "bank" | "map")[] = ["check"];
+const MAP_TABS: ("check" | "bank" | "map")[] = ["map"];
+
 export default function Home() {
   // ── Shared navigation state ────────────────────────────────────────────────
   // The current screen lives in the URL hash (#/view?params): refresh keeps it, Back returns to the origin.
@@ -71,6 +79,7 @@ export default function Home() {
   })();
   const openRapidReview = (scope: ReviewScope) => nav.navigate("review", { scope: JSON.stringify(scope) });
   const openPaper = (id: number) => nav.navigate("paper", { id });
+  const openStation = (id: number, circuit?: number) => nav.navigate("station", circuit ? { id, circuit } : { id });
   // Remember the last tab used in each hub (the sidebar reopens it).
   useEffect(() => {
     try { localStorage.setItem(`mednama_hub_${hubOf(activeView).id}`, activeView); } catch { /* storage unavailable */ }
@@ -190,6 +199,39 @@ export default function Home() {
   } = useSidebar();
 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  // The preparation profile (paper, exam date, daily time): shapes Today and the navigation. New learners get the
+  // setup once; learners who already chose an exam only confirm their paper. "Later" waits until the next visit.
+  const [prep, setPrep] = useState<PrepProfile | null>(null);
+  const [prepOpen, setPrepOpen] = useState<"setup" | "confirm" | null>(null);
+  useEffect(() => {
+    if (!token) return;                         // signed out: the sign-in screen shows, so the old profile is unused
+    fetch(`${API}/api/prep/profile`, { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p: PrepProfile | null) => {
+        if (!p) return;
+        setPrep(p);
+        try { if (p.exam_id && p.paper_id) localStorage.setItem("mednama_paper", `${p.exam_id}|${p.paper_id}`); } catch { /* storage unavailable */ }
+        let later = false;
+        try { later = sessionStorage.getItem("mednama_prep_later") === "1"; } catch { /* storage unavailable */ }
+        if (!later && p.needs_onboarding) setPrepOpen("setup");
+        else if (!later && p.needs_paper) setPrepOpen("confirm");
+      })
+      .catch(() => {});
+  }, [token]);
+  // Anonymous screen counts (Admin -> Content -> Usage): one per screen per day per browser session.
+  useEffect(() => {
+    if (!token) return;
+    const key = `mednama_usage_${new Date().toISOString().slice(0, 10)}_${activeView}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch { /* storage unavailable: count anyway */ }
+    fetch(`${API}/api/usage`, {
+      method: "POST", credentials: "include",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ view: activeView }),
+    }).catch(() => {});
+  }, [activeView, token]);
   // Opened with no connection (an installed app on the bus): go straight to the Offline pack.
   useEffect(() => {
     if (typeof navigator !== "undefined" && !navigator.onLine) nav.navigate("offline");
@@ -424,8 +466,32 @@ export default function Home() {
           onPractise={(filters, label) => quiz.startQuizWith(filters, label, "dashboard")}
           onPractiseScope={(scope) => { quiz.setPracticeScope(scope); setActiveView("quiz"); }}
           onResume={quiz.resumeQuiz}
+          onAsk={(q) => { nav.navigate("chat"); sendQuery(q); }}
+          onSetupPrep={() => setPrepOpen("setup")}
+          planVersion={`${prep?.paper_id}|${prep?.exam_date}|${prep?.minutes_per_day}`}
         />
       );
+    }
+
+    if (activeView === "tos") {
+      return (
+        <TOSPrepView token={token} onOpenPaper={openPaper} params={nav.params}
+          profile={prep?.exam_id && prep.paper_id ? { exam: prep.exam_id, paper: prep.paper_id } : null} />
+      );
+    }
+
+    if (activeView === "toacs") {
+      return <ToacsView token={token} onOpenAttempt={openStation} />;
+    }
+
+    if (activeView === "station") {
+      const stationAttempt = Number(nav.params.id);
+      if (stationAttempt) {
+        return <StationRunner key={`station-${stationAttempt}`} token={token} attemptId={stationAttempt}
+          circuitId={nav.params.circuit ? Number(nav.params.circuit) : null} onOpenAttempt={openStation}
+          onExit={() => nav.navigate("toacs")} links={links} />;
+      }
+      return <ToacsView token={token} onOpenAttempt={openStation} />;
     }
 
     if (activeView === "exams") {
@@ -550,6 +616,14 @@ export default function Home() {
 
     if (activeView === "referee" && isAdmin) {
       return <RefereeView token={token} />;
+    }
+
+    if (activeView === "check") {
+      return <RefereeView key="check" token={token} tabs={CHECK_TABS} />;
+    }
+
+    if (activeView === "highyield") {
+      return <RefereeView key="highyield" token={token} tabs={MAP_TABS} />;
     }
 
     if (activeView === "library") {
@@ -762,7 +836,29 @@ export default function Home() {
         setTheme={setTheme}
         handleLogout={handleLogout}
         onChangePassword={() => setShowPasswordDialog(true)}
+        level={chatLevel}
+        setLevel={setChatLevel}
+        clinical={prep ? prep.clinical : true}
+        paperTitle={prep?.paper_title ?? null}
+        onEditPrep={prep ? () => setPrepOpen("setup") : undefined}
       />
+      {prep && prepOpen ? (
+        <PrepSetupDialog profile={prep} getHeaders={getHeaders} confirm={prepOpen === "confirm"}
+          onClose={() => {
+            setPrepOpen(null);
+            try { sessionStorage.setItem("mednama_prep_later", "1"); } catch { /* storage unavailable */ }
+          }}
+          onSaved={(p) => {
+            setPrep(p);
+            setPrepOpen(null);
+            setChatLevelState(p.exam_level);
+            try {
+              if (p.exam_id && p.paper_id) localStorage.setItem("mednama_paper", `${p.exam_id}|${p.paper_id}`);
+              if (p.exam_level) localStorage.setItem("mednama_level", p.exam_level);
+              else localStorage.removeItem("mednama_level");
+            } catch { /* storage unavailable */ }
+          }} />
+      ) : null}
       {showPasswordDialog ? <ChangePasswordDialog getHeaders={getHeaders} onClose={() => setShowPasswordDialog(false)} /> : null}
 
       {/* ── Main content ── */}
@@ -777,7 +873,7 @@ export default function Home() {
             style={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden" }}
           >
             <InstallHint />
-            <HubBar view={activeView} isAdmin={isAdmin} previous={nav.previous}
+            <HubBar view={activeView} isAdmin={isAdmin} clinical={prep ? prep.clinical : true} previous={nav.previous}
               onNavigate={(v) => nav.navigate(v)} onBack={() => nav.back()}
               hidden={activeView === "chat" || (activeView === "quiz" && quiz.quizStep === "taker")} />
             {ADMIN_VIEWS.includes(activeView) && !isAdmin ? null : renderMainContent()}

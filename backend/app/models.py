@@ -102,6 +102,9 @@ class User(Base):
     # Accounts (migration f1a3c5e7b9d2): the admin can disable one; sign-up records the invite code used.
     is_active: Mapped[bool] = mapped_column(server_default="true", default=True)
     invited_with: Mapped[str | None] = mapped_column(Text, default=None)
+    # Onboarding (migration e0a2c4e6f8b1): {"exam_id", "paper_id", "minutes_per_day", "onboarded_at"}; the TOS paper
+    # this learner is preparing for, which shapes Today and the navigation.
+    prep_profile: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
 
     attempts: Mapped[list["QuizAttempt"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     conversations: Mapped[list["ChatConversation"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -129,6 +132,9 @@ class MCQ(Base):
     explanation_figures: Mapped[dict | None] = mapped_column(JSONB, default=None)
     status: Mapped[str] = mapped_column(Text, server_default="pending")
     difficulty: Mapped[int | None] = mapped_column(default=None)  # 1 (easiest) - 5 (hardest), None = unspecified
+    # Measured from students' first answers (app/answer_stats.py); a label replaces `difficulty` once enough answered.
+    answered_n: Mapped[int | None] = mapped_column(default=None)
+    correct_rate: Mapped[float | None] = mapped_column(default=None)
     error_message: Mapped[str | None] = mapped_column(Text, default=None)
     # Database-aware generation (migration b7d2e4f6a8c1)
     stem_embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), default=None, deferred=True)
@@ -581,6 +587,9 @@ class SavedSheet(Base):
     chapter: Mapped[str | None] = mapped_column(Text, default=None)
     topic: Mapped[str | None] = mapped_column(Text, default=None)
     length: Mapped[str] = mapped_column(Text, default="quick")
+    # The programme the sheet was written for: reopening must ask for the same one, or the
+    # scope key differs and a finished sheet is written again. Migration d5e7f9a1b3c4.
+    level: Mapped[str | None] = mapped_column(Text, default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     user: Mapped["User"] = relationship()
@@ -599,3 +608,14 @@ class InviteCode(Base):
     expires_at: Mapped[datetime | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), default=None)
+
+
+class UsageCount(Base):
+    """How often each screen is opened per day, in total (migration e0a2c4e6f8b1). Anonymous by design: no user,
+    no content, only so the team can see which features are used before building more."""
+
+    __tablename__ = "usage_counts"
+
+    view: Mapped[str] = mapped_column(Text, primary_key=True)
+    day: Mapped[date] = mapped_column(primary_key=True)
+    n: Mapped[int] = mapped_column(server_default="0")

@@ -1,0 +1,1959 @@
+[
+  {
+    "id": "q001",
+    "query": "A 70-year-old woman falls on her outstretched hand and fractures the surgical neck of the humerus. She cannot abduct her arm beyond 15 degrees and has numbness over the lower deltoid. Which nerve is injured?",
+    "subject": "anatomy",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "fcps_style",
+      "anatomy_localization"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "axillary nerve",
+        "surgical neck"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py (reworded as a vignette)"
+  },
+  {
+    "id": "q002",
+    "query": "Which cranial nerve supplies the lateral rectus muscle?",
+    "subject": "anatomy",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "anatomy_localization"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "lateral rectus"
+      ],
+      "any": [
+        [
+          "abducent",
+          "abducens",
+          "sixth cranial",
+          "=vi nerve",
+          "cranial nerve vi",
+          "cn vi"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept 'CN VI' (Moore p933 'CN VI supplies the lateral rectus'). Previous gold: {\"all\": [\"lateral rectus\"], \"any\": [[\"abducent\", \"abducens\", \"sixth cranial\", \"=vi nerve\", \"cranial nerve vi\"]]}"
+    ]
+  },
+  {
+    "id": "q003",
+    "query": "Which muscle is the only abductor of the vocal cords?",
+    "subject": "anatomy",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "anatomy_localization",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "posterior cricoarytenoid"
+      ],
+      "any": [
+        [
+          "abduct"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q004",
+    "query": "What are the contents of the anatomical snuffbox?",
+    "subject": "anatomy",
+    "difficulty": "medium",
+    "tags": [
+      "anatomy_localization",
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "radial artery"
+      ],
+      "any": [
+        [
+          "snuffbox",
+          "snuff box"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q005",
+    "query": "Root value of the ankle jerk reflex",
+    "subject": "anatomy",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "anatomy_localization"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "ankle jerk",
+          "ankle reflex",
+          "achilles reflex",
+          "calcaneal tendon reflex"
+        ],
+        [
+          "=s1"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q006",
+    "query": "Which artery is the main blood supply to the head of the femur in adults?",
+    "subject": "anatomy",
+    "difficulty": "hard",
+    "tags": [
+      "factual",
+      "anatomy_localization",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "medial circumflex femoral",
+          "medial femoral circumflex"
+        ],
+        [
+          "head of the femur",
+          "femoral head",
+          "head of femur"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q007",
+    "query": "Frank-Starling law of the heart",
+    "subject": "physiology",
+    "difficulty": "easy",
+    "tags": [
+      "mechanism",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "frank starling"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py"
+  },
+  {
+    "id": "q008",
+    "query": "Which part of the nephron reabsorbs most of the filtered sodium?",
+    "subject": "physiology",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "mechanism"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "proximal"
+      ],
+      "any": [
+        [
+          "65 per cent",
+          "65%",
+          "65 percent",
+          "two thirds",
+          "67 per cent",
+          "67%"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q009",
+    "query": "Which way does an increase in 2,3-BPG shift the oxygen-haemoglobin dissociation curve?",
+    "subject": "physiology",
+    "difficulty": "medium",
+    "tags": [
+      "mechanism",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "right"
+      ],
+      "any": [
+        [
+          "2,3 bpg",
+          "2,3 dpg",
+          "2,3 bisphosphoglycerate",
+          "2,3 diphosphoglycerate"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q010",
+    "query": "Which hormone causes contraction of the gallbladder?",
+    "subject": "physiology",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "mechanism"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "gallbladder"
+      ],
+      "any": [
+        [
+          "cholecystokinin",
+          "=cck"
+        ],
+        [
+          "contract"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept 'CCK' (Guyton p809 'the most potent stimulus for gallbladder contractions is the hormone CCK'). Previous gold: {\"all\": [\"cholecystokinin\", \"gallbladder\"], \"any\": [[\"contract\"]]}"
+    ]
+  },
+  {
+    "id": "q011",
+    "query": "How does the countercurrent multiplier of the loop of Henle concentrate urine?",
+    "subject": "physiology",
+    "difficulty": "hard",
+    "tags": [
+      "mechanism"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "countercurrent"
+      ],
+      "any": [
+        [
+          "loop of henle",
+          "loops of henle"
+        ],
+        [
+          "multiplier",
+          "multiplication"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept the plural 'loops of Henle' (Guyton p373). Previous gold: {\"all\": [\"countercurrent\", \"loop of henle\"], \"any\": [[\"multiplier\", \"multiplication\"]]}"
+    ]
+  },
+  {
+    "id": "q012",
+    "query": "Which enzyme is deficient in classic galactosemia?",
+    "subject": "biochemistry",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "galactos"
+      ],
+      "any": [
+        [
+          "galactose 1 phosphate uridyl",
+          "=galt",
+          "uridyltransferase",
+          "uridyl transferase",
+          "transferase deficiency"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept 'transferase deficiency' (Nelson p956 on classic galactosemia). Previous gold: {\"all\": [\"galactos\"], \"any\": [[\"galactose 1 phosphate uridyl\", \"=galt\", \"uridyltransferase\", \"uridyl transferase\"]]}"
+    ]
+  },
+  {
+    "id": "q013",
+    "query": "What is the role of the carnitine shuttle in fatty acid oxidation?",
+    "subject": "biochemistry",
+    "difficulty": "medium",
+    "tags": [
+      "mechanism"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "carnitine",
+        "mitochondri"
+      ],
+      "any": [
+        [
+          "fatty acid",
+          "fatty acyl",
+          "acyl coa"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q014",
+    "query": "Rate-limiting enzyme of cholesterol synthesis",
+    "subject": "biochemistry",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "hmg coa reductase"
+      ],
+      "any": [
+        [
+          "rate limiting",
+          "rate controlling",
+          "regulated step",
+          "committed step",
+          "key regulatory"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q015",
+    "query": "Deficiency of which vitamin causes Wernicke encephalopathy?",
+    "subject": "biochemistry",
+    "difficulty": "easy",
+    "tags": [
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "wernicke"
+      ],
+      "any": [
+        [
+          "thiamine",
+          "thiamin",
+          "vitamin b1"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q016",
+    "query": "A 4-year-old boy has self-mutilation, choreoathetosis and gouty arthritis. Which enzyme is deficient?",
+    "subject": "biochemistry",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "lesch nyhan"
+      ],
+      "any": [
+        [
+          "hgprt",
+          "hypoxanthine guanine phosphoribosyl",
+          "=hprt"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q017",
+    "query": "Most common site of carcinoid tumour",
+    "subject": "pathology",
+    "difficulty": "medium",
+    "tags": [
+      "pathology_association",
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "carcinoid"
+      ],
+      "any": [
+        [
+          "most common site",
+          "appendix"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py"
+  },
+  {
+    "id": "q018",
+    "query": "In which disease are Reed-Sternberg cells seen?",
+    "subject": "pathology",
+    "difficulty": "easy",
+    "tags": [
+      "pathology_association",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "reed sternberg"
+      ],
+      "any": [
+        [
+          "hodgkin",
+          "=hl"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept the abbreviation 'HL' (Nelson p908 'pathognomonic feature of HL'). Previous gold: {\"all\": [\"reed sternberg\"], \"any\": [[\"hodgkin\"]]}"
+    ]
+  },
+  {
+    "id": "q019",
+    "query": "Psammoma bodies are characteristically seen in which tumours?",
+    "subject": "pathology",
+    "difficulty": "medium",
+    "tags": [
+      "pathology_association",
+      "buzzword",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "psammoma"
+      ],
+      "any": [
+        [
+          "papillary",
+          "meningioma",
+          "mesothelioma",
+          "serous"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: psammoma bodies are also characteristic of meningioma, mesothelioma and serous ovarian tumours (Ramadas p798, First Aid p716): a passage naming any of them answers 'which tumours'. Previous gold: {\"all\": [\"psammoma\"], \"any\": [[\"papillary\"]]}"
+    ]
+  },
+  {
+    "id": "q020",
+    "query": "Which type of necrosis is characteristic of tuberculosis?",
+    "subject": "pathology",
+    "difficulty": "easy",
+    "tags": [
+      "pathology_association"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "caseous",
+          "caseating",
+          "caseation"
+        ],
+        [
+          "tubercul"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept 'caseating' (First Aid p159 'caseating granulomas ... characteristic of 2° tuberculosis'). Previous gold: {\"all\": [\"caseous\"], \"any\": [[\"tubercul\"]]}"
+    ]
+  },
+  {
+    "id": "q021",
+    "query": "Mallory hyaline bodies are seen in which liver disease?",
+    "subject": "pathology",
+    "difficulty": "medium",
+    "tags": [
+      "pathology_association",
+      "buzzword",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "mallory"
+      ],
+      "any": [
+        [
+          "alcohol"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q022",
+    "query": "What is the mechanism of action of pioglitazone?",
+    "subject": "pharmacology",
+    "difficulty": "easy",
+    "tags": [
+      "drug_mechanism",
+      "mechanism"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "pioglitazone",
+          "thiazolidinedione",
+          "glitazone"
+        ],
+        [
+          "ppar",
+          "peroxisome proliferator"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q023",
+    "query": "drug of choice for absence seizures",
+    "subject": "pharmacology",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "ethosuximide",
+        "absence"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py"
+  },
+  {
+    "id": "q024",
+    "query": "antidote for heparin overdose",
+    "subject": "pharmacology",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "protamine",
+        "heparin"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py"
+  },
+  {
+    "id": "q025",
+    "query": "How does low-dose aspirin prevent platelet aggregation?",
+    "subject": "pharmacology",
+    "difficulty": "medium",
+    "tags": [
+      "drug_mechanism",
+      "mechanism"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "aspirin",
+        "thromboxane"
+      ],
+      "any": [
+        [
+          "cyclooxygenase",
+          "=cox",
+          "cox 1"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q026",
+    "query": "What is the mechanism of action of metformin?",
+    "subject": "pharmacology",
+    "difficulty": "medium",
+    "tags": [
+      "drug_mechanism",
+      "mechanism",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "metformin"
+      ],
+      "any": [
+        [
+          "ampk",
+          "amp activated",
+          "hepatic glucose",
+          "gluconeogenesis"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q027",
+    "query": "Mechanism of action of omeprazole",
+    "subject": "pharmacology",
+    "difficulty": "easy",
+    "tags": [
+      "drug_mechanism",
+      "mechanism"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "omeprazole"
+      ],
+      "any": [
+        [
+          "atpase",
+          "proton pump"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q028",
+    "query": "mechanism of action of cholera toxin",
+    "subject": "microbiology",
+    "difficulty": "medium",
+    "tags": [
+      "mechanism",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "cholera"
+      ],
+      "any": [
+        [
+          "camp",
+          "cyclic amp",
+          "adenyl"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py"
+  },
+  {
+    "id": "q029",
+    "query": "most common cause of community acquired pneumonia",
+    "subject": "microbiology",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "pneumoniae",
+        "community"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py"
+  },
+  {
+    "id": "q030",
+    "query": "A farmer's deep crushed leg wound becomes swollen and painful with crepitus and a brownish foul discharge 2 days later. Which organism is responsible?",
+    "subject": "microbiology",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "gas gangrene"
+      ],
+      "any": [
+        [
+          "perfringens"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q031",
+    "query": "How does diphtheria toxin kill cells?",
+    "subject": "microbiology",
+    "difficulty": "medium",
+    "tags": [
+      "mechanism",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "diphtheria"
+      ],
+      "any": [
+        [
+          "ef 2",
+          "elongation factor",
+          "protein synthesis",
+          "polypeptide chains",
+          "adp ribos",
+          "nicotinamide"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept passages that state the mechanism without naming EF-2 (Pelczar p735 'halts polypeptide synthesis'; Levinson p144 'cleaves nicotinamide from NAD'). Previous gold: {\"all\": [\"diphtheria\"], \"any\": [[\"ef 2\", \"elongation factor\"]]}"
+    ]
+  },
+  {
+    "id": "q032",
+    "query": "Which virulence factor of Streptococcus pyogenes is antiphagocytic?",
+    "subject": "microbiology",
+    "difficulty": "hard",
+    "tags": [
+      "mechanism",
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "m protein"
+      ],
+      "any": [
+        [
+          "phagocyt"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q033",
+    "query": "A 5-week-old boy has projectile non-bilious vomiting and a palpable olive in the epigastrium. Blood gas shows hypochloraemic metabolic alkalosis. What intravenous fluid is used to correct him before surgery?",
+    "subject": "paediatrics",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "kcl",
+        "glucose",
+        "pylor"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py (reworded as a vignette)"
+  },
+  {
+    "id": "q034",
+    "query": "paradoxical aciduria",
+    "subject": "paediatrics",
+    "difficulty": "hard",
+    "tags": [
+      "mechanism",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "paradoxical aciduria"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py"
+  },
+  {
+    "id": "q035",
+    "query": "What is the most common cause of bronchiolitis in infants?",
+    "subject": "paediatrics",
+    "difficulty": "easy",
+    "tags": [
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "bronchiolitis"
+      ],
+      "any": [
+        [
+          "respiratory syncytial",
+          "=rsv"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q036",
+    "query": "What is the treatment of Kawasaki disease?",
+    "subject": "paediatrics",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "kawasaki"
+      ],
+      "any": [
+        [
+          "immunoglobulin",
+          "ivig"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q037",
+    "query": "Most common cause of early-onset neonatal sepsis",
+    "subject": "paediatrics",
+    "difficulty": "medium",
+    "tags": [
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "early onset",
+          "neonatal sepsis"
+        ],
+        [
+          "group b strep",
+          "streptococcus agalactiae",
+          "=gbs"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept 'neonatal sepsis' (Levinson p729 'Group B streptococci are the most common cause of neonatal sepsis'). Previous gold: {\"all\": [\"early onset\"], \"any\": [[\"group b strep\", \"streptococcus agalactiae\", \"=gbs\"]]}"
+    ]
+  },
+  {
+    "id": "q038",
+    "query": "management of DKA",
+    "subject": "medicine",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "ketoacidosis",
+          "=dka"
+        ],
+        [
+          "insulin",
+          "fluid",
+          "potassium"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py",
+    "audit": [
+      "2026-10-07 audit: accept 'DKA' and the other pillars of management (Davidson p755/p757 are DKA management pages that never spell out 'ketoacidosis'). Previous gold: {\"all\": [\"ketoacidosis\", \"insulin\"], \"any\": []}"
+    ]
+  },
+  {
+    "id": "q039",
+    "query": "What is the first-line drug for type 2 diabetes mellitus?",
+    "subject": "medicine",
+    "difficulty": "easy",
+    "tags": [
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "metformin"
+      ],
+      "any": [
+        [
+          "first line",
+          "first choice",
+          "initial therapy",
+          "drug of choice"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q040",
+    "query": "What fasting plasma glucose level is diagnostic of diabetes mellitus?",
+    "subject": "medicine",
+    "difficulty": "medium",
+    "tags": [
+      "lab_findings",
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "fasting"
+      ],
+      "any": [
+        [
+          "7.0 mmol",
+          "126 mg"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q041",
+    "query": "What is the most common cause of Cushing's syndrome?",
+    "subject": "medicine",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "cushing"
+      ],
+      "any": [
+        [
+          "exogenous",
+          "iatrogenic",
+          "glucocorticoid therapy",
+          "corticosteroid therapy",
+          "steroid therapy"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q042",
+    "query": "A woman 10 days after a hip replacement develops sudden pleuritic chest pain, breathlessness and tachycardia. What is the investigation of choice?",
+    "subject": "medicine",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "lab_findings",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "pulmonary embol"
+      ],
+      "any": [
+        [
+          "ctpa",
+          "ct pulmonary angiogra",
+          "computed tomography pulmonary angiogra"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q043",
+    "query": "Most common site of an anal fissure",
+    "subject": "surgery",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "anatomy_localization"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "fissure"
+      ],
+      "any": [
+        [
+          "posterior midline",
+          "6 o'clock",
+          "midline posteriorly",
+          "posteriorly in the midline"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q044",
+    "query": "A patient develops fever with rigors, jaundice and right upper quadrant pain after ERCP. What is this triad called?",
+    "subject": "surgery",
+    "difficulty": "easy",
+    "tags": [
+      "clinical_scenario",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "charcot"
+      ],
+      "any": [
+        [
+          "cholangitis"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q045",
+    "query": "Parkland formula for fluid resuscitation in burns",
+    "subject": "surgery",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "parkland"
+      ],
+      "any": [
+        [
+          "burn"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q046",
+    "query": "Goodsall's rule in fistula-in-ano",
+    "subject": "surgery",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "goodsall"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q047",
+    "query": "investigation of choice for cholesteatoma",
+    "subject": "ent",
+    "difficulty": "medium",
+    "tags": [
+      "lab_findings",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "cholesteatoma"
+      ],
+      "any": [
+        [
+          "=ct",
+          "hrct",
+          "computed tomography",
+          "diffusion"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py"
+  },
+  {
+    "id": "q048",
+    "query": "A child with chronic ear discharge develops diplopia from a lateral rectus palsy and deep retro-orbital pain. What is this syndrome?",
+    "subject": "ent",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "gradenigo"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "source": "eval_rerankers.py (reworded as a vignette)"
+  },
+  {
+    "id": "q049",
+    "query": "What is the most common site of epistaxis?",
+    "subject": "ent",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "anatomy_localization"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "little's area",
+          "littles area",
+          "kiesselbach"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q050",
+    "query": "Which muscle tenses the vocal cords?",
+    "subject": "ent",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "anatomy_localization",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "cricothyroid"
+      ],
+      "any": [
+        [
+          "tens"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q051",
+    "query": "Lesion in which area causes Broca's (expressive) aphasia?",
+    "subject": "neurology",
+    "difficulty": "easy",
+    "tags": [
+      "anatomy_localization",
+      "pathology_association"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "broca"
+      ],
+      "any": [
+        [
+          "inferior frontal",
+          "motor aphasia",
+          "motor speech area",
+          "expressive aphasia"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept passages that tie the Broca area to motor/expressive aphasia (Guyton p722 'Loss of the Broca area causes motor aphasia'). Previous gold: {\"all\": [\"broca\"], \"any\": [[\"inferior frontal\"]]}"
+    ]
+  },
+  {
+    "id": "q052",
+    "query": "A 60-year-old man has sudden vertigo, dysphagia, hoarseness, ipsilateral Horner syndrome, and loss of pain and temperature on the ipsilateral face and contralateral body. Which artery is occluded?",
+    "subject": "neurology",
+    "difficulty": "hard",
+    "tags": [
+      "clinical_scenario",
+      "anatomy_localization",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "lateral medullary",
+          "wallenberg",
+          "lateral part of the medulla"
+        ],
+        [
+          "posterior inferior cerebellar",
+          "=pica",
+          "vertebral"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    },
+    "audit": [
+      "2026-10-07 audit: accept 'lateral part of the medulla' (Snell Neuroanatomy p243). Previous gold: {\"all\": [], \"any\": [[\"lateral medullary\", \"wallenberg\"], [\"posterior inferior cerebellar\", \"=pica\", \"vertebral\"]]}"
+    ]
+  },
+  {
+    "id": "q053",
+    "query": "How do lesions of the conus medullaris differ clinically from cauda equina lesions?",
+    "subject": "neurology",
+    "difficulty": "hard",
+    "tags": [
+      "confusable",
+      "anatomy_localization"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "conus medullaris",
+        "cauda equina"
+      ],
+      "any": []
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q054",
+    "query": "What is the first-line drug for status epilepticus?",
+    "subject": "neurology",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "status epilepticus"
+      ],
+      "any": [
+        [
+          "lorazepam",
+          "diazepam",
+          "midazolam",
+          "benzodiazepine"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q055",
+    "query": "The blood film of a patient who had a splenectomy after trauma shows small round purple nuclear remnants inside red cells. What are these?",
+    "subject": "haematology",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "buzzword",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "howell jolly"
+      ],
+      "any": [
+        [
+          "splen",
+          "asplen",
+          "hyposplen"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q056",
+    "query": "Which red cell inclusions are seen in G6PD deficiency?",
+    "subject": "haematology",
+    "difficulty": "medium",
+    "tags": [
+      "pathology_association",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "heinz"
+      ],
+      "any": [
+        [
+          "g6pd",
+          "glucose 6 phosphate dehydrogenase"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q057",
+    "query": "Basophilic stippling of red cells is a feature of which poisoning?",
+    "subject": "haematology",
+    "difficulty": "medium",
+    "tags": [
+      "lab_findings",
+      "buzzword",
+      "confusable"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "basophilic stippling"
+      ],
+      "any": [
+        [
+          "lead"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q058",
+    "query": "What are the iron studies in iron deficiency anaemia?",
+    "subject": "haematology",
+    "difficulty": "medium",
+    "tags": [
+      "lab_findings"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "ferritin",
+        "iron deficiency"
+      ],
+      "any": [
+        [
+          "tibc",
+          "total iron binding",
+          "transferrin"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q059",
+    "query": "Which test confirms hereditary spherocytosis?",
+    "subject": "haematology",
+    "difficulty": "medium",
+    "tags": [
+      "lab_findings",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "spherocytosis"
+      ],
+      "any": [
+        [
+          "osmotic fragility",
+          "eosin 5 maleimide",
+          "=ema"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q060",
+    "query": "What is the mode of inheritance of Duchenne muscular dystrophy?",
+    "subject": "genetics",
+    "difficulty": "easy",
+    "tags": [
+      "factual"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "duchenne"
+      ],
+      "any": [
+        [
+          "x linked"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q061",
+    "query": "A short 15-year-old girl with a webbed neck, widely spaced nipples and primary amenorrhoea. What is her karyotype?",
+    "subject": "genetics",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "turner"
+      ],
+      "any": [
+        [
+          "45,x",
+          "45 x",
+          "45,xo",
+          "45 xo"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q062",
+    "query": "Which trinucleotide repeat causes fragile X syndrome?",
+    "subject": "genetics",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "fragile x"
+      ],
+      "any": [
+        [
+          "cgg"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q063",
+    "query": "HLA-B27 is associated with which diseases?",
+    "subject": "genetics",
+    "difficulty": "easy",
+    "tags": [
+      "pathology_association",
+      "buzzword"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "hla b27"
+      ],
+      "any": [
+        [
+          "ankylosing"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q064",
+    "query": "What is the antidote for paracetamol poisoning?",
+    "subject": "emergency_medicine",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "paracetamol",
+          "acetaminophen"
+        ],
+        [
+          "acetylcysteine"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q065",
+    "query": "A farmer presents with pinpoint pupils, excessive salivation, bradycardia and muscle fasciculations after spraying pesticide. What is the treatment?",
+    "subject": "emergency_medicine",
+    "difficulty": "medium",
+    "tags": [
+      "clinical_scenario",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "organophosphate"
+      ],
+      "any": [
+        [
+          "atropine",
+          "pralidoxime",
+          "oxime"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q066",
+    "query": "What is the first drug to give in anaphylaxis, and by which route?",
+    "subject": "emergency_medicine",
+    "difficulty": "easy",
+    "tags": [
+      "factual",
+      "fcps_style"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [
+        "anaphyla"
+      ],
+      "any": [
+        [
+          "adrenaline",
+          "epinephrine"
+        ],
+        [
+          "intramuscular",
+          "=im"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  },
+  {
+    "id": "q067",
+    "query": "How is hyperkalaemia with ECG changes treated first?",
+    "subject": "emergency_medicine",
+    "difficulty": "medium",
+    "tags": [
+      "factual",
+      "lab_findings"
+    ],
+    "relevant_chunk_ids": [],
+    "relevant_book": "",
+    "relevant_chapter": "",
+    "gold": {
+      "all": [],
+      "any": [
+        [
+          "hyperkal"
+        ],
+        [
+          "calcium gluconate",
+          "calcium chloride"
+        ]
+      ]
+    },
+    "annotation": {
+      "status": "unverified",
+      "basis": "predicate"
+    }
+  }
+]

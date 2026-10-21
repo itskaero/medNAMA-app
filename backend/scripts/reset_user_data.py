@@ -45,6 +45,8 @@ STEPS = [
     ("flashcards", None),
     ("saved_sheets", None),
     ("answer_reports", None),
+    ("station_challenges", None),
+    ("station_attempts", None),     # station_scores follow (ON DELETE CASCADE)
 ]
 
 

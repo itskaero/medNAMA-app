@@ -1,0 +1,22 @@
+{
+  "name": "mednama-control-hub",
+  "version": "1.0.0",
+  "description": "medNAMA Unified Medical Application Hub & Electron Desktop Launcher",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "mednama",
+    "launcher",
+    "medical",
+    "rag",
+    "mcqs",
+    "electron"
+  ],
+  "author": "medNAMA Core Team",
+  "license": "ISC",
+  "dependencies": {
+    "electron": "^44.7.0"
+  }
+}

@@ -285,7 +285,7 @@ def build_concept_card(db: Session, mcq: MCQ) -> ConceptCard:
 
 def _variant_mcq(db: Session, card: ConceptCard, exclude_ids: set[int], allow_restricted: bool = False) -> MCQ | None:
     """An existing MCQ on this concept that isn't in exclude_ids."""
-    q = db.query(MCQ).filter(MCQ.concept_id == card.id, MCQ.status != "private")
+    q = db.query(MCQ).filter(MCQ.concept_id == card.id, MCQ.status == "ready")
     if not allow_restricted:
         q = open_only(q)
     if exclude_ids:
@@ -561,7 +561,7 @@ def high_yield_enabled(user: User) -> bool:
 def can_see_mcq(user: User, mcq: MCQ) -> bool:
     if mcq.access == "restricted" and not restricted_allowed(user):
         return False
-    return mcq.status != "private" or high_yield_enabled(user)
+    return mcq.status == "ready" or (mcq.status == "private" and high_yield_enabled(user))
 
 
 def _high_yield_questions(db: Session, seen: set[int], n: int) -> list[tuple[MCQ, int]]:

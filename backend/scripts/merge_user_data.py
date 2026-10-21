@@ -68,11 +68,16 @@ def copy_rows(src, dst, table: str, remap: dict[str, dict[int, int]], fk: dict[s
             skipped += 1
             continue
         if apply:
+            from sqlalchemy.dialects.postgresql import JSONB
+            from sqlalchemy import bindparam
+
             cols = ", ".join(values)
             params = ", ".join(f":{c}" for c in values)
-            mapping[row["id"]] = dst.execute(
-                text(f"INSERT INTO {table} ({cols}) VALUES ({params}) RETURNING id"), values
-            ).scalar()
+            stmt = text(f"INSERT INTO {table} ({cols}) VALUES ({params}) RETURNING id")
+            json_cols = [c for c, v in values.items() if isinstance(v, (list, dict))]
+            if json_cols:
+                stmt = stmt.bindparams(*[bindparam(c, type_=JSONB) for c in json_cols])
+            mapping[row["id"]] = dst.execute(stmt, values).scalar()
         else:
             mapping[row["id"]] = -row["id"]
     print(f"  {table:20} {len(mapping):5} copied" + (f", {skipped} skipped (missing parent)" if skipped else ""))

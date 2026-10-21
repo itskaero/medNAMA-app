@@ -2,6 +2,7 @@
 
 Moved verbatim from app/main.py (routes keep their paths)."""
 
+import json
 import os
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
@@ -9,6 +10,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from app.account import delete_user_data, export_user_data
 from app.config import settings
 from app.models import InviteCode, User
 from app.auth import hash_password, verify_password, create_access_token, get_current_user, rate_limiter
@@ -139,3 +141,33 @@ def get_user_profile(request: Request, response: Response, current_user: User = 
     from app.routers.pages import viewer_allowed
     return {"username": current_user.username, "role": current_user.role,
             "can_view_pages": viewer_allowed(current_user)}
+
+
+class DeleteAccount(BaseModel):
+    password: str
+
+
+@router.get("/api/auth/export")
+def export_account(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Download everything the platform holds about the signed-in account as JSON (§10 data export)."""
+    data = export_user_data(db, current_user)
+    return Response(
+        content=json.dumps(data, indent=2, default=str),
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="mednama-account-export.json"'},
+    )
+
+
+@router.delete("/api/auth/account", dependencies=[Depends(rate_limiter(limit=10, window=60))])
+def delete_account(req: DeleteAccount, response: Response,
+                   db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Delete the signed-in account and all of its data (§10 deletion).
+
+    The current password is required so a stray click or a CSRF request cannot delete an
+    account. Shared library content (MCQs, concept cards, past papers) is never removed.
+    """
+    if not verify_password(req.password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The password is wrong.")
+    delete_user_data(db, current_user.id)
+    response.delete_cookie(key="access_token")
+    return {"message": "Account and all associated data deleted."}

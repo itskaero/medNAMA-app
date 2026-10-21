@@ -61,7 +61,7 @@ class SheetRequest(BaseModel):
     book_ids: list[int] = []
     chapter: str | None = None                  # one chapter of those books
     topic: str | None = None                    # what to look for inside it
-    length: str = "full"                        # cap: "quick" (<=10 bullets) | "full" (<=22)
+    length: str = "full"                        # depth, not a bullet count: "quick" | "full"
     level: str | None = None                    # exam programme (app/exam_levels.py); part of the cache key
     regenerate: bool = False                    # admins may rebuild a cached sheet
 

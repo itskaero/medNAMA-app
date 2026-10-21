@@ -21,8 +21,13 @@ logger = logging.getLogger(__name__)
 WEAK_JWT_SECRETS = {"", "dev-secret-change-in-production", "change-this-jwt-secret", "medrag_secret_key_change_me_in_prod"}
 JWT_SECRET_KEY = settings.jwt_secret
 if JWT_SECRET_KEY in WEAK_JWT_SECRETS or len(JWT_SECRET_KEY) < 24:
-    logger.critical("JWT_SECRET is missing, short or a default value: anyone who knows it can sign in as any user. "
-                    "Set a long random JWT_SECRET in the environment.")
+    _msg = ("JWT_SECRET is missing, short or a default value: anyone who knows it can sign in as any user. "
+            "Set a long random JWT_SECRET in the environment.")
+    # Fail closed instead of serving a forgeable login. Set ALLOW_WEAK_JWT_SECRET=1 only for
+    # throwaway local use; deployments set a strong secret automatically (deploy.sh generates one).
+    if not settings.allow_weak_jwt_secret:
+        raise RuntimeError(_msg)
+    logger.critical("%s (continuing because ALLOW_WEAK_JWT_SECRET=1).", _msg)
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day expiration for convenience
 

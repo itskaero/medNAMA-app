@@ -251,6 +251,40 @@ def _grounding(textbook_md: str, supplement_md: str, citations: list, model_valu
     return "none" if model_value == "none" else "ai_only"
 
 
+# Provisional grounding-confidence thresholds, tuned against the grounding-eval baseline
+# (labs/evaluation/grounding). A high supplement share or weak retrieval means the answer leans
+# on AI knowledge rather than the retrieved textbooks. These are a starting point, not a
+# validated clinical safety boundary - tighten them as the labelled review set grows.
+SUPPLEMENT_HIGH = 0.50
+SUPPLEMENT_MEDIUM = 0.33
+RERANK_WEAK = -2.0
+RERANK_OFF_TOPIC = -6.0
+
+
+def _supplement_ratio(textbook_md: str, supplement_md: str) -> float:
+    """Share of the answered text that is uncited AI supplement (0..1)."""
+    t = len((textbook_md or "").strip())
+    s = len((supplement_md or "").strip())
+    total = t + s
+    return round(s / total, 3) if total else 0.0
+
+
+def _uncertainty_signal(grounding: str, supplement_ratio: float, top_score: float | None) -> tuple[str, str | None]:
+    """A machine-readable grounding-confidence flag for the interface (§6).
+
+    The answer text already separates textbook from AI supplement; this adds a concise signal
+    the UI can surface as a warning, so a student can tell how much of what they are reading is
+    textbook-backed - most important for high-risk clinical questions.
+    """
+    if grounding in ("ai_only", "none"):
+        return "high", "This answer is not grounded in the retrieved textbooks."
+    if supplement_ratio > SUPPLEMENT_HIGH or (top_score is not None and top_score <= RERANK_OFF_TOPIC):
+        return "high", "This answer leans mostly on AI clinical knowledge, not your textbooks."
+    if supplement_ratio > SUPPLEMENT_MEDIUM or (top_score is not None and top_score <= RERANK_WEAK):
+        return "medium", "Your textbooks only partly cover this; the AI supplement is not a textbook fact."
+    return "low", None
+
+
 def generate_answer(
     session: Session,
     query: str,
@@ -404,11 +438,15 @@ def generate_answer(
         query, grounding, len(validated["citations"]),
         f"{result.top_score:.2f}" if result.top_score is not None else "n/a",
     )
+    supp_ratio = _supplement_ratio(textbook_md, supplement_md)
+    confidence, uncertainty_note = _uncertainty_signal(grounding, supp_ratio, result.top_score)
     return {
         "answer_markdown": compose_answer_markdown(textbook_md, supplement_md),
         "textbook_answer_markdown": textbook_md,
         "supplementary_markdown": supplement_md,
         "grounding": grounding,
+        "grounding_confidence": confidence,
+        "uncertainty_note": uncertainty_note,
         "status": "ok",
         "citations": validated["citations"],
         "figures": _attach_figure_details(validated["figures"], all_figures),
@@ -438,7 +476,13 @@ def generate_mcq_explanation(session: Session, mcq, level: str | None = None) ->
         "for MBBS/FCPS exam preparation.\n"
         f"{exam_levels.chat_guidance(programme)}\n\n"
         "EXPLANATION RULES:\n"
-        "1. Explain why the correct option is correct and why each other option is wrong.\n"
+        "1. Use exactly this markdown layout, every time, so students can scan it:\n"
+        f"   **Why {mcq.correct_option} is right**: 2-4 sentences.\n"
+        "   **Why the others are wrong**: one bullet per other option, each starting with its letter in bold "
+        "(e.g. '- **B.** ...'), one sentence on what that option actually is or when it would be right.\n"
+        "   **High-yield pearl**: one line an examiner is likely to test (a buzzword, a cut-off, a 'most common').\n"
+        "   **Remember it**: one short mnemonic, only if a genuinely useful one exists; if you made it up, end it "
+        "with '(AI mnemonic)'. Leave this heading out when there is no good mnemonic.\n"
         "2. Prefer facts from the RETRIEVED TEXTBOOK CONTEXT and cite them inline with the exact book title "
         "and page, e.g. [Bailey Surgery, Page 280].\n"
         "3. Where the context does not cover a point, you may use reliable medical knowledge, but mark that "

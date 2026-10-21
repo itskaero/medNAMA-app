@@ -1,0 +1,1598 @@
+{
+  "generated_at": "2026-10-12T15:02:03",
+  "questions_file": "E:\\Projects\\Coding Projects\\medNAMA\\labs\\rag_lab\\questions.json",
+  "summary": {
+    "n_questions": 12,
+    "grounding_distribution": {
+      "partial": 12
+    },
+    "abstention_rate": 0.0,
+    "mean_citations": 5.75,
+    "mean_sources": 8.0,
+    "mean_supplement_ratio": 0.336,
+    "citations_in_context_rate": 1.0
+  },
+  "results": [
+    {
+      "mechanical": {
+        "id": "lab001",
+        "question": "Diagnosis and treatment of pyloric stenosis",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 5,
+        "n_sources": 8,
+        "top_relevance": 8.5006,
+        "supplement_ratio": 0.295,
+        "citations_in_context": 5,
+        "elapsed_s": 86.4
+      },
+      "labelled": {},
+      "answer_markdown": "**Diagnosis**\n\nInfantile hypertrophic pyloric stenosis (HPS) typically presents at 3\u20135 days to a few weeks of age with severe projectile vomiting, and the diagnosis is confirmed by ultrasonography. The sonographic criteria are a pyloric muscle wall thickness of >4 mm and a pyloric channel length >14 mm (with a pyloric diameter of 10\u201314 mm); ultrasonography has a sensitivity of approximately 95% [Nelson Pediatrics 22e Vol 2, Page 61]. If ultrasound is equivocal, an upper GI contrast study is used, demonstrating an elongated pyloric channel (string sign), a bulge of the pyloric muscle into the antrum (shoulder sign), and parallel streaks of barium in the narrowed channel (double tract sign) [Nelson Pediatrics 22e Vol 2, Page 61].\n\nImportant differential diagnoses to exclude include gastroesophageal reflux (self-limiting, effortless regurgitation, no abnormal chemistries), adrenogenital syndrome (metabolic acidosis with elevated serum potassium and urinary sodium), inborn errors of metabolism (alkalosis in urea cycle defects, acidosis in organic acidemias, with lethargy/coma/seizures), and infection such as UTI or gastroenteritis (usually with fever or diarrhea) [Nelson Pediatrics 22e Vol 2, Page 61]. Duodenal stenosis proximal to the ampulla of Vater can mimic HPS but is differentiated by the presence of a pyloric mass on examination or ultrasonography [Nelson Pediatrics 22e Vol 2, Page 61].\n\n**Treatment**\n\nTreatment requires surgery in most patients. Preoperative management is directed at correcting fluid and electrolyte losses and the acid\u2013base disturbance; correction of the alkalosis is essential to prevent postoperative apnea associated with anesthesia. Most infants can be successfully rehydrated within 24 hours. Vomiting usually stops when the stomach is empty, and only an occasional infant requires nasogastric suction [Nelson Pediatrics 22e Vol 2, Page 61].\n\nSurgical treatment is by open or laparoscopic pyloromyotomy (Ramstedt procedure), which is safe, cost-effective, and curative, with an operative mortality of 0\u20130.5%. Laparoscopic pyloromyotomy has become the procedure of choice given improved instrumentation and potentially shorter recovery times [Nelson Pediatrics 22e Vol 2, Page 61].\n\nPostoperative vomiting occurs in half the infants, usually due to edema at the incision site. Feedings can usually be initiated within 12\u201324 hours after surgery and advanced to maintenance oral feedings within 36\u201348 hours. Persistent vomiting suggests incomplete pyloromyotomy, gastritis, GERD, or another cause of obstruction; endoscopic balloon dilation has been successful for persistent vomiting due to incomplete pyloromyotomy [Nelson Pediatrics 22e Vol 2, Page 61].\n\nConservative management with nasoduodenal feedings is rarely advisable, only in poor surgical candidates. Oral and intravenous atropine sulfate (a pyloric muscle relaxant) has also been described when surgical expertise is unavailable [Nelson Pediatrics 22e Vol 2, Page 61].\n\n**Embryology/Pathogenesis**\n\nPyloric stenosis occurs when the circular and, to a lesser degree, longitudinal musculature of the stomach in the region of the pylorus hypertrophies, causing extreme narrowing of the pyloric lumen and obstruction to the passage of food, resulting in severe projectile vomiting [Langman's Embryology 14e, Page 260]. Although previously believed to develop only during fetal life, recent data indicate that postnatal exposure (e.g., erythromycin in the newborn period) substantially increases the risk, suggesting that in some cases the defect may develop later [Langman's Embryology 14e, Page 260].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls & pitfalls (FCPS-II)**\n\n- **Classic presentation:** Firstborn male, 3\u20136 weeks old, non-bilious projectile vomiting after feeds, hungry infant, visible gastric peristaltic waves, palpable olive-shaped mass in RUQ. Confirm with ultrasound (pyloric thickness >4 mm, channel length >14 mm).\n- **Metabolic hallmark:** Hypochloremic, hypokalemic metabolic alkalosis with paradoxical aciduria (due to renal compensation). Correct with 0.9% saline + KCl before surgery; do not give sodium bicarbonate.\n- **Preoperative resuscitation:** Aim for urine output >1 mL/kg/hr, chloride >100 mEq/L, bicarbonate <28 mEq/L, and potassium >3.5 mEq/L before anaesthesia to avoid postoperative apnoea.\n- **Surgical options:** Laparoscopic pyloromyotomy is now standard; open Ramstedt is equally effective. Postoperative feeding can start within 12\u201324 hours.\n- **Persistent vomiting after surgery:** Consider incomplete pyloromyotomy (most common), gastritis, GERD, or other obstruction. Endoscopic balloon dilation is an option for incomplete myotomy.\n- **Atropine:** Oral/IV atropine sulfate is a non-surgical alternative but requires prolonged hospitalisation and is rarely used.\n- **Associations:** Erythromycin exposure in neonates (especially first 2 weeks), family history, and certain syndromes (Apert, Zellweger, trisomy 18, Smith-Lemli-Opitz, Cornelia de Lange).\n- **MCQ trap:** Do not confuse with adrenogenital syndrome (metabolic acidosis, hyperkalemia) or urea cycle defects (alkalosis with lethargy/coma).",
+      "citations": [
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 61,
+          "excerpt": "Ultrasonography has a sensitivity of approximately 95%. Less commonly, an upper gastrointestinal (GI) contrast study is used. Contrast studies demonstrate an elongated pyloric channel (string sign), a bulge of the pyloric muscle into the antrum (shoulder sign), and parallel streaks of barium seen in the narrowed channel, producing a 'double tract sign'"
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 61,
+          "excerpt": "The treatment of pyloric stenosis requires surgery in most patients. The preoperative treatment is directed toward correcting the fluid and electrolyte losses, as well as the acid- base disturbance. Correction of the alkalosis is essential to prevent postoperative apnea, which may be associated with anesthesia."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 61,
+          "excerpt": "Surgical treatment of pyloric stenosis is by open or laparoscopic pyloromyotomy. This procedure is safe and cost- effective. Treatment is curative, with an operative mortality of 0-0.5%."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 61,
+          "excerpt": "Postoperative vomiting occurs in half the infants and is thought to be secondary to edema of the pylorus at the incision site. In most infants, feedings can be initiated within 12- 24 hours after surgery and advanced to maintenance oral feedings within 36- 48 hours."
+        },
+        {
+          "book_title": "Langman's Embryology 14e",
+          "page_number": 260,
+          "excerpt": "Pyloric stenosis occurs when the circular and, to a lesser degree, the longitudinal musculature of the stomach in the region of the pylorus hypertrophies. One of the most common abnormalities of the stomach in infants, pyloric stenosis was previously believed to develop only during fetal life, despite the fact that most cases present 3 to 5 days after birth."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 283516,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVI -The Digestive System > Chapter 375 \u2013 Pyloric Stenosis and Other Congenital Anomalies of the Stomach > TREATMENT",
+          "page_number": 61,
+          "snippet": "Surgical treatment of pyloric stenosis is by open or laparoscopic pyloromyotomy. This procedure is safe and cost- effective. Treatment is curative, with an operative mortality of 0-0.5%. The traditional Ramstedt procedure had been performed through a short transverse skin incision in the right\u2026",
+          "rank": 1,
+          "relevance_score": 8.5006
+        },
+        {
+          "chunk_id": 283515,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVI -The Digestive System > Chapter 375 \u2013 Pyloric Stenosis and Other Congenital Anomalies of the Stomach > TREATMENT",
+          "page_number": 61,
+          "snippet": "The treatment of pyloric stenosis requires surgery in most patients. The preoperative treatment is directed toward correcting the fluid and electrolyte losses, as well as the acid- base disturbance. Correction of the alkalosis is essential to prevent postoperative apnea, which may be associated\u2026",
+          "rank": 2,
+          "relevance_score": 8.2619
+        },
+        {
+          "chunk_id": 251166,
+          "book_id": 85,
+          "book_title": "Langman's Embryology 14e",
+          "chapter": "Part 2 Systems-Based Embryology > Digestive System > Stomach Abnormalities",
+          "page_number": 260,
+          "snippet": "Pyloric stenosis occurs when the circular and, to a lesser degree, the longitudinal musculature of the stomach in the region of the pylorus hypertrophies. One of the most common abnormalities of the stomach in infants, pyloric stenosis was previously believed to develop only during fetal life,\u2026",
+          "rank": 3,
+          "relevance_score": 5.4281
+        },
+        {
+          "chunk_id": 283485,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVI -The Digestive System > Chapter 375 \u2013 Pyloric Stenosis and Other Congenital Anomalies of the Stomach > ETIOLOGY",
+          "page_number": 60,
+          "snippet": "The etiology of infantile hypertrophic pyloric stenosis is unknown, although many genetic and environmental factors have been implicated. Development of pyloric stenosis is likely postnatal, given that it is unusual in stillbirths. Genetic predisposition, a well- established risk of pyloric\u2026",
+          "rank": 4,
+          "relevance_score": 3.242
+        },
+        {
+          "chunk_id": 283514,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVI -The Digestive System > Chapter 375 \u2013 Pyloric Stenosis and Other Congenital Anomalies of the Stomach > DIFFERENTIAL DIAGNOSIS",
+          "page_number": 61,
+          "snippet": "Pyloric stenosis must be differentiated from other causes that present with vomiting, irritability, and dehydration in the infant. Gastroesophageal reflux is one of the most common etiologies of vomiting. In contrast to pyloric stenosis, reflux is typically a self- limiting condition that manifests\u2026",
+          "rank": 5,
+          "relevance_score": 2.5701
+        },
+        {
+          "chunk_id": 306105,
+          "book_id": 82,
+          "book_title": "Gynaecology by Ten Teachers 21e",
+          "chapter": "11 Benign conditions of the ovary and pelvis > INFLAMMATORY OVARIAN CYSTS",
+          "page_number": 184,
+          "snippet": "Diagnosis is similar to that for PID: in\u00b0ammatory markers are helpful and initial treatment is with antibiotics and supportive measures such as \u00b0uid rehydration and the antipyretic paracetamol. Surgical drainage or excision is required if the patient remains unwell with malaise, pain and a\u2026",
+          "rank": 6,
+          "relevance_score": -2.0544
+        },
+        {
+          "chunk_id": 283484,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVI -The Digestive System > Chapter 375 \u2013 Pyloric Stenosis and Other Congenital Anomalies of the Stomach > 375.1 Hypertrophic Pyloric Stenosis",
+          "page_number": 60,
+          "snippet": "Hypertrophic pyloric stenosis occurs in 2- 5/1,000 infants in the United States. It is common in White people, particularly of northern European ancestry, and less frequent in Black and Asian populations. Males (especially firstborns) are affected approximately 4 times as often as females. There is\u2026",
+          "rank": 7,
+          "relevance_score": 1.7512
+        },
+        {
+          "chunk_id": 283521,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVI -The Digestive System > Chapter 375 \u2013 Pyloric Stenosis and Other Congenital Anomalies of the Stomach > https://trungtamthuoc.com/",
+          "page_number": 62,
+          "snippet": "| Table 375.2 - ANOMALY | Anomalies of the Stomach - INCIDENCE | Anomalies of the Stomach - AGE AT PRESENTATION | Anomalies of the Stomach - SYMPTOMS AND SIGNS | Anomalies of the Stomach - TREATMENT |\u2026",
+          "rank": 8,
+          "relevance_score": -2.7022
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab002",
+        "question": "What is the mechanism of action of pioglitazone?",
+        "level": "FCPS-I",
+        "intent": "mechanism",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 5,
+        "n_sources": 8,
+        "top_relevance": 1.9768,
+        "supplement_ratio": 0.376,
+        "citations_in_context": 5,
+        "elapsed_s": 18.2
+      },
+      "labelled": {},
+      "answer_markdown": "Pioglitazone is a thiazolidinedione (TZD) whose mechanism of action is **activation of the nuclear receptor peroxisome proliferator-activated receptor-\u03b3 (PPAR-\u03b3)**, with some additional PPAR-\u03b1 activity [Katzung Pharmacology, Page 774; Davidson's Medicine, Page 766]. PPAR-\u03b3 is a nuclear receptor and transcription factor expressed mainly in adipose tissue that regulates the expression of several genes involved in metabolism [Davidson's Medicine, Page 766; Robbins Basic Pathology, Page 757]. By binding and activating PPAR-\u03b3, pioglitazone regulates gene expression and thereby **reduces insulin resistance** [Katzung Pharmacology, Page 782].\n\nThe downstream mechanism is twofold: activation of PPAR-\u03b3 promotes secretion of antihyperglycemic adipokines such as **adiponectin** (an insulin-sensitizing adipokine), and it shifts the deposition of free fatty acids toward adipose tissue and away from liver and skeletal muscle [Robbins Basic Pathology, Page 757; First Aid Step 1, Page 380]. TZDs thus enhance the actions of endogenous insulin both directly in adipose cells and indirectly by altering adipokine release, which alters insulin sensitivity in the liver [Davidson's Medicine, Page 766]. Because they act by sensitizing tissues to insulin rather than by stimulating its release, **plasma insulin concentrations are not increased and hypoglycemia does not occur** [Davidson's Medicine, Page 766].\n\nConsistent with this mechanism, pioglitazone increases preadipocyte differentiation, resulting in an increase in fat mass and body weight [Davidson's Medicine, Page 766]. It also has additional metabolic effects apart from glucose lowering: it lowers triglycerides and increases HDL cholesterol without affecting total cholesterol and LDL cholesterol [Katzung Pharmacology, Page 774]. Pioglitazone is metabolized by CYP2C8 and CYP3A4 to active metabolites, and may affect the bioavailability of other drugs degraded by these enzymes, including estrogen-containing oral contraceptives [Katzung Pharmacology, Page 774].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls / MCQ traps:**\n- **Delayed onset of action (several weeks)** \u2014 unlike sulfonylureas, TZDs do not work immediately; this is a classic MCQ point.\n- **No hypoglycemia when used alone** \u2014 because they are insulin sensitizers, not insulin secretagogues. Hypoglycemia risk rises only when combined with insulin or sulfonylureas.\n- **Fluid retention / edema / exacerbation of heart failure** \u2014 due to PPAR-\u03b3\u2013mediated renal sodium and water retention; TZDs are contraindicated in CHF (NYHA III\u2013IV).\n- **Weight gain** \u2014 from increased preadipocyte differentiation and fat mass.\n- **Increased risk of bone fractures in women** and **possibly bladder cancer** with pioglitazone; rosiglitazone was withdrawn for increased MI risk.\n- **Pioglitazone is the TZD with probable cardiovascular benefit** (unlike rosiglitazone).\n- **Beneficial in fatty liver/NASH** \u2014 pioglitazone reduces hepatic steatosis and inflammation.\n- **Contraindicated in hepatic disease** and should be used with caution in renal impairment (no dose adjustment needed for renal impairment per se, but fluid retention is a concern).\n- **CYP2C8 and CYP3A4 interactions** \u2014 remember to advise additional contraception with combined oral contraceptives.",
+      "citations": [
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 774,
+          "excerpt": "Pioglitazone has some PPAR\u03b1 as well as PPAR\u03b3 activity."
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 782,
+          "excerpt": "Regulate gene expression by binding to PPAR-\u03b3 and PPAR-\u03b1. \u2022 Pioglitazone, rosiglitazone, Effects = Reduce insulin resistance."
+        },
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 766,
+          "excerpt": "These drugs (also called TZDs, 'glitazones' or PPAR \u03b3 agonists) bind and activate peroxisome proliferator-activated receptor\u03b3, a nuclear receptor present mainly in adipose tissue, which regulates the expression of several genes involved in metabolism."
+        },
+        {
+          "book_title": "Robbins Basic Pathology 9e",
+          "page_number": 757,
+          "excerpt": "A class of antidiabetic medications known as thiazolidinediones acts as agonist ligands for PPAR \u03b3 and improves insulin sensitivity. Activation of PPAR \u03b3 promotes secretion of antihyperglycemic adipokines such as adiponectin, and shifts the deposition of FFAs toward adipose tissue and away from liver and skeletal muscle."
+        },
+        {
+          "book_title": "First Aid Step 1 2024",
+          "page_number": 380,
+          "excerpt": "Pioglitazone, MECHANISM = Activate PPAR- \u03b3 (a nuclear receptor)  insulin sensitivity and levels of adiponectin  regulation of glucose metabolism and fatty acid storage."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 208941,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "THIAZOLIDINEDIONES",
+          "page_number": 774,
+          "snippet": "These drugs also have some additional effects apart from glucose lowering. Pioglitazone lowers triglycerides and increases high-density lipoprotein (HDL) cholesterol without affecting total cholesterol and low-density lipoprotein (LDL) cholesterol.",
+          "rank": 1,
+          "relevance_score": 1.9768
+        },
+        {
+          "chunk_id": 87817,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Drugs to reduce hyperglycaemia",
+          "page_number": 765,
+          "snippet": "cosidase inhibitors = \u2193. Post-prandial blood glucose, Thiazolidinediones (glitazones) = \u2193. Post-prandial blood glucose, DPP-4 inhibitors (gliptins) = \u2193. Post-prandial blood glucose, GLP-1 receptor agonists = \u2193. Post-prandial blood glucose, SGLT2 inhibitors = \u2193. Plasma insulin, Insulin = \u2191. Plasma\u2026",
+          "rank": 2,
+          "relevance_score": 0.0123
+        },
+        {
+          "chunk_id": 209144,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "SUMMARY Drugs Used for Diabetes",
+          "page_number": 782,
+          "snippet": "Voglibose 1, Clinical Applications = Type 2 diabetes. \u2022 Acarbose, miglitol \u2022 Voglibose 1, Pharmacokinetics, Toxicities, Interactions = Oral \u2022 rapid onset \u2022 Toxicity: Gastrointestinal symptoms \u2022 cannot use if impaired renal/hepatic function, intestinal disorders. THIAZOLIDINEDIONES, Mechanism of\u2026",
+          "rank": 3,
+          "relevance_score": 2.4439
+        },
+        {
+          "chunk_id": 63741,
+          "book_id": 38,
+          "book_title": "Robbins Basic Pathology 9e",
+          "chapter": "Obesity and Insulin Resistance",
+          "page_number": 757,
+          "snippet": "is not merely a passive storage depot for fat; it can operate as a functional endocrine organ, releasing so-called adipokines in response to extracellular stimuli or changes in metabolic status. Thus, adipocytes also release IL-1 \u03b2 and other proinflammatory cytokines into the circulation in\u2026",
+          "rank": 4,
+          "relevance_score": -0.6147
+        },
+        {
+          "chunk_id": 87830,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Mechanism of action",
+          "page_number": 766,
+          "snippet": "These drugs (also called TZDs, 'glitazones' or PPAR \u03b3 agonists) bind and activate peroxisome proliferator-activated receptor\u03b3 , a nuclear receptor present mainly in adipose tissue, which regulates the expression of several genes involved in metabolism. TZDs enhance the actions of endogenous\u2026",
+          "rank": 5,
+          "relevance_score": 3.641
+        },
+        {
+          "chunk_id": 35267,
+          "book_id": 4,
+          "book_title": "First Aid Step 1 2024",
+          "chapter": "Diabetes mellitus therapy (continued)",
+          "page_number": 380,
+          "snippet": "Increase insulin sensitivity, MECHANISM = Increase insulin sensitivity. Increase insulin sensitivity, ADVERSE EFFECTS = . Metformin, MECHANISM = Inhibits mitochondrial glycerol-3-phosphate dehydrogenase (mGPD) \u008e inhibition of hepatic gluconeogenesis and the action of glucagon. \u008f glycolysis,\u2026",
+          "rank": 6,
+          "relevance_score": 3.528
+        },
+        {
+          "chunk_id": 208937,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "THIAZOLIDINEDIONES",
+          "page_number": 774,
+          "snippet": "Thiazolidinediones act to decrease insulin resistance. They are ligands of peroxisome proliferator-activated receptor gamma (PPARf ) , part of the steroid and thyroid superfamily of nuclear receptors. These PPAR receptors are found in muscle, fat, and liver. PPAR\u03b3 receptors modulate the expression\u2026",
+          "rank": 7,
+          "relevance_score": 4.7265
+        },
+        {
+          "chunk_id": 209150,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "P R E P A R A T I O N S   A V A I L A B L E *",
+          "page_number": 784,
+          "snippet": "Pioglitazone Generic, Actos",
+          "rank": 8,
+          "relevance_score": -1.4848
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab003",
+        "question": "Management of diabetic ketoacidosis",
+        "level": "FCPS-II",
+        "intent": "management",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 5,
+        "n_sources": 8,
+        "top_relevance": 7.2398,
+        "supplement_ratio": 0.579,
+        "citations_in_context": 5,
+        "elapsed_s": 12.5
+      },
+      "labelled": {},
+      "answer_markdown": "The retrieved passages provide only fragmentary guidance on DKA management. The key textbook facts available are:\n\n- **Insulin route:** Intravenous infusions of regular insulin are particularly useful in the treatment of diabetic ketoacidosis and during the perioperative management of insulin-requiring diabetics [Katzung Pharmacology, Page 768].\n- **Protocol source:** Adult DKA management algorithms are adapted from the Joint British Diabetes Societies Inpatient Care Group. The Management of Diabetic Ketoacidosis in Adults, 2nd edn; September 2013 [Davidson's Medicine, Page 756].\n- **Monitoring parameters:** Management algorithms incorporate blood pressure (BP), electrocardiogram (ECG), intravenous (IV) and subcutaneous (SC) routes [Davidson's Medicine, Page 756].\n- **Paediatric algorithm:** A dedicated algorithm for the management of diabetic ketoacidosis exists, with attention to cerebral edema (CE), ECG monitoring, potassium chloride (KCl) administration, and transition to subcutaneous insulin [Nelson Pediatrics 22e Vol 2, Page 1333, Figure 629.5].\n- **Pitfall:** Respiratory distress from diabetic ketoacidosis may be misdiagnosed as asthma and improperly treated with albuterol, resulting in worsened hemodynamic state or ketoacidosis [Nelson Pediatrics 22e Vol 1, Page 659].\n- **Predisposition:** Ketoacidosis in diabetic patients is a predisposing factor to mucormycosis [Levinson's Microbiology 18e, Page 763].\n\nThe passages do not contain the full stepwise management protocol (fluid rates, insulin doses, potassium replacement thresholds), so the detailed regimen is provided in the supplementary section below.\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Stepwise management of DKA (adult, JBDS/ADA-aligned):**\n\n1. **Resuscitation & monitoring:** ABC, IV access, hourly vitals, strict fluid balance, cardiac monitor (ECG for potassium changes), urinary catheter if needed. Confirm diagnosis: glucose >11 mmol/L (or known DM), ketones >3 mmol/L (or significant ketonuria), pH <7.3 or bicarbonate <15 mmol/L.\n\n2. **Fluids:** 0.9% NaCl 1 L over 1 hour (or faster if shocked). Then 0.9% NaCl with KCl at a rate guided by corrected sodium and hydration status (typically 500 mL/h for 4 h, then 250 mL/h). Switch to 10% dextrose when glucose <14 mmol/L to allow continued insulin infusion.\n\n3. **Insulin:** Fixed-rate IV infusion of soluble (regular) insulin 0.1 units/kg/h. Do NOT give a bolus in most protocols (JBDS). Continue until ketones <0.6 mmol/L and pH >7.3; then overlap with subcutaneous insulin for 1\u20132 hours before stopping infusion.\n\n4. **Potassium:** Add KCl 40 mmol/L to each litre of fluid if K+ 3.5\u20135.5 mmol/L; if K+ <3.5 mmol/L, give additional potassium and hold insulin until corrected; if K+ >5.5 mmol/L, omit KCl and recheck hourly.\n\n5. **Bicarbonate:** Not routinely recommended; consider only if pH <6.9 (controversial).\n\n6. **Cerebral edema (paediatric):** Suspect if headache, bradycardia, hypertension, altered consciousness. Treat with mannitol 0.5\u20131 g/kg IV or hypertonic saline 3% 2.5\u20135 mL/kg, reduce fluid rate, elevate head.\n\n7. **Precipitant search:** Infection, MI, non-compliance, drugs (SGLT2 inhibitors \u2013 euglycaemic DKA), pregnancy.\n\n**Exam pearls:**\n- Insulin drives potassium intracellularly \u2013 always check K+ before starting insulin.\n- Bicarbonate is rarely used; risk of paradoxical CSF acidosis and hypokalaemia.\n- In HHS, fluid deficit is greater and insulin is started only after fluids; DKA and HHS can overlap.\n- SGLT2 inhibitor-associated DKA can occur with normal glucose \u2013 check ketones.\n- Mucormycosis is a feared complication in DKA (rhino-orbital-cerebral).\n\n**Classic MCQ traps:**\n- 'Initial fluid of choice' = 0.9% saline (not Ringer's lactate, not dextrose).\n- 'Insulin of choice' = regular/soluble insulin IV infusion.\n- 'Potassium replacement' \u2013 start when K+ <5.5 mmol/L, not only when hypokalaemic.\n- 'Bicarbonate' \u2013 only if pH <6.9 and not routine.",
+      "citations": [
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 768,
+          "excerpt": "Intravenous infusions of regular insulin are particularly useful in the treatment of diabetic ketoacidosis and during the perioperative management of insulin-requiring diabetics."
+        },
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 756,
+          "excerpt": "Adapted from Joint British Diabetes Societies Inpatient Care Group. The Management of Diabetic Ketoacidosis in Adults, 2nd edn; September 2013; abcd.care."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1333,
+          "excerpt": "Fig. 629.5 Algorithm for the management of diabetic ketoacidosis. CE, cerebral edema; ECG, electrocardiogram; KCl, potassium chloride; SC, subcutaneous."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 659,
+          "excerpt": "Respiratory distress resulting from heart failure or diabetic ketoacidosis may be misdiagnosed as asthma and improperly treated with albuterol, resulting in worsened hemodynamic state or ketoacidosis."
+        },
+        {
+          "book_title": "Levinson's Microbiology 18e",
+          "page_number": 763,
+          "excerpt": "Ketoacidosis in diabetic patients is a predisposing factor to mucormycosis."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 393911,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXIV -The Endocrine System > Chapter 629 \u2013 Diabetes Mellitus > Immediate assessment",
+          "page_number": 1333,
+          "snippet": "Fig. 629.5 Algorithm for the management of diabetic ketoacidosis. CE, cerebral edema; ECG, electrocardiogram; KCl, potassium chloride; SC, subcutaneous. (Adapted from Pinhas-Hamiel O, Sperling M. Diabetic ketoacidosis. In: Hochberg Z, ed. Practical Algorithms in Pediatric Endocrinology. 3rd ed.\u2026",
+          "rank": 1,
+          "relevance_score": 7.2398
+        },
+        {
+          "chunk_id": 87699,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Time: 60 mins to 6 hrs",
+          "page_number": 756,
+          "snippet": "Adapted from Joint British Diabetes Societies Inpatient Care Group. The Management of Diabetic Ketoacidosis in Adults, 2nd edn; September 2013; abcd.care.",
+          "rank": 2,
+          "relevance_score": 6.9859
+        },
+        {
+          "chunk_id": 208757,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "A. Short-Acting Insulin Preparations (Tables 41-5, 41-6)",
+          "page_number": 768,
+          "snippet": "Intravenous infusions of regular insulin are particularly useful in the treatment of diabetic ketoacidosis and during the perioperative management of insulin-requiring diabetics.",
+          "rank": 3,
+          "relevance_score": 4.6065
+        },
+        {
+          "chunk_id": 87723,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Time 60 mins to 6 hrs",
+          "page_number": 758,
+          "snippet": "Adapted from Joint British Diabetes Societies Inpatient Care Group. The Management of the Hyperosmolar Hyperglycaemic State (HHS) in Adults with Diabetes; 2012; abcd.care. (DKA = diabetic ketoacidosis; IV = intravenous; LMWH = low-molecular-weight heparin; SC = subcutaneous)",
+          "rank": 4,
+          "relevance_score": 4.3371
+        },
+        {
+          "chunk_id": 322115,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part VII -Emergency Medicine, Critical Care, and Anesthesia > Chapter 86 \u2013 Acute Care of Respiratory Distress and Failure > Respiratory Distress Without Respiratory Disease",
+          "page_number": 659,
+          "snippet": "Although respiratory distress most frequently results from diseases of lungs, airways, and chest wall, pathology in other organ systems can manifest as respiratory distress and lead to misdiagnosis and inappropriate management (Table 86.3). Respiratory distress resulting from heart failure or\u2026",
+          "rank": 5,
+          "relevance_score": 1.7176
+        },
+        {
+          "chunk_id": 320322,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "13 USMLE (NATIONAL BOARD) PRACTICE QUESTIONS > Answers (Questions 276-294)",
+          "page_number": 763,
+          "snippet": "(D) Ketoacidosis in diabetic patients is a predisposing factor to mucormycosis.",
+          "rank": 6,
+          "relevance_score": 0.5175
+        },
+        {
+          "chunk_id": 79292,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Hyperkalaemic distal renal tubular acidosis (type IV RTA)",
+          "page_number": 384,
+          "snippet": "Acidosis with an increased anion gap is most commonly seen in ketoacidosis, renal failure and lactic acidosis, where there is endogenous production of anions distinct from Cl - and HCO3 - . Ketoacidosis is caused by insulin deficiency and is exacerbated by catecholamine and stress hormone excess,\u2026",
+          "rank": 7,
+          "relevance_score": 3.439
+        },
+        {
+          "chunk_id": 86440,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Diabetes mellitus",
+          "page_number": 738,
+          "snippet": "Clinical examination of the patient with diabetes 720 Functional anatomy and physiology 723 Investigations 725 Establishing the diagnosis of diabetes 727 Aetiology and pathogenesis of diabetes 728 Presenting problems in diabetes mellitus 734 Hyperglycaemia 734 Presentation with the complications of\u2026",
+          "rank": 8,
+          "relevance_score": 1.0046
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab004",
+        "question": "A 60-year-old man has sudden vertigo, dysphagia, hoarseness, ipsilateral Horner syndrome, and loss of pain and temperature on the ipsilateral face and contralateral body. Which artery is occluded?",
+        "level": "FCPS-I",
+        "intent": "anatomy",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 4,
+        "n_sources": 8,
+        "top_relevance": 1.5559,
+        "supplement_ratio": 0.268,
+        "citations_in_context": 4,
+        "elapsed_s": 16.0
+      },
+      "labelled": {},
+      "answer_markdown": "This is a classic presentation of **lateral medullary (Wallenberg) syndrome**, caused by occlusion of the **posterior inferior cerebellar artery (PICA)** (or the vertebral artery from which it arises).\n\nThe lateral part of the medulla oblongata is supplied by the posterior inferior cerebellar artery, which is usually a branch of the vertebral artery. Thrombosis of either of these arteries produces the following signs and symptoms: dysphagia and dysarthria due to paralysis of the ipsilateral palatal and laryngeal muscles (innervated by the nucleus ambiguus); analgesia and thermoanesthesia on the ipsilateral side of the face (nucleus and spinal tract of the trigeminal nerve); vertigo, nausea, vomiting, and nystagmus (vestibular nuclei); ipsilateral Horner syndrome (descending sympathetic fibers); and ipsilateral cerebellar signs\u2014gait and limb ataxia (cerebellum or inferior cerebellar peduncle) [Snell's Clinical Neuroanatomy, Page 243].\n\nVertebrobasilar artery occlusion can also produce ipsilateral pain and temperature sensory loss of the face with contralateral pain and temperature sensory loss of the body, ipsilateral loss of the gag reflex, dysphagia, hoarseness (from lesions of the glossopharyngeal and vagus nerve nuclei), vertigo, nystagmus, nausea, vomiting, and ipsilateral Horner syndrome [Snell's Clinical Neuroanatomy, Page 501].\n\nFirst Aid confirms that PICA lesion affects the nucleus ambiguus (CN IX, X), vestibular nuclei, lateral spinothalamic tract, spinal trigeminal nucleus, sympathetic fibers, and inferior cerebellar peduncle, producing dysphagia, hoarseness, gag reflex loss, hiccups, vomiting, vertigo, nystagmus, pain and temperature loss from the contralateral body and ipsilateral face, ipsilateral Horner syndrome, and ipsilateral ataxia/dysmetria\u2014this is lateral medullary (Wallenberg) syndrome [First Aid Step 1 2024, Page 548].\n\nDhingra also notes that Wallenberg syndrome (posterior inferior cerebellar artery syndrome) or lateral medullary syndrome is due to thrombosis of the posterior inferior cerebellar artery causing ischaemia of the lateral part of the medulla, characterized by vertigo, nausea and vomiting, Horner syndrome, dysphagia, dysphonia, ataxia with tendency to fall to the involved side, and loss of pain and temperature sensation on the same side of the face and contralateral side of the limbs [Dhingra ENT, Page 526].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Key distinctions for exams:**\n- **PICA (lateral medullary syndrome):** vertigo, dysphagia, hoarseness, ipsilateral Horner, ipsilateral facial pain/temperature loss, contralateral body pain/temperature loss, ipsilateral ataxia. **Nucleus ambiguus involvement is specific to PICA.**\n- **AICA (lateral pontine syndrome):** similar to PICA but with **facial nerve palsy (LMN)** and often **ipsilateral sensorineural deafness** (due to labyrinthine artery involvement). No nucleus ambiguus involvement.\n- **ASA (medial medullary syndrome):** contralateral hemiparesis, contralateral loss of proprioception/vibration, ipsilateral hypoglossal palsy (tongue deviates toward lesion).\n\n**Classic MCQ trap:** Differentiate PICA from AICA. The presence of **facial nerve palsy or deafness** points to AICA; the presence of **dysphagia/hoarseness** (nucleus ambiguus) points to PICA.",
+      "citations": [
+        {
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "page_number": 243,
+          "excerpt": "The lateral part of the medulla oblongata is supplied by the posterior inferior cerebellar artery, which is usually a branch of the vertebral artery. Thrombosis of either of these arteries produces the following signs and symptoms: dysphagia and dysarthria due to paralysis of the ipsilateral palatal and laryngeal muscles (innervated by the nucleus ambiguus); analgesia and thermoanesthesia on the ipsilateral side of the face (nucleus and spinal tract of the trigeminal nerve); vertigo, nausea, vomiting, and nystagmus (vestibular nuclei); ipsilateral Horner syndrome (descending sympathetic fibers); ipsilateral cerebellar signs\u2014gait and limb ataxia (cerebellum or inferior cerebellar peduncle)."
+        },
+        {
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "page_number": 501,
+          "excerpt": "Ipsilateral pain and temperature sensory loss of the face and contralateral pain and temperature sensory loss of the body; Ipsilateral loss of the gag reflex, dysphagia, and hoarseness as the result of lesions of the nuclei of the glossopharyngeal and vagus nerves; Vertigo, nystagmus, nausea, and vomiting; Ipsilateral Horner syndrome."
+        },
+        {
+          "book_title": "First Aid Step 1 2024",
+          "page_number": 548,
+          "excerpt": "Posterior inferior cerebellar artery, AREA OF LESION = Nucleus ambiguus (CN IX, X). Vestibular nuclei. Lateral spinothalamic tract, spinal trigeminal nucleus. Sympathetic fibers. Inferior cerebellar peduncle. Posterior inferior cerebellar artery, SYMPTOMS = Dysphagia, hoarseness, gag reflex, hiccups. Vomiting, vertigo, nystagmus, pain and temperature sensation from contralateral body, ipsilateral face. Ipsilateral Horner syndrome. Ipsilateral ataxia, dysmetria. Posterior inferior cerebellar artery, NOTES = Lateral medullary (Wallenberg) syndrome."
+        },
+        {
+          "book_title": "Dhingra ENT 7e",
+          "page_number": 526,
+          "excerpt": "Wallenberg syndrome (posterior inferior cerebellar artery syndrome) or lateral medullary syndrome is due to thrombosis of posterior inferior cerebellar artery causing ischaemia of lateral part of medulla. It is characterized by: (a) Vertigo, nausea and vomiting (b) Horner syndrome (c) Dysphagia (d) Dysphonia (e) Ataxia with tendency to fall to the involved side (f) Loss of pain and temperature sensation on same side of face and contralateral side of limbs."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 302357,
+          "book_id": 91,
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "chapter": "Brainstem > LATERAL MEDULLARY SYNDROME OF WAUENBERG",
+          "page_number": 243,
+          "snippet": "The lateral part of the medulla oblongata ls supplied by the posterior inferior cerebellar artery, which ls usually a branch of the vertebral artery. Thrombosis of either of these arteries (Fig. 5-31) produces the following signs and symptoms: dysphagia and dysarthria due to paralysis of the\u2026",
+          "rank": 1,
+          "relevance_score": 1.5559
+        },
+        {
+          "chunk_id": 376921,
+          "book_id": 91,
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "chapter": "Blood Supply of the Brain and Spinal Cord > VERTEBROBASILAR ARTERY OCQ..USION",
+          "page_number": 501,
+          "snippet": "1. lpsllateral pain and temperature sensory loss of the face and contralateral pain and temperature sensory loss of the body 2. Attacks of hemlanopia or complete cortical blindness 3. lpsilateraJ loss of the gag reflex, dysphagia, and hoarse\u00ad ness as the resuJt of lesions of the nuclei of the\u2026",
+          "rank": 2,
+          "relevance_score": 0.2334
+        },
+        {
+          "chunk_id": 37939,
+          "book_id": 4,
+          "book_title": "First Aid Step 1 2024",
+          "chapter": "Effects of strokes (continued)",
+          "page_number": 548,
+          "snippet": "Posterior inferior cerebellar artery, AREA OF LESION = Nucleus ambiguus (CN IX, X). Vestibular nuclei. Lateral spinothalamic tract, spinal trigeminal nucleus. Sympathetic fibers. Inferior cerebellar peduncle.. Posterior inferior cerebellar artery, SYMPTOMS = Dysphagia , hoarseness , \u0090 gag reflex,\u2026",
+          "rank": 3,
+          "relevance_score": 4.3592
+        },
+        {
+          "chunk_id": 240419,
+          "book_id": 2,
+          "book_title": "Dhingra ENT 7e",
+          "chapter": "Appendix I - Some Memorable Nuggets for Rapid Review > Some Memorable Nuggets for Rapid Review*",
+          "page_number": 526,
+          "snippet": "and promontory. 136. Vocal nodules occur at the junction of anterior with middle third of vocal cords as this is the site with the maximum vibratory area during speech. 137. Volume of middle ear varies between 0.5 and 1.0 mL. It is important when giving intratympanic injections, e.g. gentamicin in\u2026",
+          "rank": 4,
+          "relevance_score": -0.511
+        },
+        {
+          "chunk_id": 37938,
+          "book_id": 4,
+          "book_title": "First Aid Step 1 2024",
+          "chapter": "Effects of strokes",
+          "page_number": 547,
+          "snippet": "sion in cortical stroke), \u0090 lacrimation, \u0090 salivation, \u0090 taste from anterior 2\u20443 of tongue. Vomiting, vertigo, nystagmus. Anterior inferior cerebellar artery, NOTES = Lateral pontine syndrome . Facial nerve nuclei effects are specific to AICA lesions.. Anterior inferior cerebellar artery, AREA OF\u2026",
+          "rank": 5,
+          "relevance_score": -0.4259
+        },
+        {
+          "chunk_id": 56122,
+          "book_id": 38,
+          "book_title": "Robbins Basic Pathology 9e",
+          "chapter": "PATHOGENESIS",
+          "page_number": 392,
+          "snippet": "ill cause necrosis of the lateral left ventricle, and proximal right coronary artery (RCA) occlusion (30% to 40% of MIs) affects much of the right ventricle. The posterior third of the septum and the posterior left ventricle are perfused by the posterior descending artery. The posterior descending\u2026",
+          "rank": 6,
+          "relevance_score": -2.9821
+        },
+        {
+          "chunk_id": 302383,
+          "book_id": 91,
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "chapter": "Brainstem > f; Answers and Explanations to Clinical Problem Solving",
+          "page_number": 249,
+          "snippet": "3. This patient is suffering from a thrombosis of the posterior inferior cerebellar artery or vertebral artery on the right side. The vertigo is caused by the involvement of the cerebellum or the vestibular nuclei or both. The hot, painful skin sensations are due to the involvement of the spinal\u2026",
+          "rank": 7,
+          "relevance_score": 2.4282
+        },
+        {
+          "chunk_id": 302416,
+          "book_id": 91,
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "chapter": "Brainstem > fl Answers and Explanations to Review Questions",
+          "page_number": 254,
+          "snippet": "5. B Is correct. In the Arnold-Chlari phenomenon, the exits in the roof of the fourth ventricle may be blocked. A. It ls a congenital anomaly. C. The tonsil of the cerebellum may herniate through the fora\u00ad men magnum (see Fig. 5-30). D. The Arnold--Chiari phenomenon is commonly associated with\u2026",
+          "rank": 8,
+          "relevance_score": -1.8923
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab005",
+        "question": "Which red cell inclusions are seen in G6PD deficiency, and why do they form?",
+        "level": "MBBS",
+        "intent": "pathology",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 7,
+        "n_sources": 8,
+        "top_relevance": 2.0836,
+        "supplement_ratio": 0.323,
+        "citations_in_context": 7,
+        "elapsed_s": 20.6
+      },
+      "labelled": {},
+      "answer_markdown": "**Red cell inclusions in G6PD deficiency: Heinz bodies and bite cells**\n\n**1. Heinz bodies**\n\nHeinz bodies are the characteristic intracellular inclusions of G6PD deficiency. They form because of oxidative denaturation and precipitation of hemoglobin:\n\n- G6PD is the first and rate-limiting step of the pentose phosphate pathway and, in RBCs (which lack mitochondria), is the **exclusive source of NADPH** and reduced glutathione (GSH), which prevent oxidative damage [Katzung Pharmacology, Page 95].\n- GSH is maintained in its reduced (functional) form by NADPH-dependent glutathione reductase; the NADPH comes from the oxidative portion of the pentose phosphate pathway [Lippincott Biochemistry, Page 452].\n- In G6PD deficiency, the ability to generate NADPH is decreased, so GSH cannot be kept reduced, and detoxification of free radicals and peroxides formed within the cell is impaired [Lippincott Biochemistry, Page 444; Lippincott Biochemistry, Page 452].\n- Oxidants are then free to attack red cell components, including globin chains, which have sulfhydryl groups susceptible to oxidation. **Oxidized hemoglobin denatures and precipitates, forming intracellular inclusions called Heinz bodies**, which attach to red cell membranes [Robbins Basic Pathology, Page 430; Lippincott Biochemistry, Page 444].\n- GSH also helps maintain the reduced state of sulfhydryl groups in proteins including hemoglobin; oxidation of these sulfhydryl groups leads to denatured proteins forming insoluble masses (Heinz bodies) that attach to red cell membranes [Lippincott Biochemistry, Page 444].\n- Nelson Pediatrics similarly states that GSH provides protection against oxidant threats from certain drugs and infections that would otherwise cause **precipitation of hemoglobin (Heinz bodies)** or damage the RBC membrane [Nelson Pediatrics 22e Vol 2, Page 785].\n\n**2. Bite cells**\n\nBite cells are the second inclusion-related morphological finding:\n\n- Less severely damaged cells lose their deformability and suffer further injury when **splenic phagocytes attempt to 'pluck out' the Heinz bodies, creating so-called bite cells** [Robbins Basic Pathology, Page 430].\n- Such cells become trapped upon recirculation to the spleen and are destroyed by phagocytes (extravascular hemolysis) [Robbins Basic Pathology, Page 430].\n- Nelson Pediatrics describes the morphologic erythrocyte changes during acute hemolysis in a G6PD-deficient patient as anisopoikilocytosis and bite cells [Nelson Pediatrics 22e Vol 2, Page 787].\n\n**Why do they form? (Summary of mechanism)**\n\nG6PD deficiency \u2192 decreased NADPH \u2192 decreased reduced glutathione (GSH) \u2192 impaired detoxification of peroxides/free radicals \u2192 oxidative attack on hemoglobin sulfhydryl groups \u2192 denatured hemoglobin precipitates as Heinz bodies \u2192 membrane damage \u2192 intravascular hemolysis; splenic macrophages 'pluck out' Heinz bodies \u2192 bite cells \u2192 extravascular hemolysis [Katzung Pharmacology, Page 95; Lippincott Biochemistry, Page 444; Robbins Basic Pathology, Page 430].\n\n**Additional relevant points from the texts:**\n\n- G6PD deficiency produces no symptoms until exposure to an environmental factor (most commonly infectious agents or drugs) that produces oxidants; drugs include antimalarials (e.g., primaquine), sulfonamides, nitrofurantoin, phenacetin, aspirin (large doses), and vitamin K derivatives [Robbins Basic Pathology, Page 430].\n- The G6PD gene is X-linked; G6PD A- has normal enzymatic activity but decreased half-life, so older red cells become progressively deficient in enzyme activity and reduced glutathione, rendering them more sensitive to oxidant stress [Robbins Basic Pathology, Page 430].\n- Hemolysis is typically acute, with a lag of 2\u20133 days after drug exposure [Robbins Basic Pathology, Page 430].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls and MCQ traps:**\n\n- **Heinz bodies** are best demonstrated with supravital stains (e.g., crystal violet, methyl violet, or brilliant cresyl blue) \u2014 they are NOT visible on routine Wright-Giemsa stain. This is a classic MCQ trap.\n- **Bite cells** (degmacytes) are seen on peripheral blood smear during hemolytic episodes; they are not permanent findings and disappear once the oxidant stress resolves.\n- **Heinz bodies vs. Howell-Jolly bodies:** Heinz bodies = denatured hemoglobin (G6PD, unstable hemoglobins); Howell-Jolly bodies = nuclear remnants (post-splenectomy, megaloblastic anemia). Do not confuse them.\n- **Enzyme activity testing pitfall:** During acute hemolysis, the reticulocyte count is high, and reticulocytes are rich in G6PD. Therefore, a normal or borderline-low G6PD activity during a hemolytic crisis does NOT exclude deficiency \u2014 repeat testing 2\u20133 months after the episode. This is a very common exam scenario.\n- **Timing of hemolysis:** Typically 2\u20133 days after exposure to oxidant drug or infection (as stated in Robbins).\n- **Triggers mnemonic (AI mnemonic):** \"Fava beans, Infections, Drugs (FID)\" \u2014 the three main triggers. Drugs: antimalarials (primaquine), sulfonamides, nitrofurantoin, phenacetin, high-dose aspirin, vitamin K derivatives, dapsone, chloramphenicol.\n- **Neonatal jaundice** is the most common manifestation in children (Nelson), and G6PD deficiency should be considered in any neonate with hyperbilirubinemia and borderline-low G6PD activity.\n- **X-linked inheritance:** Affected males uniformly deficient; heterozygous females may be affected only with unfavorable lyonization (skewed X-inactivation).\n- **Balanced polymorphism:** G6PD deficiency prevalence parallels malaria endemicity \u2014 heterozygotes have resistance to falciparum malaria.",
+      "citations": [
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 95,
+          "excerpt": "In red blood cells (RBCs), where mitochondria are absent, G6PD is the exclusive source of NADPH and reduced glutathione, which play a critical role in the prevention of oxidative damage."
+        },
+        {
+          "book_title": "Lippincott Biochemistry 8e",
+          "page_number": 452,
+          "excerpt": "Individuals with a deficiency of the regulated enzyme of this pathway, glucose 6-phosphate dehydrogenase (G6PD), have a decreased ability to generate NADPH and, therefore, a decreased ability to keep G-SH reduced."
+        },
+        {
+          "book_title": "Lippincott Biochemistry 8e",
+          "page_number": 444,
+          "excerpt": "Oxidation of those sulfhydryl groups leads to the formation of denatured proteins that form insoluble masses called Heinz bodies that attach to red cell membranes."
+        },
+        {
+          "book_title": "Robbins Basic Pathology 9e",
+          "page_number": 430,
+          "excerpt": "Oxidized hemoglobin denatures and precipitates, forming intracellular inclusions called Heinz bodies, which can damage the cell membrane sufficiently to cause intravascular hemolysis."
+        },
+        {
+          "book_title": "Robbins Basic Pathology 9e",
+          "page_number": 430,
+          "excerpt": "Other, less severely damaged cells lose their deformability and suffer further injury when splenic phagocytes attempt to 'pluck out' the Heinz bodies, creating so-called bite cells."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 785,
+          "excerpt": "GSH provides protection against oxidant threats from certain drugs and infections that would otherwise cause precipitation of hemoglobin (Heinz bodies) or damage the RBC membrane."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 787,
+          "excerpt": "Fig. 512.4 Morphologic erythrocyte changes (anisopoikilocytosis, bite cells) during acute hemolysis in a G6PD-deficient patient."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 164591,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "G6PD",
+          "page_number": 95,
+          "snippet": "Glucose 6-phosphate dehydrogenase (G6PD) is the first and ratelimiting step in the pentose phosphate pathway and supplies a significant amount of reduced NADPH in the body. In red blood cells (RBCs), where mitochondria are absent, G6PD is the exclusive source of NADPH and reduced glutathione, which\u2026",
+          "rank": 1,
+          "relevance_score": 2.0836
+        },
+        {
+          "chunk_id": 261548,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Unit II: Bioenergetics and Carbohydrate Metabolism > Chapter 13: Pentose Phosphate Pathway and Nicotinamide Adenine Dinucleotide Phosphate > Choose the ONE best answer.",
+          "page_number": 452,
+          "snippet": "Correct answer = C. Glutathione (G-SH) is essential for red cell integrity and is maintained in this reduced (functional) form by nicotinamide adenine dinucleotide phosphate (NADPH)-dependent glutathione reductase. The NADPH is from the oxidative portion of the pentose phosphate pathway.\u2026",
+          "rank": 2,
+          "relevance_score": 1.8542
+        },
+        {
+          "chunk_id": 261450,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Unit II: Bioenergetics and Carbohydrate Metabolism > Chapter 13: Pentose Phosphate Pathway and Nicotinamide Adenine Dinucleotide Phosphate > Clinical Application 13.1: Characteristics of G6PD Deficiency",
+          "page_number": 444,
+          "snippet": "Deficiency of G6PD impairs the process of detoxification of free radicals and peroxides formed within the cell (Fig. 13.10). G-SH also helps maintain the reduced states of sulfhydryl groups in proteins, including hemoglobin. Oxidation of those sulfhydryl groups leads to the formation of denatured\u2026",
+          "rank": 3,
+          "relevance_score": 3.6916
+        },
+        {
+          "chunk_id": 57496,
+          "book_id": 38,
+          "book_title": "Robbins Basic Pathology 9e",
+          "chapter": "Glucose-6-Phosphate Dehydrogenase Deficiency",
+          "page_number": 430,
+          "snippet": "Red cells are constantly exposed to both endogenous and exogenous oxidants, which are normally inactivated by reduced glutathione (GSH). Abnormalities affecting the enzymes responsible for the synthesis of GSH leave red cells vulnerable to oxidative injury and lead to hemolytic anemias. By far the\u2026",
+          "rank": 4,
+          "relevance_score": 4.0199
+        },
+        {
+          "chunk_id": 378711,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XIX -Diseases of the Blood > Chapter 512 \u2013 Enzymatic Defects > 512.3 Glucose- 6- Phosphate Dehydrogenase Deficiency and Related Deficiencies",
+          "page_number": 785,
+          "snippet": "Glucose- 6- phosphate dehydrogenase (G6PD) deficiency, the most frequent disease involving enzymes of the hexose monophosphate pathway, is responsible for two clinical syndromes: episodic acute hemolytic anemia and chronic nonspherocytic hemolytic anemia. The most common manifestations are neonatal\u2026",
+          "rank": 5,
+          "relevance_score": 0.4551
+        },
+        {
+          "chunk_id": 378802,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XIX -Diseases of the Blood > Chapter 512 \u2013 Enzymatic Defects",
+          "page_number": 787,
+          "snippet": "Fig. 512.3 Main mechanism of G6PD deficiency in RBCs is in vivo instability of mutant enzyme. For many G6PD variants, such as the two studied here, this is essentially acceleration of a process that takes place normally with the aging of RBCs in the circulation. Hb, Hemoglobin. (Adapted from\u2026",
+          "rank": 6,
+          "relevance_score": 0.3628
+        },
+        {
+          "chunk_id": 261458,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Unit II: Bioenergetics and Carbohydrate Metabolism > Chapter 13: Pentose Phosphate Pathway and Nicotinamide Adenine Dinucleotide Phosphate > C. G6PD gene variants",
+          "page_number": 447,
+          "snippet": "The severity of hemolytic anemia in those with G6PD deficiency usually correlates with the amount of residual enzyme activity in the patient's red blood cells. G6PD variants can be classified as shown in Figure 13.12. G6PD A - is the prototype of the moderate (class III) form of the disease. Red\u2026",
+          "rank": 7,
+          "relevance_score": 4.3352
+        },
+        {
+          "chunk_id": 261553,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Unit II: Bioenergetics and Carbohydrate Metabolism > Chapter 13: Pentose Phosphate Pathway and Nicotinamide Adenine Dinucleotide Phosphate > Choose the ONE best answer.",
+          "page_number": 453,
+          "snippet": "- 13.4In males who are hemizygous for glucose 6-phosphate dehydrogenase deficiency, pathophysiologic consequences are more apparent in red blood cells than in other cells such as in the liver. The best explanation for these findings is that: - A. Excess glucose 6-phosphate in the liver, but not in\u2026",
+          "rank": 8,
+          "relevance_score": 0.4376
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab006",
+        "question": "What is the antidote for heparin overdose and how does it work?",
+        "level": "MBBS",
+        "intent": "pharmacology",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 7,
+        "n_sources": 8,
+        "top_relevance": 3.2429,
+        "supplement_ratio": 0.402,
+        "citations_in_context": 7,
+        "elapsed_s": 15.2
+      },
+      "labelled": {},
+      "answer_markdown": "The antidote for heparin overdose is **protamine sulfate**, a highly basic, positively charged peptide that combines with negatively charged heparin as an ion pair to form a stable complex devoid of anticoagulant activity [Katzung Pharmacology 14e, Page 628]. This neutralizes heparin's anticoagulant effect. The dose is 1 mg of protamine sulfate intravenously for every 100 units of heparin remaining in the patient, with the rate of infusion not exceeding 50 mg in any 10-minute period [Katzung Pharmacology 14e, Page 628]. Excess protamine must be avoided because it also has an anticoagulant effect [Katzung Pharmacology 14e, Page 628].\n\nIn pediatric practice, if the anticoagulant effect of heparin must be reversed immediately, protamine sulfate may be administered to neutralize the heparin [Nelson Pediatrics 22e Vol 2, Page 838]. Unfractionated heparin (UFH) is more completely reversed by protamine sulfate in the event of bleeding and at the end of cardiopulmonary bypass, for which UFH remains the drug of choice [Davidson's Medicine 23e, Page 958].\n\nImportant limitations: Neutralization of low-molecular-weight (LMW) heparin by protamine is incomplete; limited experience suggests that 1 mg of protamine sulfate may be used to partially neutralize 1 mg of enoxaparin [Katzung Pharmacology 14e, Page 628]. Protamine will not reverse the activity of fondaparinux [Katzung Pharmacology 14e, Page 628]. Excess danaparoid can be removed by plasmapheresis [Katzung Pharmacology 14e, Page 628].\n\nMechanism of heparin action (for context): Heparin binds to antithrombin and enhances its inactivation of factor Xa; UFH and to a lesser extent LMW heparin also enhance antithrombin's inactivation of thrombin [Katzung Pharmacology 14e, Page 626]. Protamine reverses this by binding heparin directly, preventing it from interacting with antithrombin.\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls:**\n- Protamine sulfate is the only specific antidote for heparin. It is derived from salmon sperm and can cause hypersensitivity reactions (including anaphylaxis), especially in patients with fish allergy, prior protamine exposure (e.g., NPH insulin), or vasectomy.\n- Rapid infusion of protamine can cause hypotension, bradycardia, and flushing. The maximum rate is 50 mg over 10 minutes (as stated in Katzung).\n- For UFH, the half-life is ~30\u201360 minutes; simply stopping the infusion may suffice for mild bleeding. Protamine is reserved for serious bleeding.\n- For LMW heparin (e.g., enoxaparin), protamine only partially reverses anti-Xa activity (about 60\u201370%). The dose is 1 mg protamine per 1 mg enoxaparin (or per 100 anti-Xa units) if given within 8 hours; a second dose of 0.5 mg per 1 mg may be considered if bleeding continues.\n- Fondaparinux has no antidote; protamine is ineffective. Recombinant factor VIIa has been used off-label.\n- In HIT (heparin-induced thrombocytopenia), protamine is not the treatment; heparin must be stopped and a non-heparin anticoagulant (e.g., argatroban, bivalirudin) started.\n- Classic MCQ trap: protamine itself can cause bleeding if given in excess (it has weak anticoagulant effect).",
+      "citations": [
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 628,
+          "excerpt": "Protamine is a highly basic, positively charged peptide that combines with negatively charged heparin as an ion pair to form a stable complex devoid of anticoagulant activity."
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 628,
+          "excerpt": "For every 100 units of heparin remaining in the patient, 1 mg of protamine sulfate is given intravenously; the rate of infusion should not exceed 50 mg in any 10-minute period."
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 628,
+          "excerpt": "Excess protamine must be avoided; it also has an anticoagulant effect."
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 628,
+          "excerpt": "Neutralization of LMW heparin by protamine is incomplete. Limited experience suggests that 1 mg of protamine sulfate may be used to partially neutralize 1 mg of enoxaparin. Protamine will not reverse the activity of fondaparinux."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 838,
+          "excerpt": "If the anticoagulant effect of heparin must be reversed immediately, protamine sulfate may be administered to neutralize the heparin."
+        },
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 958,
+          "excerpt": "UFH is, however, more completely reversed by protamine sulphate in the event of bleeding and at the end of cardiopulmonary bypass, for which UFH remains the drug of choice."
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 626,
+          "excerpt": "Unfractionated heparin (UFH), also known as high-molecular-weight (HMW) heparin, low-molecular-weight (LMW) heparin, and the synthetic pentasaccharide fondaparinux bind to antithrombin and enhance its inactivation of factor Xa."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 380281,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XIX -Diseases of the Blood > Chapter 528 \u2013 Thrombotic Disorders in Children > Heparin Complications",
+          "page_number": 838,
+          "snippet": "The most common adverse effect related to heparin therapy is bleeding. There are case reports of life- threatening bleeding in children treated with heparin. The true frequency of bleeding in pediatric patients receiving heparin has not been well established and is reported as 1-24%. If the\u2026",
+          "rank": 1,
+          "relevance_score": 3.2429
+        },
+        {
+          "chunk_id": 197984,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "Reversal of Heparin Action",
+          "page_number": 628,
+          "snippet": "Excessive anticoagulant action of heparin is treated by discontinuance of the drug. If bleeding occurs, administration of a specific antagonist such as protamine sulfate is indicated. Protamine is a highly basic, positively charged peptide that combines with negatively charged heparin as an ion\u2026",
+          "rank": 2,
+          "relevance_score": 3.7858
+        },
+        {
+          "chunk_id": 266582,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Appendix > CASE-RELATED QUESTIONS: Choose the ONE best answer",
+          "page_number": 1446,
+          "snippet": "Treatment (Immediate): Heparin is administered for anticoagulation.",
+          "rank": 3,
+          "relevance_score": 2.5646
+        },
+        {
+          "chunk_id": 197967,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "Chemistry & Mechanism of Action",
+          "page_number": 626,
+          "snippet": "Heparin is a heterogeneous mixture of sulfated mucopolysaccharides. It binds to endothelial cell surfaces and a variety of plasma proteins. Its biologic activity is dependent upon the endogenous anticoagulant antithrombin . Antithrombin inhibits clotting factor proteases, especially thrombin (IIa),\u2026",
+          "rank": 4,
+          "relevance_score": 0.7062
+        },
+        {
+          "chunk_id": 309557,
+          "book_id": 84,
+          "book_title": "Junqueira's Basic Histology 16e",
+          "chapter": "5 Connective Tissue > Cells of Connective Tissue > FIGURE 5-4 Macrophage ultrastructure.",
+          "page_number": 111,
+          "snippet": "- \u25a0 Heparin, a sulfated GAG that acts locally as an anticoagulant",
+          "rank": 5,
+          "relevance_score": 0.2454
+        },
+        {
+          "chunk_id": 91918,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Heparin-induced thrombocytopenia",
+          "page_number": 958,
+          "snippet": "Heparin-induced thrombocytopenia (HIT) is a rare complication of heparin therapy, caused by induction of anti-heparin/PF4 antibodies that bind to and activate platelets via an Fc receptor. This results in platelet activation and a prothrombotic state, with a paradoxical thrombocytopenia. HIT is\u2026",
+          "rank": 6,
+          "relevance_score": 0.9712
+        },
+        {
+          "chunk_id": 197966,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "INDIRECT THROMBIN INHIBITORS",
+          "page_number": 626,
+          "snippet": "The indirect thrombin inhibitors are so-named because their antithrombotic effect is exerted by their interaction with a separate protein, antithrombin. Unfractionated heparin (UFH) , also known as high-molecular-weight (HMW) heparin , lowmolecular-weight (LMW) heparin , and the synthetic\u2026",
+          "rank": 7,
+          "relevance_score": 0.0092
+        },
+        {
+          "chunk_id": 266603,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Appendix > CASE 9: Hyperammonemia with a Urea Cycle Defect",
+          "page_number": 1464,
+          "snippet": "- Q2.Heparin, a glycosaminoglycan, functions as an anticoagulant. It activates antithrombin (sometimes called ATIII), enabling antithrombin to inhibit thrombin and Factor Xa. Antithrombin functions by cleaving thrombin and Factor Xa, rendering them inactive. Warfarin, a synthetic analog of vitamin\u2026",
+          "rank": 8,
+          "relevance_score": 0.4829
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab007",
+        "question": "What is the most common site of epistaxis?",
+        "level": "MBBS",
+        "intent": "anatomy",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 4,
+        "n_sources": 8,
+        "top_relevance": 6.913,
+        "supplement_ratio": 0.309,
+        "citations_in_context": 4,
+        "elapsed_s": 11.5
+      },
+      "labelled": {},
+      "answer_markdown": "The most common site of epistaxis is **Little's area** (also called **Kiesselbach's plexus**), located in the **anteroinferior part of the nasal septum, just above the vestibule** [Dhingra ENT 7e, Page 180]. This is a vascular anastomotic area formed by the anterior ethmoidal, sphenopalatine, greater palatine, and septal branch of the superior labial arteries along with their corresponding veins [Dhingra ENT 7e, Page 180]. Bailey & Love also confirms that the most common site of bleeding is from Kiesselbach's plexus in Little's area of the anterior portion of the septum [Bailey & Love 28e, Page 787].\n\nNelson Pediatrics further elaborates that the Kiesselbach plexus is an area in the anterior septum where vessels from both the internal carotid (anterior and posterior ethmoid arteries) and external carotid (sphenopalatine and terminal branches of the internal maxillary arteries) converge, and the thin mucosa in this area along with its anterior location makes it prone to exposure to dry air and trauma [Nelson Pediatrics 22e Vol 2, Page 335].\n\nAnterior epistaxis from Little's area is more common, mostly occurs in children or young adults, is usually due to trauma, and is typically mild and easily controlled by local pressure or anterior packing [Dhingra ENT 7e, Page 214]. In contrast, posterior epistaxis is less common, occurs mostly after 40 years of age, is often spontaneous due to hypertension or arteriosclerosis, and tends to be severe [Dhingra ENT 7e, Page 214].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls:**\n- Little's area is the site of origin of the 'bleeding polypus' (haemangioma) of the nasal septum.\n- The four arteries forming Kiesselbach's plexus can be remembered by the mnemonic: **LEGS** \u2014 **L**abial (superior), **E**thmoidal (anterior), **G**reater palatine, **S**phenopalatine.\n- Classic MCQ trap: The question may ask for the 'most common site of epistaxis' \u2014 the answer is **Little's area/Kiesselbach's plexus** (anterior septum), NOT the posterior part of the nose (which is the site in the elderly).\n- Another trap: Kiesselbach's plexus is located in the **anteroinferior part of the nasal septum**, not on the lateral wall of the nose.",
+      "citations": [
+        {
+          "book_title": "Dhingra ENT 7e",
+          "page_number": 180,
+          "excerpt": "This is the vascular area in the anteroinferior part of nasal septum just above the vestibule. Anterior ethmoidal, sphenopalatine, greater palatine and septal branch of superior labial arteries and their corresponding veins form an anastomosis here. This is the commonest site for epistaxis."
+        },
+        {
+          "book_title": "Bailey & Love 28e",
+          "page_number": 787,
+          "excerpt": "The most common site of bleeding is from Kiesselbach's plexus in Little's area of the anterior portion of the septum."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 335,
+          "excerpt": "The most common site of bleeding is the Kiesselbach plexus, an area in the anterior septum where vessels from both the internal carotid (anterior and posterior ethmoid arteries) and external carotid (sphenopalatine and terminal branches of the internal maxillary arteries) converge."
+        },
+        {
+          "book_title": "Dhingra ENT 7e",
+          "page_number": 214,
+          "excerpt": "Most of the time, bleeding occurs from the Little's area and can be easily controlled by pinching the nose with thumb and index finger for about 5 min."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 234126,
+          "book_id": 2,
+          "book_title": "Dhingra ENT 7e",
+          "chapter": "Section II - Diseases of Nose and Paranasal Sinuses > Chapter 26 - Nasal Septum and Its Diseases > ANATOMY",
+          "page_number": 180,
+          "snippet": "LITTLE'S AREA OR KIESSELBACH'S PLEXUS. This is the vascular area in the anteroinferior part of nasal septum just above the vestibule. Anterior ethmoidal, sphenopalatine, greater palatine and septal branch of superior labial arteries and their corresponding veins form an anastomosis here. This is\u2026",
+          "rank": 1,
+          "relevance_score": 6.913
+        },
+        {
+          "chunk_id": 194964,
+          "book_id": 44,
+          "book_title": "Bailey & Love 28e",
+          "chapter": "EPISTAXIS",
+          "page_number": 787,
+          "snippet": "The causes of epistaxis are listed in Table 51.2 . The most common site of bleeding is from Kiesselbach's plexus in Little's area of the anterior portion of the septum ( Figure 51.37 ). Anterior bleeding is common in children and young adults owing to nose blowing or picking. In the elderly ,\u2026",
+          "rank": 2,
+          "relevance_score": 8.0038
+        },
+        {
+          "chunk_id": 291026,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVII -The Respiratory System > Chapter 426 \u2013 Acquired Disorders of the Nose > ANATOMY",
+          "page_number": 335,
+          "snippet": "The most common site of bleeding is the Kiesselbach plexus, an area in the anterior septum where vessels from both the internal carotid (anterior and posterior ethmoid arteries) and external carotid (sphenopalatine and terminal branches of the internal maxillary arteries) converge. The thin mucosa\u2026",
+          "rank": 3,
+          "relevance_score": 5.1224
+        },
+        {
+          "chunk_id": 234730,
+          "book_id": 2,
+          "book_title": "Dhingra ENT 7e",
+          "chapter": "Section II - Diseases of Nose and Paranasal Sinuses > Chapter 33 - Epistaxis > MANAGEMENT",
+          "page_number": 214,
+          "snippet": "| TABLE 33.1 | DIFFERENCES BETWEEN ANTERIOR AND POSTERIOR EPISTAXIS - Anterior epistaxis | DIFFERENCES BETWEEN ANTERIOR AND POSTERIOR EPISTAXIS - Posterior epistaxis |\u2026",
+          "rank": 4,
+          "relevance_score": -0.5061
+        },
+        {
+          "chunk_id": 194982,
+          "book_id": 44,
+          "book_title": "Bailey & Love 28e",
+          "chapter": "Epistaxis",
+          "page_number": 789,
+          "snippet": "- The most common causes are nose picking, hypertension and anticoagulant therapy - Young people bleed from the anterior septum - Kiesselbach's plexus - Elderly people bleed from the posterior part of the nose - Epistaxis is ideally treated with direct cautery to the bleeding point under endoscopic\u2026",
+          "rank": 5,
+          "relevance_score": 3.2611
+        },
+        {
+          "chunk_id": 291030,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVII -The Respiratory System > Chapter 426 \u2013 Acquired Disorders of the Nose > ETIOLOGY",
+          "page_number": 336,
+          "snippet": "infections, sinusitis, and allergic rhinitis (Table 426.1). There is often a family history of childhood epistaxis. Nasal steroid sprays are commonly used in children, and their chronic use may be associated with nasal mucosal bleeding. Young infants with significant gastroesophageal reflux into\u2026",
+          "rank": 6,
+          "relevance_score": -0.4892
+        },
+        {
+          "chunk_id": 234714,
+          "book_id": 2,
+          "book_title": "Dhingra ENT 7e",
+          "chapter": "Section II - Diseases of Nose and Paranasal Sinuses > Chapter 33 - Epistaxis > LITTLE'S AREA",
+          "page_number": 212,
+          "snippet": "It is situated in the anterior inferior part of nasal septum, just above the vestibule. Four arteries-anterior ethmoidal, septal branch of superior labial, septal branch of sphenopalatine and the greater palatine, anastomose here to form a vascular plexus called 'Kiesselbach's plexus.' This area is\u2026",
+          "rank": 7,
+          "relevance_score": 3.2516
+        },
+        {
+          "chunk_id": 234723,
+          "book_id": 2,
+          "book_title": "Dhingra ENT 7e",
+          "chapter": "Section II - Diseases of Nose and Paranasal Sinuses > Chapter 33 - Epistaxis > SITES OF EPISTAXIS",
+          "page_number": 213,
+          "snippet": "- 1.Little's area. In 90% cases of epistaxis, bleeding occurs from this site. - 2.Above the level of middle turbinate. Bleeding from above the middle turbinate and corresponding area on the septum is often from the anterior and posterior ethmoidal vessels (internal carotid system). - 3.Below the\u2026",
+          "rank": 8,
+          "relevance_score": 3.5351
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab008",
+        "question": "Where are the baroreceptors and how do they buffer changes in arterial pressure?",
+        "level": "FCPS-I",
+        "intent": "physiology",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 10,
+        "n_sources": 8,
+        "top_relevance": 6.2521,
+        "supplement_ratio": 0.268,
+        "citations_in_context": 10,
+        "elapsed_s": 16.7
+      },
+      "labelled": {},
+      "answer_markdown": "**Location of baroreceptors**\n\nBaroreceptors are stretch-sensitive sensory nerve endings located in the walls of two major arteries near the heart:\n\n- **Carotid sinus** \u2013 a slight dilation of the internal carotid artery at its bifurcation from the common carotid artery. Here the tunica media is thinner, allowing greater distension when blood pressure rises, and the adventitia contains many sensory nerve endings from the glossopharyngeal nerve (cranial nerve IX) [Junqueira's Basic Histology, Page 233]. The carotid sinus is located at the bifurcation of the common carotid artery [Snell's Clinical Neuroanatomy, Page 434].\n- **Aortic arch** \u2013 functionally similar baroreceptors are present in the aortic arch and transmit blood pressure signals via the vagus nerve (cranial nerve X) [Junqueira's Basic Histology, Page 233]. The aortic arch serves as a baroreceptor [Snell's Clinical Neuroanatomy, Page 434].\n\n**Mechanism of buffering changes in arterial pressure**\n\nBaroreceptors are stimulated by stretch of the vessel wall brought about by the internal pressure (arterial blood pressure) [Katzung Pharmacology, Page 189]. As blood pressure rises, nerve endings in the walls of these vessels are stimulated [Snell's Clinical Neuroanatomy, Page 434].\n\n**Afferent pathways:**\n- Afferent fibers from the carotid sinus ascend in the glossopharyngeal nerve and terminate in the nucleus tractus solitarius [Snell's Clinical Neuroanatomy, Page 434].\n- Afferent fibers from the aortic arch ascend in the vagus nerve [Snell's Clinical Neuroanatomy, Page 434].\n\n**Central integration and efferent response:**\nConnector neurons in the medulla oblongata activate the parasympathetic nucleus (dorsal nucleus) of the vagus, which slows the heart rate. At the same time, reticulospinal fibers descend to the spinal cord and inhibit the preganglionic sympathetic outflow to the heart and cutaneous arterioles. The combined effect of stimulation of the parasympathetic action on the heart and inhibition of the sympathetic action on the heart and peripheral blood vessels reduces the rate and force of contraction of the heart and reduces the peripheral resistance of the blood vessels. Consequently, the blood pressure falls [Snell's Clinical Neuroanatomy, Page 434].\n\nBaroreceptor activation inhibits central sympathetic discharge. Conversely, reduction in stretch results in a reduction in baroreceptor activity. Thus, in the case of a transition to upright posture, baroreceptors sense the reduction in arterial pressure that results from pooling of blood in the veins below the level of the heart as reduced wall stretch, and sympathetic discharge is disinhibited. The reflex increase in sympathetic outflow acts through nerve endings to increase peripheral vascular resistance (constriction of arterioles) and cardiac output (direct stimulation of the heart and constriction of capacitance vessels, which increases venous return to the heart), thereby restoring normal blood pressure. The same baroreflex acts in response to any event that lowers arterial pressure, including a primary reduction in peripheral vascular resistance (e.g., caused by a vasodilating agent) or a reduction in intravascular volume (e.g., due to hemorrhage or to loss of salt and water via the kidney) [Katzung Pharmacology, Page 189].\n\n**Pressure buffer function:**\nBecause the baroreceptor system opposes increases or decreases in arterial pressure, it is called a pressure buffer system, and the nerves from the baroreceptors are called buffer nerves [Guyton & Hall, Page 227].\n\n**Role in posture:**\nThe ability of the baroreceptors to maintain relatively constant arterial pressure in the upper body is important when a person stands up after lying down. Immediately on standing, arterial pressure in the head and upper part of the body tends to fall, and marked reduction of this pressure could cause loss of consciousness. However, the falling pressure at the baroreceptors elicits an immediate reflex, resulting in strong sympathetic discharge throughout the body that minimizes the decrease in pressure in the head and upper body [Guyton & Hall, Page 227].\n\n**Experimental demonstration:**\nOccluding the two common carotid arteries decreases carotid sinus pressure, causing reduced signals from the baroreceptors and less inhibitory effect on the vasomotor center. The vasomotor center then becomes much more active than usual, causing aortic arterial pressure to rise and remain elevated during the 10 minutes that the carotids are occluded. Removal of the occlusion allows the pressure in the carotid sinuses to rise, and the carotid sinus reflex now causes aortic pressure to fall almost immediately to slightly below normal as a momentary overcompensation and then return to normal in another minute [Guyton & Hall, Page 227].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls and MCQ traps:**\n\n- **Baroreceptor types:** Carotid sinus and aortic arch baroreceptors are **high-pressure** arterial baroreceptors. **Low-pressure** baroreceptors (cardiopulmonary) are located in the atria, venae cavae, and pulmonary vessels and respond to changes in blood volume rather than arterial pressure.\n- **Afferent nerves:** Carotid sinus \u2192 **glossopharyngeal (CN IX)**; Aortic arch \u2192 **vagus (CN X)**. This is a classic MCQ distinction.\n- **Central termination:** Both terminate in the **nucleus tractus solitarius (NTS)** in the medulla.\n- **Efferent response to increased pressure:** \u2191 parasympathetic (vagal) outflow to heart \u2192 bradycardia; \u2193 sympathetic outflow to heart and vessels \u2192 decreased contractility and vasodilation \u2192 blood pressure falls.\n- **Efferent response to decreased pressure:** \u2193 baroreceptor firing \u2192 disinhibition of sympathetic outflow \u2192 tachycardia, increased contractility, vasoconstriction \u2192 blood pressure rises.\n- **Denervation hypersensitivity:** After baroreceptor denervation, blood pressure becomes labile and fluctuates widely.\n- **Clinical correlation:** Carotid sinus massage can cause syncope or bradycardia, especially in elderly patients with carotid sinus hypersensitivity. Carotid sinus syndrome is a cause of unexplained falls/syncope.\n- **Pharmacological relevance:** Drugs that affect baroreflex sensitivity (e.g., clonidine, methyldopa) can cause bradycardia; vasodilators can cause reflex tachycardia via baroreceptor activation.\n- **Postural hypotension:** In autonomic neuropathy (e.g., diabetes), baroreflex failure leads to orthostatic hypotension and syncope.\n- **Mnemonic (AI):** \"**C**arotid = **IX**; **A**ortic = **X**\" (C for Carotid, C for CN IX; A for Aortic, A for CN X).",
+      "citations": [
+        {
+          "book_title": "Junqueira's Basic Histology 16e",
+          "page_number": 233,
+          "excerpt": "Carotid sinuses are slight dilations of the bilateral internal carotid arteries where they branch from the (elastic) common carotid arteries; they act as important baroreceptors monitoring arterial blood pressure."
+        },
+        {
+          "book_title": "Junqueira's Basic Histology 16e",
+          "page_number": 233,
+          "excerpt": "Functionally, similar baroreceptors present in the aortic arch transmit signals pertaining to blood pressure via cranial nerve X, the vagus nerve."
+        },
+        {
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "page_number": 434,
+          "excerpt": "The carotid slnus, located in the bifurcation of the com\u00ad mon carotid artery, and the aortlc arch serve as baro\u00ad receptors."
+        },
+        {
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "page_number": 434,
+          "excerpt": "The afferent fibers from the carotid sinus ascend In the glosso\u00ad pharyngeal nerve and tenninate In the nucleus eolltarlus"
+        },
+        {
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "page_number": 434,
+          "excerpt": "The afferent fibers from the aortic arch ascend in the vagus nerve."
+        },
+        {
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "page_number": 434,
+          "excerpt": "Connector neurons in the medulla oblongata activate the parasympathetic nucleus (dorsal nucleus) of the vagus, which slows the heart rate."
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 189,
+          "excerpt": "Carotid baroreceptors are stimulated by the stretch of the vessel walls brought about by the internal pressure (arterial blood pressure)."
+        },
+        {
+          "book_title": "Katzung Pharmacology 14e",
+          "page_number": 189,
+          "excerpt": "Baroreceptor activation inhibits central sympathetic discharge."
+        },
+        {
+          "book_title": "Guyton & Hall 15e",
+          "page_number": 227,
+          "excerpt": "Because the baroreceptor system opposes increases or decreases in arterial pressure, it is called a pressure buffer system, and the nerves from the baroreceptors are called buffer nerves."
+        },
+        {
+          "book_title": "Guyton & Hall 15e",
+          "page_number": 227,
+          "excerpt": "The ability of the baroreceptors to maintain relatively constant arterial pressure in the upper body is important when a person stands up after lying down."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 137156,
+          "book_id": 43,
+          "book_title": "Guyton & Hall 15e",
+          "chapter": "Baroreceptor Arterial Pressure Control System-Baroreceptor Reflexes",
+          "page_number": 227,
+          "snippet": "Pressure Buffer Function of the Baroreceptor Control System. Because the baroreceptor system opposes increases or decreases in arterial pressure, it is called a pressure buffer system , and the nerves from the baroreceptors are called buffer nerves .",
+          "rank": 1,
+          "relevance_score": 6.2521
+        },
+        {
+          "chunk_id": 137155,
+          "book_id": 43,
+          "book_title": "Guyton & Hall 15e",
+          "chapter": "Baroreceptor Arterial Pressure Control System-Baroreceptor Reflexes",
+          "page_number": 227,
+          "snippet": "Baroreceptors Attenuate Blood Pressure Changes During Changes in Body Posture. The ability of the baroreceptors to maintain relatively constant arterial pressure in the upper body is important when a person stands up after lying down. Immediately on standing, arterial pressure in the head and upper\u2026",
+          "rank": 2,
+          "relevance_score": 5.8198
+        },
+        {
+          "chunk_id": 326405,
+          "book_id": 84,
+          "book_title": "Junqueira's Basic Histology 16e",
+          "chapter": "11 The Circulatory System > Vasculature > Arterial Sensory Structures",
+          "page_number": 233,
+          "snippet": "Carotid sinuses are slight dilations of the bilateral internal carotid arteries where they branch from the (elastic) common carotid arteries; they act as important baroreceptors monitoring arterial blood pressure. At these sinuses, the tunica media is thinner, allowing greater distension when blood\u2026",
+          "rank": 3,
+          "relevance_score": 4.0268
+        },
+        {
+          "chunk_id": 363158,
+          "book_id": 91,
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "chapter": "Autonomic Nervous System > Carotid Sinus and Aortic Arch Reflexes",
+          "page_number": 434,
+          "snippet": "The carotid slnus, located in the bifurcation of the com\u00ad mon carotid artery, and the aortlc arch serve as baro\u00ad receptors. As the blood pressure rises, nerve endings situated in the walls of these vessels are stimulated. The afferent fibers from the carotid sinus ascend In the glosso\u00ad pharyngeal\u2026",
+          "rank": 4,
+          "relevance_score": 3.6777
+        },
+        {
+          "chunk_id": 171931,
+          "book_id": 48,
+          "book_title": "Katzung Pharmacology 14e",
+          "chapter": "A.  Postural Baroreflex",
+          "page_number": 189,
+          "snippet": "Baroreflexes are responsible for rapid, moment-to-moment adjustments in blood pressure, such as in transition from a reclining to an upright posture (Figure 11-2). Central sympathetic neurons arising from the vasomotor area of the medulla are tonically active. Carotid baroreceptors are stimulated\u2026",
+          "rank": 5,
+          "relevance_score": 2.5176
+        },
+        {
+          "chunk_id": 332422,
+          "book_id": 91,
+          "book_title": "Snell's Clinical Neuroanatomy 8e",
+          "chapter": "Cranial Nerve Nuclei > Sensory Nudeus",
+          "page_number": 370,
+          "snippet": "Afferent information that concerns common sensa\u00ad tion enters the bralnstem through the superior ganglion of the glossopharyngeal nerve but ends in the 8Ptn.l nucleua of the trtgemlnal nerve. Afferent impulses from the carotid Ullua, a baroreceptor situated at the bifurcation of the common carotid\u2026",
+          "rank": 6,
+          "relevance_score": 1.0565
+        },
+        {
+          "chunk_id": 133574,
+          "book_id": 43,
+          "book_title": "Guyton & Hall 15e",
+          "chapter": "EXAMPLES OF CONTROL MECHANISMS",
+          "page_number": 24,
+          "snippet": "Regulation of Arterial Blood Pressure. Several systems contribute to arterial blood pressure regulation. One of these, the baroreceptor system , is an excellent example of a rapidly acting control mechanism ( Fig. 1.3 ). In the walls of the bifurcation region of the carotid arteries in the neck and\u2026",
+          "rank": 7,
+          "relevance_score": 3.8361
+        },
+        {
+          "chunk_id": 137145,
+          "book_id": 43,
+          "book_title": "Guyton & Hall 15e",
+          "chapter": "Baroreceptor Arterial Pressure Control System-Baroreceptor Reflexes",
+          "page_number": 226,
+          "snippet": "The best known of the nervous mechanisms for arterial pressure control is the baroreceptor reflex . Basically, this reflex is initiated by stretch receptors, called baroreceptors or pressoreceptors , located at specific points in the walls of several large systemic arteries. A rise in arterial\u2026",
+          "rank": 8,
+          "relevance_score": 5.2264
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab009",
+        "question": "Differentiate nephrotic from nephritic syndrome",
+        "level": "FCPS-II",
+        "intent": "comparison",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 5,
+        "n_sources": 8,
+        "top_relevance": 7.8957,
+        "supplement_ratio": 0.344,
+        "citations_in_context": 5,
+        "elapsed_s": 19.0
+      },
+      "labelled": {},
+      "answer_markdown": "Nephrotic and nephritic syndromes are the two major clinical complexes produced by glomerular disease, and they are separated by the pattern of protein loss, urine sediment, blood pressure, and renal function.\n\n**Core definitions**\n- Nephrotic syndrome is the clinical manifestation of glomerular diseases associated with heavy (nephrotic-range) proteinuria, defined as proteinuria >3.5 g/24 hr [Nelson Pediatrics 22e Vol 2, Page 1027]. It is characterised by the loss of large quantities of plasma proteins into the urine [Guyton & Hall 15e, Page 432].\n- Nephritic syndrome is caused by glomerular inflammation with GBM damage and loss of RBCs into urine, producing dysmorphic RBCs and hematuria [First Aid Step 1 2024, Page 634].\n\n**Point-by-point contrast (Table 21.3)** [Ramadas Pathology 2e, Page 636]\n- Proteinuria: nephritic = 1\u20132 g/day; nephrotic = massive, >3.5 g/day.\n- Hematuria: nephritic = present; nephrotic = absent.\n- Hypertension: nephritic = present; nephrotic = absent.\n- Hypoalbuminemia: nephritic = absent; nephrotic = present, serum albumin <3 g/dL.\n- Hyperlipidemia and lipiduria: nephritic = not seen; nephrotic = present.\n- Edema: nephritic = mild; nephrotic = moderate to severe.\n- Azotemia and oliguria: nephritic = present; nephrotic = absent.\n- Urine microscopy: nephritic = RBCs and RBC casts; nephrotic = fatty casts.\n\n**Mechanistic basis**\n- Nephrotic: podocyte damage impairs the charge barrier, causing proteinuria; massive protein loss leads to hypoalbuminemia, which drives hepatic lipogenesis and hypercholesterolemia. Frothy urine with fatty casts is seen, and there is a hypercoagulable state due to antithrombin loss in urine plus increased infection risk from urinary IgG loss and soft-tissue compromise by edema [First Aid Step 1 2024, Page 634]. The low plasma colloid osmotic pressure (falling from a normal 28 mm Hg to less than 10 mm Hg) causes fluid to leak from capillaries all over the body, producing severe edema [Guyton & Hall 15e, Page 432]. Causes include increased glomerular permeability from chronic glomerulonephritis, amyloidosis, and minimal-change nephrotic syndrome (an abnormal immune response with increased T-cell cytokine secretion injuring podocytes) [Guyton & Hall 15e, Page 432]. Nephrotic syndrome may be primary (direct podocyte damage) or secondary (podocyte damage from a systemic process), e.g., focal segmental glomerulosclerosis, minimal change disease, membranous nephropathy, amyloidosis, diabetic glomerulonephropathy [First Aid Step 1 2024, Page 634].\n- Nephritic: glomerular inflammation and GBM damage allow RBCs to escape into urine; reduced GFR causes oliguria and azotemia, and renin release causes hypertension. Proteinuria is often subnephrotic (<3.5 g/day) but may reach nephrotic range in severe cases. Examples include infection-associated glomerulonephritis, Goodpasture syndrome, IgA nephropathy (Berger disease), Alport syndrome, and membranoproliferative glomerulonephritis [First Aid Step 1 2024, Page 634].\n\n**Overlap**\nA nephritic-nephrotic picture occurs with severe GBM damage causing both hematuria and nephrotic-range proteinuria; it can occur with any nephritic syndrome but is most common with diffuse proliferative glomerulonephritis and membranoproliferative glomerulonephritis [First Aid Step 1 2024, Page 634].\n\n**Progression**\nOnce glomerular disease destroys enough nephrons to reduce GFR to 30\u201350% of normal, progression to end-stage kidney disease proceeds inexorably; remaining glomeruli hypertrophy with increased single-nephron GFR, blood flow, and transcapillary pressure, which becomes maladaptive and leads to further podocyte injury, increased permeability to proteins, and progressive glomerulosclerosis [Robbins Basic Pathology 9e, Page 537].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls and MCQ traps**\n- The single most discriminating lab value is the 24-hour urine protein: >3.5 g/day = nephrotic; 1\u20132 g/day with active sediment = nephritic.\n- Nephritic syndrome is an *inflammatory* picture (active urinary sediment: dysmorphic RBCs, RBC casts); nephrotic is a *permeability* picture (fatty casts, oval fat bodies, Maltese crosses).\n- Do not equate 'nephrotic-range proteinuria' with 'nephrotic syndrome': nephrotic syndrome requires the tetrad of proteinuria >3.5 g/day, hypoalbuminemia (<3 g/dL), edema, and hyperlipidemia. A patient can have nephrotic-range proteinuria without the full syndrome (e.g., severe nephritic GN).\n- Nephritic syndrome is NOT always hypertensive or oliguric in early/mild cases; hypertension and azotemia reflect reduced GFR and are not invariable.\n- Nephrotic syndrome is NOT always free of hematuria: minimal change disease typically has no hematuria, but membranoproliferative GN and other causes can have both.\n- Complications unique to nephrotic syndrome: hypercoagulability (renal vein thrombosis, especially membranous nephropathy), increased infection risk (encapsulated organisms, especially pneumococcus in children), and hyperlipidemia.\n- In children, minimal change disease is the commonest cause of nephrotic syndrome (peak 2\u20136 years); in adults, the commonest primary causes are focal segmental glomerulosclerosis and membranous nephropathy.\n- Nephritic syndrome in children classically follows a streptococcal infection (post-streptococcal GN) with low C3; nephrotic syndrome in children is usually steroid-responsive minimal change disease.\n- Management differs: nephritic syndrome is managed by treating the underlying cause, controlling hypertension, and supportive care; nephrotic syndrome is managed with corticosteroids (especially minimal change disease), ACE inhibitors/ARBs for proteinuria, diuretics for edema, statins for hyperlipidemia, and anticoagulation if thrombotic risk is high.",
+      "citations": [
+        {
+          "book_title": "Ramadas Pathology 2e",
+          "page_number": 636,
+          "excerpt": "TABLE 21.3: Differences between nephritic and nephrotic syndrome"
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 1027,
+          "excerpt": "Nephrotic syndrome is the clinical manifestation of glomerular diseases associated with heavy (nephrotic range) proteinuria. Nephroticrange proteinuria is defined as proteinuria >3.5 g/24 hr"
+        },
+        {
+          "book_title": "First Aid Step 1 2024",
+          "page_number": 634,
+          "excerpt": "Nephritic syndrome, ETIOLOGY = Glomerular inflammation  GBM damage  loss of RBCs into urine  dysmorphic RBCs, hematuria."
+        },
+        {
+          "book_title": "Guyton & Hall 15e",
+          "page_number": 432,
+          "excerpt": "Nephrotic syndrome, characterized by the loss of large quantities of plasma proteins into the urine, develops in many patients with kidney disease."
+        },
+        {
+          "book_title": "Robbins Basic Pathology 9e",
+          "page_number": 537,
+          "excerpt": "The nephrotic syndrome refers to a clinical complex that includes - Massive proteinuria, with daily protein loss in the urine of 3.5 g or more in adults - Hypoalbuminemia, with plasma albumin levels less than 3 g/dL"
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 25995,
+          "book_id": 3,
+          "book_title": "Ramadas Pathology 2e",
+          "chapter": "Alport syndrome:",
+          "page_number": 636,
+          "snippet": "TABLE 21.3: Differences between nephritic and nephrotic syndrome Proteinuria, Nephritic syndrome = 1 to 2 g/day. Proteinuria, Nephrotic syndrome = Massive; more than 3.5 g/day. Hematuria, Nephritic syndrome = Present. Hematuria, Nephrotic syndrome = Absent. Hypertension, Nephritic syndrome =\u2026",
+          "rank": 1,
+          "relevance_score": 7.8957
+        },
+        {
+          "chunk_id": 385213,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXI -Nephrology > Chapter 566 \u2013 Conditions Associated with Proteinuria > Nephrotic Syndrome",
+          "page_number": 1027,
+          "snippet": "Nephrotic syndrome is the clinical manifestation of glomerular diseases associated with heavy (nephrotic range) proteinuria. Nephroticrange proteinuria is defined as proteinuria >3.5 g/24 hr or a urine",
+          "rank": 2,
+          "relevance_score": 5.5239
+        },
+        {
+          "chunk_id": 348135,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XIII -Allergic Disorders > Chapter 183 \u2013 Diagnosis of Allergic Disease > OTHER DISEASES AND DISORDERS",
+          "page_number": 1391,
+          "snippet": "Nephrotic syndrome",
+          "rank": 3,
+          "relevance_score": 3.5458
+        },
+        {
+          "chunk_id": 38645,
+          "book_id": 4,
+          "book_title": "First Aid Step 1 2024",
+          "chapter": "Glomerular diseases",
+          "page_number": 634,
+          "snippet": "Nephritic syndrome, ETIOLOGY = Glomerular inflammation \u008e GBM damage \u008e loss of RBCs into urine \u008e dysmorphic RBCs, hematuria. Nephritic syndrome, CLINICAL PRESENTATION = Hematuria, RBC casts in urine \u0090 GFR \u008e oliguria, azotemia \uf08f renin release, HTN Proteinuria often in the subnephrotic range (< 3.5 g/\u2026",
+          "rank": 4,
+          "relevance_score": 6.0221
+        },
+        {
+          "chunk_id": 141173,
+          "book_id": 43,
+          "book_title": "Guyton & Hall 15e",
+          "chapter": "NEPHROTIC SYNDROME-EXCRETION OF PROTEIN IN THE URINE",
+          "page_number": 432,
+          "snippet": "Nephrotic syndrome , characterized by the loss of large quantities of plasma proteins into the urine, develops in many patients with kidney disease. In some cases, this syndrome occurs without evidence of other major abnormalities of kidney function, but it is usually associated with some degree of\u2026",
+          "rank": 5,
+          "relevance_score": 5.2319
+        },
+        {
+          "chunk_id": 59625,
+          "book_id": 38,
+          "book_title": "Robbins Basic Pathology 9e",
+          "chapter": "The Nephrotic Syndrome",
+          "page_number": 537,
+          "snippet": "The nephrotic syndrome refers to a clinical complex that includes",
+          "rank": 6,
+          "relevance_score": 4.914
+        },
+        {
+          "chunk_id": 25821,
+          "book_id": 3,
+          "book_title": "Ramadas Pathology 2e",
+          "chapter": "mebooksfree.com",
+          "page_number": 624,
+          "snippet": "Pitting edema: Does not distinguish nephritic from nephrotic syndrome.",
+          "rank": 7,
+          "relevance_score": 7.2609
+        },
+        {
+          "chunk_id": 384030,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XXI -Nephrology > Chapter 558 \u2013 Clinical Evaluation of the Child with Hematuria > CLINICAL AND LABORATORY MANIFESTATIONS",
+          "page_number": 992,
+          "snippet": "IgA nephropathy is seen more often in male than in female patients. Although there are rare cases of rapidly progressive forms of the disease, the clinical presentation of childhood IgA nephropathy is often benign compared with that of adults. IgA nephropathy is an uncommon cause of end- stage\u2026",
+          "rank": 8,
+          "relevance_score": 2.8085
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab010",
+        "question": "Mechanism of action of cholera toxin",
+        "level": "FCPS-I",
+        "intent": "mechanism",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 5,
+        "n_sources": 8,
+        "top_relevance": 6.2024,
+        "supplement_ratio": 0.235,
+        "citations_in_context": 5,
+        "elapsed_s": 14.4
+      },
+      "labelled": {},
+      "answer_markdown": "**Cholera toxin (choleragen) \u2014 mechanism of action**\n\n**1. Colonisation and toxin delivery.** *Vibrio cholerae* must be ingested in large numbers because it is highly acid-labile; adherence to the brush border of the small intestine (jejunum/ileum) is mediated by pili and by the bacterial enzyme mucinase, which dissolves the protective glycoprotein coating over the intestinal cells. After adhering, the organism multiplies and secretes choleragen, an exotoxin that can reproduce the symptoms of cholera even in the absence of the vibrio [Levinson's Microbiology 18e, Page 160]. The genes for cholera toxin and other virulence factors are carried on a single-stranded DNA bacteriophage (CTX); lysogenic conversion of non-toxin-producing strains occurs when the CTX phage transduces these genes, with the pili acting as phage receptors [Levinson's Microbiology 18e, Page 160].\n\n**2. Subunit structure and binding.** Choleragen consists of an A (active) subunit and a B (binding) subunit. The B subunit is a pentamer of five identical proteins that binds to a ganglioside (GM1) receptor on the surface of the enterocyte; the toxin has a doughnut-like structure with a central enzymatic toxic-active A subunit (CTA-1 + CTA-2) associated with the pentameric B subunit (CTB) [Levinson's Microbiology 18e, Page 160; Nelson Pediatrics 22e Vol 1, Page 1792]. GM1 receptors are mainly localised in lipid rafts on the cell surface; after binding, the toxin is endocytosed and transported by a retrograde pathway to the endoplasmic reticulum (with or without passage through the Golgi, depending on cell type). In the ER, CTA dissociates from CTB, allowing CTA-1 to reach the cytosol [Nelson Pediatrics 22e Vol 1, Page 1792].\n\n**3. ADP-ribosylation of Gs\u03b1 \u2014 the key step.** In the cytosol, CTA-1 refolds and binds to the Gs\u03b1 subunit of adenylate cyclase in the cell membrane, then ADP-ribosylates it [Nelson Pediatrics 22e Vol 1, Page 1792]. The A subunit catalyses the addition of ADP-ribose to the Gs protein (the stimulatory G protein), locking Gs in the 'on' position and causing persistent stimulation of adenylate cyclase [Levinson's Microbiology 18e, Page 160]. Biochemically, the GTPase activity of G\u03b1s is inhibited in intestinal cells, so the G protein cannot hydrolyse GTP and switch itself off; the result is increased adenylyl cyclase activity and excess production of the second messenger cAMP [Lippincott Biochemistry 8e, Page 288]. This is the same mechanism as the heat-labile toxin (LT) of enterotoxigenic *E. coli*, which also ADP-ribosylates the stimulatory G protein and irreversibly activates the cyclase [Levinson's Microbiology 18e, Page 154].\n\n**4. cAMP \u2192 PKA \u2192 CFTR \u2192 secretion.** The overproduced cAMP activates cAMP-dependent protein kinase (PKA), which phosphorylates an ion transporter \u2014 the cystic fibrosis transmembrane conductance regulator (CFTR) \u2014 in the cell membrane [Levinson's Microbiology 18e, Page 160; Nelson Pediatrics 22e Vol 1, Page 1792]. This opens tremendous numbers of CFTR Cl\u207b channels, allowing Cl\u207b to flow rapidly from inside the cell into the intestinal crypts; the increased secretion of Cl\u207b causes electrical drag of Na\u207a through the paracellular pathway into the secreted fluid, and cholera toxin may also inhibit active Na\u207a reabsorption [Guyton & Hall 15e, Page 820]. Cholera toxin-induced Cl\u207b (and bicarbonate) secretion is particularly pronounced in intestinal crypt cells, whereas the increased intracellular cAMP in villus cells mainly inhibits uptake of NaCl and water [Nelson Pediatrics 22e Vol 1, Page 1792]. The net result is loss of water and ions \u2014 Na\u207a, Cl\u207b, K\u207a and HCO\u2083\u207b \u2014 from the cell into the gut lumen [Levinson's Microbiology 18e, Page 160].\n\n**5. Consequence \u2014 isotonic secretory diarrhoea.** All this extra NaCl in the lumen causes extreme osmosis of water from the extracellular fluid, providing a rapid flow of fluid along with the NaCl; secretion becomes far greater than can be reabsorbed, sometimes causing loss of 5\u201310 litres of water and sodium chloride as diarrhoea each day, and severely affected patients may die of this fluid loss alone within 1\u20135 days [Guyton & Hall 15e, Page 820]. The watery efflux produces massive watery diarrhoea containing neither neutrophils nor red blood cells; morbidity and death are due to dehydration and electrolyte imbalance, although with prompt treatment the disease runs a self-limited course of up to 7 days [Levinson's Microbiology 18e, Page 160]. Clinically this appears as painless purging of profuse 'rice-water' stools (suspended flecks of mucus) with a fishy smell, the hallmark of the disease; stool contains more sodium (along with potassium and bicarbonate) than diarrhoea from other pathogens, and muscle cramping and weakness occur from potassium and calcium imbalance [Nelson Pediatrics 22e Vol 1, Page 1792]. The excess fluid washes away most of the bacteria and is of value in combating the disease, but the dehydration can be lethal; in most instances the life of a person with cholera can be saved by administration of tremendous amounts of NaCl solution to make up for the loss [Guyton & Hall 15e, Page 820].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls and MCQ traps**\n\n- **One-line mechanism:** Cholera toxin ADP-ribosylates **Gs\u03b1 \u2192 locks it 'on' \u2192 permanent activation of adenylate cyclase \u2192 \u2191cAMP \u2192 PKA \u2192 CFTR phosphorylation \u2192 Cl\u207b (and HCO\u2083\u207b) secretion + inhibited NaCl absorption \u2192 isotonic secretory diarrhoea.**\n- **Contrast with pertussis toxin:** pertussis toxin ADP-ribosylates **Gi\u03b1** (inhibitory G protein) in respiratory epithelium \u2014 again raising cAMP, but by removing inhibition. Cholera = Gs; pertussis = Gi. This is a classic paired MCQ.\n- **Contrast with *E. coli* ST toxin:** ST acts via **guanylate cyclase \u2192 \u2191cGMP**, not cAMP. LT is the cAMP/ADP-ribosylation one (cholera-like).\n- **Contrast with diphtheria toxin and *Pseudomonas* exotoxin A:** both ADP-ribosylate **elongation factor 2 (EF-2)** \u2192 inhibit protein synthesis. Cholera toxin ADP-ribosylates a **G protein**, not EF-2 \u2014 a favourite discriminator.\n- **Why no blood/neutrophils in stool:** the toxin is a pure secretory enterotoxin; there is no mucosal invasion or inflammation.\n- **Treatment principle:** the toxin is preformed and irreversible, so antibiotics do not stop the diarrhoea acutely \u2014 **volume and electrolyte replacement (ORS/IV Ringer's lactate) is the mainstay**; doxycycline/azithromycin shorten carriage and duration.\n- **Vaccine note:** oral killed whole-cell \u00b1 B-subunit (WC/rBS) vaccines exploit the B subunit's GM1 binding to block toxin attachment.\n- **Genetic basis:** toxin genes are phage-borne (CTX\u03c6); the toxin-coregulated pilus (TCP) is the phage receptor \u2014 a neat link between colonisation and toxigenicity.",
+      "citations": [
+        {
+          "book_title": "Levinson's Microbiology 18e",
+          "page_number": 160,
+          "excerpt": "The A subunit is inserted into the cytosol, where it catalyzes the addition of ADP-ribose to the Gs protein... This locks the Gs protein in the 'on' position, which causes the persistent stimulation of adenylate cyclase."
+        },
+        {
+          "book_title": "Levinson's Microbiology 18e",
+          "page_number": 154,
+          "excerpt": "Both LT and cholera toxin act by catalyzing the addition of adenosine diphosphate-ribose... to the G protein that stimulates the cyclase. This irreversibly activates the cyclase."
+        },
+        {
+          "book_title": "Lippincott Biochemistry 8e",
+          "page_number": 288,
+          "excerpt": "With cholera toxin, the GTPase activity of G\u03b1s is inhibited in intestinal cells... The result in both situations is increased adenylyl cyclase activity and excess production of the second messenger, cAMP."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 1792,
+          "excerpt": "After binding to GM1 ganglioside receptors on small intestinal epithelial cells... CTA-1 adenosine diphosphate (ADP)-ribosylates the Gs\u03b1 subunit, which stimulates AC activity, leading to an increase in intracellular concentration of cyclic adenosine monophosphate (cAMP), activation of protein kinase A (PKA), phosphorylation of the cystic fibrosis transmembrane conductance regulator (CFTR)."
+        },
+        {
+          "book_title": "Guyton & Hall 15e",
+          "page_number": 820,
+          "excerpt": "This subunit stimulates formation of excess cyclic adenosine monophosphate (cAMP), which opens tremendous numbers of the cystic fibrosis transmembrane conductance regulator (CFTR) Cl- channels... increased secretion of Cl- causes electrical drag of Na+ through the paracellular pathway."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 256317,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "2 CLINICAL BACTERIOLOGY > 18 Gram-Negative Rods Related to the Enteric Tract > Pathogenesis & Epidemiology",
+          "page_number": 160,
+          "snippet": "After adhering, the organism multiplies and secretes an enterotoxin called choleragen (cholera toxin). This exotoxin can reproduce the symptoms of cholera even in the absence of the Vibrio organisms. The mode of action of cholera toxin is described in the next paragraph and in Figure 7-3 in the\u2026",
+          "rank": 1,
+          "relevance_score": 6.2024
+        },
+        {
+          "chunk_id": 256245,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "2 CLINICAL BACTERIOLOGY > 18 Gram-Negative Rods Related to the Enteric Tract > Intestinal Tract Infection",
+          "page_number": 154,
+          "snippet": "(1) The heat-labile toxin (LT) acts by stimulating adenylate cyclase. Both LT and cholera toxin act by catalyzing the addition of adenosine diphosphate-ribose (a process called ADPribosylation) to the G protein that stimulates the cyclase. This irreversibly activates the cyclase. The resultant\u2026",
+          "rank": 2,
+          "relevance_score": 6.8194
+        },
+        {
+          "chunk_id": 260654,
+          "book_id": 87,
+          "book_title": "Lippincott Biochemistry 8e",
+          "chapter": "Unit II: Bioenergetics and Carbohydrate Metabolism > Chapter 8: Introduction to Metabolism and Glycolysis > D. Adenylyl cyclase",
+          "page_number": 288,
+          "snippet": "Toxins from Vibrio cholerae (cholera) and Bordetella pertussis (whooping cough) cause inappropriate activation of adenylyl cyclase through covalent modification (ADP-ribosylation) of different G proteins that interact with adenylyl cyclase. With cholera toxin, the GTPase activity of G\u03b1s is\u2026",
+          "rank": 3,
+          "relevance_score": 5.2597
+        },
+        {
+          "chunk_id": 358437,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XV -Infectious Diseases > Chapter 241 \u2013 Chancroid (Haemophilus ducreyi) > PATHOGENESIS",
+          "page_number": 1792,
+          "snippet": "Fig. 247.1 Cholera pathogenesis and cholera toxin action. After ingestion, Vibrio cholerae colonize the small intestine and secrete cholera toxin, which has a doughnut- like structure with a central enzymatic toxic- active A (CTA- 1 + CTA- 2) subunit associated with a pentameric B subunit (CTB).\u2026",
+          "rank": 4,
+          "relevance_score": 7.6468
+        },
+        {
+          "chunk_id": 147947,
+          "book_id": 43,
+          "book_title": "Guyton & Hall 15e",
+          "chapter": "ABSORPTION OF IONS",
+          "page_number": 820,
+          "snippet": "Extreme diarrheal secretion is initiated by entry of a subunit of cholera toxin into the epithelial cells. This subunit stimulates formation of excess cyclic adenosine monophosphate (cAMP), which opens tremendous numbers of the cystic fibrosis transmembrane conductance regulator (CFTR ) Cl -\u2026",
+          "rank": 5,
+          "relevance_score": 4.9147
+        },
+        {
+          "chunk_id": 190590,
+          "book_id": 46,
+          "book_title": "Pelczar Microbiology 5e",
+          "chapter": "Endoto,tins",
+          "page_number": 737,
+          "snippet": "Table 31-3. Additional Examples of Exotoxins Clostridial a toxin, Organism = Clostridium perfrisigens. Clostridial a toxin, Action = 1-lemolysin, cytotoxin. Clostridial a toxin, = Phospholipase; hydrolyzes lecithin, thereby dam- aging the cytoplasmic membranes of blood and tis- sue cells.\u2026",
+          "rank": 6,
+          "relevance_score": 3.6918
+        },
+        {
+          "chunk_id": 254194,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "1 BASIC BACTERIOLOGY > 7 Pathogenesis > Gram-Negative Bacteria",
+          "page_number": 50,
+          "snippet": "FIGURE 7-2 Mode of action of Escherichia coli and Vibrio cholerae enterotoxins. The enterotoxin (e.g., cholera toxin) binds to the surface of the enterocyte via its binding subunit. The active subunit then enters the enterocyte. The active subunit is an enzyme that catalyzes the addition of\u2026",
+          "rank": 7,
+          "relevance_score": 6.7954
+        },
+        {
+          "chunk_id": 254188,
+          "book_id": 86,
+          "book_title": "Levinson's Microbiology 18e",
+          "chapter": "1 BASIC BACTERIOLOGY > 7 Pathogenesis > Gram-Negative Bacteria",
+          "page_number": 50,
+          "snippet": "The exotoxins produced by gram-negative bacteria also have several different mechanisms of action and produce different clinical effects. Two very important exotoxins are the enterotoxins of E. coli and V. cholerae (cholera toxin), which induce an increase in the amount of cyclic AMP within the\u2026",
+          "rank": 8,
+          "relevance_score": 5.6068
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab011",
+        "question": "Investigation of choice for suspected pulmonary embolism",
+        "level": "FCPS-II",
+        "intent": "investigation",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 7,
+        "n_sources": 8,
+        "top_relevance": 5.7969,
+        "supplement_ratio": 0.241,
+        "citations_in_context": 7,
+        "elapsed_s": 13.7
+      },
+      "labelled": {},
+      "answer_markdown": "**Investigation of choice: CT pulmonary angiography (CTPA).**\n\nCT pulmonary angiography (CTPA) has become the investigation of choice in the diagnosis of pulmonary thromboembolism, when it may either confirm the suspected embolism or highlight an alternative diagnosis [Davidson's Medicine 23e, Page 571]. It is the first-line diagnostic test [Davidson's Medicine 23e, Page 639]. It has the advantage of visualising the distribution and extent of the emboli or highlighting an alternative diagnosis, such as consolidation, pneumothorax or aortic dissection [Davidson's Medicine 23e, Page 639]. The diagnostic criteria for PE on CT include two or more consecutive images revealing a complete or partial filling defect of a pulmonary artery [Nelson Pediatrics 22e Vol 2, Page 486]. CT studies detect emboli in lobar and segmental vessels with acceptable sensitivities, though poorer sensitivities may be encountered in the evaluation of the subsegmental pulmonary vasculature [Nelson Pediatrics 22e Vol 2, Page 486].\n\n**Interpretation and caveats:**\n- CTPA has largely replaced the radioisotope-based ventilation-perfusion (V/Q) scan [Davidson's Medicine 23e, Page 571].\n- As the contrast media may be nephrotoxic, care should be taken in patients with renal impairment, and CTPA avoided in those with a history of allergy to iodinated contrast media. In these cases, either V/Q scanning or ventilation/perfusion single photon emission computed tomography (V/Q SPECT) may be considered [Davidson's Medicine 23e, Page 639].\n- In pregnancy, D-dimer measurement is not helpful and should not be performed, as it is often elevated secondary to physiological changes in the coagulation system [Obstetrics by Ten Teachers 21e, Page 277]. A low-level D-dimer suggests the absence of a DVT or PE, and no further objective tests are necessary; an increased level suggests that thrombosis may be present and an objective diagnostic test should be performed [Obstetrics by Ten Teachers 21e, Page 99]. However, in pregnancy, D-dimer is not a reliable diagnostic test of acute PE [Obstetrics by Ten Teachers 21e, Page 99].\n- If PE is suspected, initial electrocardiogram, chest X-ray and arterial blood gases should be performed to exclude other respiratory diagnoses, but these are insufficient on their own to exclude or diagnose PE [Obstetrics by Ten Teachers 21e, Page 99].\n- Bedside echocardiography is extremely helpful in the differential diagnosis and assessment of acute circulatory collapse; acute dilatation of the right heart is usually present in massive PE, and thrombus (embolism in transit) may be visible [Davidson's Medicine 23e, Page 639].\n- Conventional pulmonary angiography is still useful in selected settings or for the delivery of catheter-based therapies [Davidson's Medicine 23e, Page 639]. Although it had been considered the gold standard, its invasive nature, high radiation exposure, and risk of complications have limited its use [Nelson Pediatrics 22e Vol 2, Page 486].\n\n**Special populations:**\n- In pregnancy, when PE is suspected, investigative options include chest X-ray (to rule out other respiratory causes), low limb Doppler to rule out lower limb VTE, and finally a V/Q scan or CTPA [Obstetrics by Ten Teachers 21e, Page 277]. In both cases, the radiation to the fetus is below the threshold considered potentially dangerous to the fetus [Obstetrics by Ten Teachers 21e, Page 99].\n- In children, a ventilation-perfusion (V/Q) radionuclide scan is a safe diagnostic study associated with exposure to low levels of ionizing radiation; with a definitive or high-probability scan, the likelihood of PE is 85%, but with low-probability results, there is still a 20% chance of PE [Nelson Pediatrics 22e Vol 2, Page 486]. Children may have difficulty cooperating with the ventilation portion of the V/Q scan [Nelson Pediatrics 22e Vol 2, Page 486]. Computed tomography/multidetector CT with pulmonary angiography has become the diagnostic study of choice for PE [Nelson Pediatrics 22e Vol 2, Page 486].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\n**Exam pearls and current guidelines (AI knowledge):**\n- **Wells score / Geneva score** should be used to determine pretest probability before ordering CTPA. The retrieved Nelson text includes the Revised Geneva Score, but Wells is more commonly used in UK practice.\n- **D-dimer**: Only useful in low/intermediate pretest probability to rule out PE. Age-adjusted D-dimer (age \u00d7 10 \u00b5g/L in patients >50) is now recommended. Never use D-dimer alone to rule in PE.\n- **CTPA vs V/Q SPECT**: V/Q SPECT is now preferred over planar V/Q in many centres and may be used when CTPA is contraindicated (renal failure, contrast allergy, pregnancy).\n- **Pregnancy**: CTPA is preferred over V/Q in most guidelines if needed, but V/Q is acceptable. Both have fetal radiation below teratogenic threshold. D-dimer is not recommended.\n- **Massive PE with haemodynamic instability**: Bedside echocardiography showing right ventricular dilatation may prompt thrombolysis before confirmatory imaging.\n- **Pitfalls**: CTPA may miss subsegmental emboli; false positives from motion artefact or lymph nodes. Always correlate with clinical probability.\n- **Investigation of choice in FCPS/MRCP exams**: CTPA is the single best answer for suspected PE in non-pregnant adults with normal renal function.",
+      "citations": [
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 571,
+          "excerpt": "CT pulmonary angiography (CTPA) has become the investigation of choice in the diagnosis of pulmonary thromboembolism"
+        },
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 639,
+          "excerpt": "CTPA is the first-line diagnostic test"
+        },
+        {
+          "book_title": "Davidson's Medicine 23e",
+          "page_number": 639,
+          "excerpt": "As the contrast media may be nephrotoxic, care should be taken in patients with renal impairment, and CTPA avoided in those with a history of allergy to iodinated contrast media. In these cases, either V/Q scanning or ventilation/perfusion single photon emission computed tomography (V/Q SPECT) may be considered."
+        },
+        {
+          "book_title": "Obstetrics by Ten Teachers 21e",
+          "page_number": 277,
+          "excerpt": "The measurement of D-dimers is not helpful and should not be performed, as they are often elevated secondary to physiological changes in the coagulation system in pregnancy."
+        },
+        {
+          "book_title": "Obstetrics by Ten Teachers 21e",
+          "page_number": 99,
+          "excerpt": "A low-level D-dimer, commonly used as a screening test for thromboembolic disease in the non-pregnant population, suggests the absence of a DVT or PE, and no further objective tests are necessary."
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 486,
+          "excerpt": "Computed tomography/multidetector CT with pulmonary angiography has become the diagnostic study of choice for PE"
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 486,
+          "excerpt": "The criteria for PE include two or more consecutive images revealing a complete or partial filling defect of a pulmonary artery."
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 82915,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Computed tomography",
+          "page_number": 571,
+          "snippet": "gies. High-resolution thin-section scanning provides detailed images of the pulmonary parenchyma and is particularly useful in assessing diffuse parenchymal lung disease (see Fig. 17.56), identifying airway thickening, bronchiectasis (see Fig. 17.29) and emphysema (see Fig. 17.27). The relative\u2026",
+          "rank": 1,
+          "relevance_score": 5.7969
+        },
+        {
+          "chunk_id": 84233,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Investigations",
+          "page_number": 639,
+          "snippet": "Fig. 17.67 Algorithm for the investigation of patients with suspected pulmonary thromboembolism. Clinical risk is based on the presence of risk factors for venous thromboembolism and the probability of another diagnosis. (DVT = deep vein thrombosis; PE = pulmonary embolism)",
+          "rank": 2,
+          "relevance_score": 5.5452
+        },
+        {
+          "chunk_id": 298947,
+          "book_id": 90,
+          "book_title": "Obstetrics by Ten Teachers 21e",
+          "chapter": "16 Neonates 293 > BOX 14.9: Thrombosis and thromboembolism: Prevention, risk factors and warning signs",
+          "page_number": 277,
+          "snippet": "magnetic resonance venography may be performed. When pulmonary embolus is suspected, investigative options include chest X-ray (to rule out other respiratory causes of chest symptoms such as pneumonia), low limb Doppler to rule out lower limb VTE and \u00ffnally a ventilation perfusion (V/Q scan) or\u2026",
+          "rank": 3,
+          "relevance_score": 6.2397
+        },
+        {
+          "chunk_id": 329470,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVII -The Respiratory System > Chapter 458 \u2013 Pulmonary Embolism, Infarction, and Hemorrhage > https://trungtamthuoc.com/",
+          "page_number": 485,
+          "snippet": "| Table 458.2 - REVISED GENEVA SCORE FOR PULMONARY EMBOLISM | Scores to Assess the Clinical Probability of Venous Thromboembolism-cont'd - REVISED GENEVA SCORE FOR PULMONARY EMBOLISM | Scores to Assess the Clinical Probability of Venous Thromboembolism-cont'd - REVISED GENEVA SCORE FOR PULMONARY\u2026",
+          "rank": 4,
+          "relevance_score": -0.4577
+        },
+        {
+          "chunk_id": 329480,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVII -The Respiratory System > Chapter 458 \u2013 Pulmonary Embolism, Infarction, and Hemorrhage > LABORATORY FINDINGS AND DIAGNOSIS",
+          "page_number": 486,
+          "snippet": "Although conventional pulmonary angiography had been considered the gold standard for detection of PE, the invasive nature of this study, the high exposure to radiation, and the risk of complications have limited its use. Computed tomography/multidetector CT with pulmonary angiography has become\u2026",
+          "rank": 5,
+          "relevance_score": 4.0233
+        },
+        {
+          "chunk_id": 296449,
+          "book_id": 90,
+          "book_title": "Obstetrics by Ten Teachers 21e",
+          "chapter": "16 Neonates 293 > PULMONARY EMBOLUS",
+          "page_number": 99,
+          "snippet": "If PE is suspected, initial electrocardiogram, chest X-ray and arterial blood gases should be performed to exclude other respiratory diagnoses. However, these investigations are insuf\u00ffcient on their own to exclude or diagnose PE and it may be sensible to investigate the lower limbs for evidence of\u2026",
+          "rank": 6,
+          "relevance_score": -1.3543
+        },
+        {
+          "chunk_id": 98272,
+          "book_id": 40,
+          "book_title": "Davidson's Medicine 23e",
+          "chapter": "Breathlessness",
+          "page_number": 1294,
+          "snippet": "breathlessness of pregnancy. It is thought to be progesteronemediated and is classically of gradual onset and present at rest and on exercise. Physiological breathlessness does not require investigation but severe or persistent breathlessness should be investigated, especially if accompanied by\u2026",
+          "rank": 7,
+          "relevance_score": 5.8833
+        },
+        {
+          "chunk_id": 329411,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XVII -The Respiratory System > Chapter 458 \u2013 Pulmonary Embolism, Infarction, and Hemorrhage > 458.1 Pulmonary Embolus and Infarction",
+          "page_number": 482,
+          "snippet": "Venous thromboembolism (VTE) is a term that describes both deep venous thrombosis (DVT) and pulmonary embolism (PE). PE is defined as obstruction of a pulmonary artery, typically as a result of thrombus formation. Although VTE remains relatively rare in occurrence, these events have become\u2026",
+          "rank": 8,
+          "relevance_score": -0.3252
+        }
+      ]
+    },
+    {
+      "mechanical": {
+        "id": "lab012",
+        "question": "What causes Howell-Jolly bodies?",
+        "level": "MBBS",
+        "intent": "pathology",
+        "grounding": "partial",
+        "status": "ok",
+        "abstained": false,
+        "n_citations": 5,
+        "n_sources": 8,
+        "top_relevance": 2.1843,
+        "supplement_ratio": 0.391,
+        "citations_in_context": 5,
+        "elapsed_s": 17.5
+      },
+      "labelled": {},
+      "answer_markdown": "Howell-Jolly bodies (HJBs) are red blood cell inclusions that appear when splenic function is absent or reduced. The spleen normally removes these nuclear remnants from circulating erythrocytes; when the spleen is absent (asplenia) or hypofunctional (hyposplenism), they persist in peripheral blood [Nelson Pediatrics 22e Vol 2, Page 860].\n\nCauses of Howell-Jolly bodies therefore include:\n\n1. **Splenectomy** \u2013 surgical removal of the spleen is a classic cause [Ramadas Pathology 2e, Page 802].\n2. **Congenital asplenia** \u2013 isolated congenital asplenia is diagnosed by the presence of Howell-Jolly bodies on blood smear and absence of a detectable spleen on ultrasound; about half of cases are due to pathogenic variants in *RPSA* [Nelson Pediatrics 22e Vol 1, Page 1354]. Asplenia may also occur as part of heterotaxy syndromes such as Ivemark syndrome (right atrial isomerism) [Nelson Pediatrics 22e Vol 2, Page 860].\n3. **Functional hyposplenism** \u2013 the spleen may be present but nonfunctional. Causes include sickle cell hemoglobinopathies (autosplenectomy), malaria, irradiation to the left upper quadrant, severe hemolytic anemia, metabolic storage diseases, splenic/celiac artery or splenic vein thrombosis, autoimmune diseases (juvenile idiopathic arthritis, lupus, sarcoidosis), nephritis, inflammatory bowel disease, celiac disease, chronic hepatitis, Pearson syndrome, Fanconi anemia, high-dose corticosteroids, and graft-versus-host disease [Nelson Pediatrics 22e Vol 2, Page 860]. In sickle cell anemia, autosplenectomy leads to Howell-Jolly bodies and increased risk of infection by encapsulated organisms [First Aid Step 1 2024, Page 449].\n4. **Megaloblastic anemia** \u2013 impaired DNA synthesis leads to nuclear remnants in red cells [Ramadas Pathology 2e, Page 802].\n5. **Severe hemolytic anemia** \u2013 increased red cell turnover can overwhelm splenic function, and Howell-Jolly bodies may be seen [Ramadas Pathology 2e, Page 802; Nelson Pediatrics 22e Vol 2, Page 860].\n\nDetection of Howell-Jolly bodies by staining is a simple method for assessing splenic hypofunction, though it is inaccurate for quantitation [Nelson Pediatrics 22e Vol 2, Page 861].\n\n**Beyond the textbooks (AI clinical knowledge, not from your books):**\n\nHowell-Jolly bodies are basophilic nuclear remnants (DNA) in erythrocytes, typically single, small, round, and located peripherally. They are a classic marker of hyposplenism or asplenia. In addition to the causes listed, they can be seen in:\n\n- **Megaloblastic anemia** (due to ineffective erythropoiesis and nuclear maturation defects)\n- **Myelodysplastic syndromes**\n- **Severe hemolytic anemias** (e.g., autoimmune hemolytic anemia, hereditary spherocytosis)\n- **After splenectomy** or **functional asplenia** (e.g., sickle cell disease, celiac disease, inflammatory bowel disease)\n- **Congenital asplenia** (e.g., Ivemark syndrome)\n\nExam pearls:\n- Howell-Jolly bodies are one of the first signs of hyposplenism, along with target cells, acanthocytes, and thrombocytosis.\n- In sickle cell disease, the appearance of Howell-Jolly bodies indicates autosplenectomy and signals increased risk of encapsulated bacterial infections (e.g., *Streptococcus pneumoniae*, *Haemophilus influenzae*, *Neisseria meningitidis*), necessitating vaccination and prophylactic antibiotics.\n- Do not confuse with Heinz bodies (denatured hemoglobin, seen in G6PD deficiency) or Pappenheimer bodies (iron-containing granules).\n- On blood smear, Howell-Jolly bodies are DNA remnants; they are not visible with routine Wright stain unless specifically looked for, but are easily seen with supravital staining.",
+      "citations": [
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 860,
+          "excerpt": "Splenic hypofunction is characterized by red blood cell (RBC) inclusions in peripheral blood smears (Howell-Jolly or Heinz bodies)"
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "page_number": 1354,
+          "excerpt": "A diagnosis of isolated congenital asplenia (ICA) is made on the basis of the presence of Howell-Jolly bodies (HJBs) on blood smear and the lack of a detectable spleen at ultrasound"
+        },
+        {
+          "book_title": "Ramadas Pathology 2e",
+          "page_number": 802,
+          "excerpt": "Howell-Jolly body, Associated condition = After splenectomy, asplenia, megaloblastic anemia, severe hemolytic anemia"
+        },
+        {
+          "book_title": "First Aid Step 1 2024",
+          "page_number": 449,
+          "excerpt": "Autosplenectomy (Howell-Jolly bodies) \u2192 \u2191 risk of infection by encapsulated organisms"
+        },
+        {
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "page_number": 861,
+          "excerpt": "Detection of Howell-Jolly bodies by staining | Erythrocytes with nuclear remnants"
+        }
+      ],
+      "sources": [
+        {
+          "chunk_id": 381011,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XIX -Diseases of the Blood > Chapter 536 \u2013 Hyposplenism, Splenic Trauma, and Splenectomy",
+          "page_number": 860,
+          "snippet": "Splenic hypofunction is characterized by red blood cell (RBC) inclusions in peripheral blood smears (Howell- Jolly or Heinz bodies), 'pits' on interference microscopy, and poor uptake of technetium or other spleen scans (Table 536.2 and Fig. 536.1). Reduced immunoglobulin M memory B cells may also\u2026",
+          "rank": 1,
+          "relevance_score": 2.1843
+        },
+        {
+          "chunk_id": 381018,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XIX -Diseases of the Blood > Chapter 536 \u2013 Hyposplenism, Splenic Trauma, and Splenectomy",
+          "page_number": 861,
+          "snippet": "| Quantitation of splenic uptake of colloidal sulfur particles enables a fairly accurate static assessment of spleen function. | Hypertrophy of the left hepatic lobe might be a limiting factor (this technique does not clearly show whether the mass originated in the liver or the spleen in the pres-\u2026",
+          "rank": 2,
+          "relevance_score": -1.5346
+        },
+        {
+          "chunk_id": 36308,
+          "book_id": 4,
+          "book_title": "First Aid Step 1 2024",
+          "chapter": "Intrinsic hemolytic anemias",
+          "page_number": 449,
+          "snippet": "y asymptomatic because of \u008f HbF and \u0090 HbS. Heterozygotes (sickle cell trait) have resistance to malaria. Sickle cells are crescent-shaped RBCs A . 'Crew cut' on skull x-ray due to marrow expansion from \u008f erythropoiesis (also seen in thalassemias).. Sickle cell anemia A, FINDINGS = Complications: \u0083\u2026",
+          "rank": 3,
+          "relevance_score": 3.0402
+        },
+        {
+          "chunk_id": 347339,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XII -Immunology > Chapter 175 \u2013 Defects of Innate Immunity > ISOLATED CONGENITAL ASPLENIA",
+          "page_number": 1354,
+          "snippet": "A diagnosis of isolated congenital asplenia (ICA) is made on the basis of the presence of Howell- Jolly bodies (HJBs) on blood smear and the lack of a detectable spleen at ultrasound in the absence of cardiovascular malformations. Some cases are due to an AD inheritance; relatives of those with ICA\u2026",
+          "rank": 4,
+          "relevance_score": 4.8643
+        },
+        {
+          "chunk_id": 345236,
+          "book_id": 88,
+          "book_title": "Nelson Pediatrics 22e Vol 1",
+          "chapter": "Part XII -Immunology > Chapter 164 \u2013 Orientation to the Consideration of Inborn Errors of Immunity > SUGGESTIVE OF ASPLENIA",
+          "page_number": 1270,
+          "snippet": "Heterotaxia, complex congenital heart disease, Howell- Jolly bodies on blood smear, sickle cell anemia",
+          "rank": 5,
+          "relevance_score": 5.4875
+        },
+        {
+          "chunk_id": 30566,
+          "book_id": 3,
+          "book_title": "Ramadas Pathology 2e",
+          "chapter": "Various Important Bodies and its Associated Conditions",
+          "page_number": 802,
+          "snippet": "Aschoff body, Associated condition = Rheumatic fever. Asbestos body, Associated condition = Asbestosis. Ferruginous body, Associated condition = . Asteroid body, Associated condition = Sarcoidosis and sporotrichosis. Call-Exner body, Associated condition = Granulosa cell tumor. Civatte (colloid)\u2026",
+          "rank": 6,
+          "relevance_score": -2.8744
+        },
+        {
+          "chunk_id": 380895,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XIX -Diseases of the Blood > Chapter 534 \u2013 Anatomy and Function of the Spleen > https://trungtamthuoc.com/",
+          "page_number": 858,
+          "snippet": "Slow blood flow past macrophages and through small openings in the sinus walls facilitates the filtering functions of the spleen removing any particles >1 micron in size from the circulation. Excess membrane is removed from young red blood cells (RBCs) and loss of this function is characterized by\u2026",
+          "rank": 7,
+          "relevance_score": -1.4144
+        },
+        {
+          "chunk_id": 377919,
+          "book_id": 89,
+          "book_title": "Nelson Pediatrics 22e Vol 2",
+          "chapter": "Part XIX -Diseases of the Blood > Chapter 507 \u2013 Hereditary Spherocytosis > https://trungtamthuoc.com/",
+          "page_number": 753,
+          "snippet": "Splenectomy failure may occur in cases of accessory spleen, accidental autotransplantation of splenic tissue into peritoneum at time of surgery, inaccurate diagnosis, or another co- inherited hemolytic anemia. Clues include return of hemolysis and disappearance of HowellJolly bodies on peripheral\u2026",
+          "rank": 8,
+          "relevance_score": 1.0504
+        }
+      ]
+    }
+  ]
+}

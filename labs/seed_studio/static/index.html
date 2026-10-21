@@ -1,0 +1,1231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seed Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* the sheet (content) */
+  --bg: #ffffff; --panel: #ffffff; --panel-2: #f6f6f5; --line: #ececea; --line-2: #dededb;
+  --ink: #18181a; --ink-2: #57575c; --ink-3: #8b8b90;
+  --accent: #0a84c6; --accent-soft: #e6f3fa; --ok: #1f7a4d; --ok-soft: #e5f3eb; --warn: #a86400; --warn-soft: #fbf0dc;
+  --bad: #c43a2f; --bad-soft: #fbebe9; --run: #6a4bd1; --run-soft: #efeafd;
+  --chip: #f2f2f0;
+  /* the frame around it (sidebar + window edge): medNAMA charcoal */
+  --frame: #232325; --frame-2: #2c2c2f; --frame-line: #36363a; --frame-ink: #e4e4e6; --frame-ink-2: #a3a3a8; --frame-ink-3: #77777d;
+  --mono: "JetBrains Mono", ui-monospace, monospace; --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Fraunces", Georgia, serif;
+  --r: 12px; --shadow: none;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1b1b1d; --panel: #1b1b1d; --panel-2: #232326; --line: #2c2c30; --line-2: #3a3a3f;
+  --ink: #ececee; --ink-2: #a9a9ae; --ink-3: #7d7d83; --chip: #26262a;
+  --accent: #4fb6ec; --accent-soft: #15293a; --ok: #4cc287; --ok-soft: #13281e; --warn: #eda64a; --warn-soft: #2c2213;
+  --bad: #ff7a6e; --bad-soft: #301816; --run: #a691ff; --run-soft: #231d3b;
+  --frame: #0f0f10; --frame-2: #19191b; --frame-line: #26262a; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #1b1b1d; --panel: #1b1b1d; --panel-2: #232326; --line: #2c2c30; --line-2: #3a3a3f;
+  --ink: #ececee; --ink-2: #a9a9ae; --ink-3: #7d7d83; --chip: #26262a;
+  --accent: #4fb6ec; --accent-soft: #15293a; --ok: #4cc287; --ok-soft: #13281e; --warn: #eda64a; --warn-soft: #2c2213;
+  --bad: #ff7a6e; --bad-soft: #301816; --run: #a691ff; --run-soft: #231d3b;
+  --frame: #0f0f10; --frame-2: #19191b; --frame-line: #26262a; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--frame); color: var(--ink); font: 13.5px/1.5 var(--sans); font-feature-settings: "tnum" 1, "cv11" 1; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--accent-soft); color: var(--ink); }
+a { color: var(--accent); text-underline-offset: 2px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 6px; }
+.mono, .num { font-family: var(--mono); font-size: 12px; }
+.num { text-align: right; white-space: nowrap; }
+.muted { color: var(--ink-3); }
+.small { font-size: 12px; }
+.chip { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; background: var(--chip); color: var(--ink-3); font-size: 12px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* shell: a charcoal frame (the sidebar) holding one white sheet */
+.shell { display: grid; grid-template-columns: 244px 1fr; height: 100vh; padding: 8px 8px 8px 0; transition: grid-template-columns .3s cubic-bezier(.16,1,.3,1); }
+.shell.collapsed { grid-template-columns: 0 1fr; padding-left: 8px; }
+.shell.collapsed .side { visibility: hidden; }
+.side { color: var(--frame-ink); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.side-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 10px 20px; }
+.wordmark { font-family: var(--serif); font-size: 21px; letter-spacing: -.01em; color: #fff; line-height: 1; text-decoration: none; }
+.wordmark i { color: #5cc4f2; font-style: italic; }
+.wordmark small { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--frame-ink-3); margin-top: 6px; }
+.iconbtn-dark { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--frame-ink-2); cursor: pointer; }
+.iconbtn-dark:hover { background: var(--frame-2); color: var(--frame-ink); }
+.side-scroll { overflow: auto; flex: 1; padding: 4px 12px 10px; }
+.glabel { font-family: var(--mono); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--frame-ink-3); padding: 14px 8px 6px; }
+.sitem { display: flex; align-items: center; gap: 9px; width: 100%; padding: 6px 8px; border-radius: 8px; color: var(--frame-ink); text-decoration: none; font-size: 13px; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.sitem:hover { background: var(--frame-2); }
+.sitem.on { background: #ffffff14; }
+.sitem svg { width: 15px; height: 15px; flex: none; color: var(--frame-ink-2); }
+.sitem .end { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; color: var(--frame-ink-3); font-size: 11.5px; }
+.sitem .chev { transition: transform .2s ease; }
+.sitem[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.sitem .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sub { display: flex; flex-direction: column; }
+.sub .sitem { padding-left: 32px; color: var(--frame-ink-2); }
+.sub .sitem.on, .sub .sitem:hover { color: var(--frame-ink); }
+.sdivider { height: 1px; background: var(--frame-line); margin: 10px 4px 0; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #7d7d83; flex: none; }
+.dot.run { background: #a691ff; box-shadow: 0 0 0 3px #a691ff2e; animation: breathe 1.8s ease-in-out infinite; }
+.dot.warn { background: #eda64a; }
+@keyframes breathe { 50% { box-shadow: 0 0 0 5px #a691ff10; } }
+@media (prefers-reduced-motion: reduce) { .dot.run { animation: none; } .shell { transition: none; } }
+.side-foot { border-top: 1px solid var(--frame-line); padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 1px; }
+.side-user { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 0; font-size: 12px; color: var(--frame-ink-3); }
+.side-user button { border: 0; background: none; color: var(--frame-ink-2); cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 5px; }
+.side-user button:hover { color: #fff; }
+.badge { min-width: 18px; padding: 0 6px; border-radius: 999px; background: #a691ff; color: #141414; font-size: 10.5px; font-weight: 700; text-align: center; font-family: var(--mono); }
+
+.main { background: var(--bg); border-radius: 14px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex: none; }
+.rbtn { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--panel); display: grid; place-items: center; cursor: pointer; color: var(--ink-2); flex: none; }
+.rbtn:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-3); }
+.rbtn:disabled { opacity: .4; cursor: default; }
+.rbtn svg { width: 14px; height: 14px; }
+.tsep { width: 1px; height: 18px; background: var(--line-2); margin: 0 4px; }
+.path { flex: 1; min-width: 0; color: var(--ink-3); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; }
+.path b { color: var(--ink-2); font-weight: 500; }
+.menu-btn { display: none; }
+.main-scroll { overflow: auto; flex: 1; }
+.page { padding: 34px 40px 80px; max-width: 1180px; margin: 0 auto; }
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+h1 { font-size: 20px; margin: 0; letter-spacing: -.015em; font-weight: 600; }
+h2 { font-size: 14.5px; margin: 0 0 10px; font-weight: 600; letter-spacing: -.005em; }
+.sub { color: var(--ink-3); margin: 4px 0 0; max-width: 760px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.panel-pad { padding: 16px 18px; }
+.stack { display: flex; flex-direction: column; gap: 18px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+
+/* the overview's search: what do you want to seed? */
+.hero { text-align: center; padding: 30px 0 34px; }
+.hero h1 { font-size: 21px; }
+.hero p { color: var(--ink-3); margin: 6px 0 18px; }
+.omni { position: relative; max-width: 580px; margin: 0 auto; text-align: left; }
+.omni-box { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line-2); border-radius: 999px; padding: 10px 16px; background: var(--panel);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.14); transition: border-color .15s ease, box-shadow .15s ease; }
+.omni-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.omni-box svg { width: 15px; height: 15px; color: var(--ink-3); flex: none; }
+.omni-box input { border: 0 !important; outline: 0; background: transparent !important; flex: 1; padding: 0 !important; font-size: 14px; min-width: 0; }
+.omni-results { margin-top: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); overflow: hidden; box-shadow: 0 14px 34px -18px rgba(0,0,0,.3); }
+.omni-results .lrow { padding: 10px 14px; }
+.omni-results .lrow:last-child { border-bottom: 0; }
+.omni-results { max-height: 420px; overflow: auto; }
+.omni-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; flex: 1; }
+.omni-txt .t { max-width: 100%; }
+.omni-txt .chip { font-size: 11.5px; padding: 1px 8px; }
+
+/* lists, in the reference's manner: hairline rows, a title, a grey chip, quiet actions */
+.lgroup { margin-bottom: 30px; }
+.lgroup-head { display: flex; align-items: baseline; gap: 10px; padding: 0 2px 10px; border-bottom: 1px solid var(--line); }
+.lgroup-head h3 { margin: 0; font-size: 14.5px; font-weight: 600; }
+.lgroup-head h3 span { color: var(--ink-3); font-weight: 400; }
+.lrow { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--line); min-width: 0; }
+.lrow:hover { background: var(--panel-2); }
+.lrow .t { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.lrow .time { width: 46px; color: var(--ink-3); font-family: var(--mono); font-size: 12px; flex: none; }
+.lrow .acts { margin-left: auto; display: flex; gap: 4px; align-items: center; flex: none; }
+.lrow button.more { border: 0; background: none; color: var(--ink-3); cursor: pointer; border-radius: 6px; padding: 2px 8px; letter-spacing: .1em; }
+.lrow button.more:hover { color: var(--ink); background: var(--panel-2); }
+
+/* controls */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel); cursor: pointer; font-weight: 550; font-size: 13px; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--ink-3); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line-2)); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+.btn.sm { padding: 3px 8px; font-size: 12px; }
+input[type=text], input[type=number], input[type=password], input[type=search], select, textarea {
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 6px; padding: 6px 9px; min-width: 0; }
+input[type=number] { width: 84px; font-family: var(--mono); font-size: 13px; }
+label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-2); font-weight: 550; }
+label.field small { font-weight: 400; color: var(--ink-3); }
+label.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+label.check input { margin-top: 3px; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); padding: 5px 11px; cursor: pointer; font-weight: 550; font-size: 12.5px; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line-2); }
+.seg button.on { background: var(--accent-soft); color: var(--accent); }
+
+/* tables */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 600; font-size: 12px; color: var(--ink-3); padding: 7px 10px; border-bottom: 1px solid var(--line); background: var(--panel-2); position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+th.num { text-align: right; }
+th[data-sort] { cursor: pointer; }
+td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:hover td { background: var(--panel-2); }
+.tablewrap { overflow: auto; max-height: 68vh; border-radius: 0 0 var(--r) var(--r); }
+.tree-name { display: flex; align-items: flex-start; gap: 6px; }
+.tree-toggle { width: 18px; height: 18px; border: 0; background: none; cursor: pointer; color: var(--ink-3); padding: 0; flex: none; display: grid; place-items: center; }
+.lvl { font-size: 10.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; margin-left: 4px; }
+
+/* status */
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; background: var(--panel-2); color: var(--ink-2); border: 1px solid var(--line); }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .8; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.pill.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.pill.run { background: var(--run-soft); color: var(--run); border-color: transparent; }
+.pill.info { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.badge { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--run); color: #fff; font-size: 11px; font-weight: 700; text-align: center; font-family: var(--mono); }
+.src { font-size: 10.5px; font-weight: 600; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--ink-3); margin-left: 4px; text-transform: lowercase; }
+.src.official { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.src.override { color: var(--run); border-color: color-mix(in srgb, var(--run) 40%, transparent); }
+.src.internal { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+/* progress */
+.bar { position: relative; height: 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; }
+.bar > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; transition: width .6s cubic-bezier(.16,1,.3,1); }
+.bar.ok > span { background: var(--ok); } .bar.run > span { background: var(--run); } .bar.warn > span { background: var(--warn); }
+.prog { display: grid; grid-template-columns: 170px 1fr 64px; align-items: center; gap: 12px; padding: 7px 0; }
+.prog .lbl { font-weight: 550; font-size: 13px; }
+.prog .lbl small { display: block; font-weight: 400; color: var(--ink-3); font-size: 11.5px; line-height: 1.3; }
+
+/* ledger: the headline numbers, as rows of a statement rather than a wall of cards */
+.ledger { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 28px; }
+.ledger section { padding: 4px 0 10px; }
+.ledger h3 { font-size: 12px; font-weight: 650; color: var(--ink-3); margin: 6px 0 4px; letter-spacing: .02em; }
+.ledger dl { margin: 0; }
+.ledger .ln { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px dashed var(--line); gap: 10px; }
+.ledger .ln dt { color: var(--ink-2); }
+.ledger .ln dd { margin: 0; font-family: var(--mono); font-size: 14px; font-weight: 500; }
+.ledger .ln.big dd { font-size: 18px; font-weight: 600; }
+.ledger .ln.neg dd { color: var(--bad); }
+
+/* pipeline stages */
+.stages { display: flex; gap: 0; flex-wrap: wrap; }
+.stage { font-size: 11.5px; padding: 3px 9px; border: 1px solid var(--line); color: var(--ink-3); background: var(--panel-2); margin-right: -1px; }
+.stage:first-child { border-radius: 5px 0 0 5px; } .stage:last-child { border-radius: 0 5px 5px 0; }
+.stage.done { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 25%, var(--line)); }
+.stage.now { color: #fff; background: var(--run); border-color: var(--run); position: relative; z-index: 1; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 3px var(--run-soft); } }
+@media (prefers-reduced-motion: reduce) { .stage.now { animation: none; } .bar > span { transition: none; } }
+
+.jobcard { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: var(--shadow); }
+.jobcard header { display: flex; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.jobcard .body { padding: 12px 16px; display: grid; gap: 12px; }
+.counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px 18px; }
+.counters div { display: flex; flex-direction: column; }
+.counters b { font-family: var(--mono); font-size: 16px; font-weight: 600; }
+.counters span { font-size: 11.5px; color: var(--ink-3); }
+.running { border-top: 1px dashed var(--line); padding-top: 10px; display: grid; gap: 8px; }
+.runline { display: grid; grid-template-columns: minmax(220px, 1.4fr) 2fr auto; gap: 12px; align-items: center; font-size: 13px; }
+
+/* review */
+.qcard { border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; background: var(--panel); display: grid; gap: 8px; }
+.qcard .stem { font-weight: 550; }
+.qcard ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.qcard li { padding: 3px 8px; border-radius: 5px; }
+.qcard li.key { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.qcard .why { font-size: 12.5px; color: var(--ink-2); }
+.qcard details summary { cursor: pointer; color: var(--ink-3); font-size: 12.5px; }
+.cite { font-size: 12px; border-left: 2px solid var(--line-2); padding-left: 8px; color: var(--ink-2); }
+.note-md h2, .note-md h3 { font-size: 13.5px; margin: 12px 0 4px; }
+.note-md ul { margin: 0; padding-left: 18px; }
+
+/* overlays */
+.overlay { position: fixed; inset: 0; background: rgba(10,14,22,.45); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.dialog { background: var(--panel); border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0,0,0,.25); width: min(560px, 100%); max-height: 90vh; overflow: auto; }
+.dialog.wide { width: min(1000px, 100%); }
+.dialog header { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.dialog .content { padding: 16px 18px; display: grid; gap: 12px; }
+.dialog footer { padding: 12px 18px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
+.toast { position: fixed; bottom: 18px; right: 18px; background: var(--ink); color: var(--panel); padding: 10px 14px; border-radius: 8px; z-index: 60; max-width: 440px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.toast.bad { background: var(--bad); color: #fff; }
+.empty { padding: 30px 16px; text-align: center; color: var(--ink-3); }
+.callout { border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 10px 12px; font-size: 13px; }
+.callout.warn { border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); background: var(--warn-soft); }
+.callout.bad { border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); background: var(--bad-soft); }
+.spin { width: 14px; height: 14px; border: 2px solid var(--line-2); border-top-color: var(--accent); border-radius: 50%; animation: sp .8s linear infinite; display: inline-block; vertical-align: -2px; }
+@keyframes sp { to { transform: rotate(360deg); } }
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.login form { width: min(360px, 100%); display: grid; gap: 12px; }
+.diffbars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; align-items: end; height: 70px; }
+.diffbars div { background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 4px 4px 0 0; position: relative; min-height: 2px; }
+.diffbars div span { position: absolute; top: -17px; left: 0; right: 0; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+.difflabels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; font-size: 11px; color: var(--ink-3); }
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; padding: 0; }
+  .side-scroll, .side-foot { display: none; }
+  .shell.menu-open .side { position: fixed; inset: 0; z-index: 30; background: var(--frame); }
+  .shell.menu-open .side-scroll, .shell.menu-open .side-foot { display: block; }
+  .main { border-radius: 14px 14px 0 0; } .menu-btn { display: grid; } #collapse { display: none; }
+  .page { padding: 20px 16px 60px; } .prog { grid-template-columns: 120px 1fr 54px; } .runline { grid-template-columns: 1fr; }
+  .lrow .chip { display: none; }
+}
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.login form { background: var(--bg); border-radius: 16px; padding: 28px; width: min(380px, 100%); display: grid; gap: 14px; }
+.login .wordmark { color: var(--ink); }
+tr.clickable { cursor: pointer; } tr.clickable:hover td { background: color-mix(in srgb, currentColor 6%, transparent); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+/* ── tiny helpers ─────────────────────────────────────────────────────────────── */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString());
+const pctTxt = (p) => (p === null || p === undefined ? "—" : `${p.toFixed(1)}%`);
+const store = { get(k, d) { try { const v = localStorage.getItem("seed_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+                set(k, v) { try { localStorage.setItem("seed_" + k, JSON.stringify(v)); } catch { /* storage unavailable */ } } };
+const ago = (iso) => { if (!iso) return "—"; const s = Math.max(0, (Date.now() - new Date(iso.endsWith("Z") ? iso : iso + "Z")) / 1000);
+  return s < 60 ? `${Math.round(s)}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : `${Math.round(s / 3600)}h ago`; };
+const dur = (s) => { if (s === null || s === undefined) return "—"; s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+  return h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`; };
+function toast(msg, bad = false) { const t = document.createElement("div"); t.className = "toast" + (bad ? " bad" : ""); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), bad ? 6500 : 3500); }
+async function api(path, opts = {}) {
+  const res = await fetch(path, { credentials: "same-origin", headers: opts.body ? { "Content-Type": "application/json" } : {}, ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined });
+  if (res.status === 401) { state.user = null; render(); throw new Error("Sign in again."); }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && data.detail) || `HTTP ${res.status}`);
+  return data;
+}
+const ICON = {
+  overview: '<path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  tos: '<path d="M4 4h16v4H4zM4 10h10v4H4zM4 16h7v4H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  new: '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  monitor: '<path d="M3 12h4l3-8 4 16 3-8h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  topics: '<path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  review: '<path d="M9 12l2 2 4-4M5 4h14v16H5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
+  failures: '<path d="M12 9v4m0 4h.01M10.3 3.9L2.5 17.5A2 2 0 004.2 20.5h15.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  settings: '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+};
+Object.assign(ICON, {
+  back: '<path d="M19 12H5m6-6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  fwd: '<path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  reload: '<path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  panel: '<path d="M4 5h16v14H4zM9 5v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  folder: '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+  chev: '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  search: '<circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  moon: '<path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+});
+const svg = (k, size = 16) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${ICON[k]}</svg>`;
+const STATUS_CLASS = { "Completed": "ok", "completed": "ok", "parsed": "ok", "done": "ok", "inserted": "ok", "approved": "ok",
+  "Partially completed": "warn", "partial": "warn", "Needs review": "warn", "paused": "warn", "duplicate": "warn", "flagged": "warn", "skipped": "",
+  "Failed": "bad", "failed": "bad", "rejected": "bad", "cancelled": "", "cancelling": "warn",
+  "Generating": "run", "Retrieving evidence": "run", "Validating": "run", "Saving": "run", "running": "run", "parsing": "run",
+  "Queued": "info", "queued": "info", "pending": "info", "validated": "info", "Waiting for sources": "warn", "Not started": "", "not_parsed": "" };
+const pill = (s, label) => `<span class="pill ${STATUS_CLASS[s] ?? ""}">${esc(label ?? s ?? "—")}</span>`;
+const bar = (p, cls = "") => `<div class="bar ${cls}" role="progressbar" aria-valuenow="${p ?? 0}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.min(100, p ?? 0)}%"></span></div>`;
+
+/* ── state & routing ──────────────────────────────────────────────────────────── */
+const state = { user: undefined, route: (location.hash.slice(1) || "overview").split("?")[0], live: null, docs: [], docId: store.get("doc", null),
+  tree: null, expanded: new Set(store.get("expanded", [])), treeFilter: "", wizard: null, preview: null, topicFilters: store.get("tf", {}),
+  review: { tab: "items", status: "inserted", review: "", offset: 0 }, jobsAll: null, openJob: null };
+const NAV = [["overview", "Overview"], ["tos", "TOS explorer"], ["new", "New job"], ["monitor", "Live monitor"], ["topics", "Topics"], ["sheets", "TOS sheets"], ["stations", "Stations"],
+  ["review", "Review"], ["failures", "Failures"], ["settings", "Settings"]];
+window.addEventListener("hashchange", () => { state.route = (location.hash.slice(1) || "overview").split("?")[0]; render(); });
+const go = (r) => { location.hash = r; };
+
+/* ── live stream (server-sent events, read from the database every 2 s) ───────── */
+let es = null;
+function connect() {
+  if (es) return;
+  es = new EventSource("/api/stream");
+  es.onmessage = (e) => { state.live = JSON.parse(e.data); updateBadge();
+    if (state.route === "monitor") renderMonitorLive();
+    if (state.route === "tos" && state.live.parsing.includes(state.docId)) throttledTree(); };
+  es.onerror = () => { es.close(); es = null; setTimeout(() => state.user && connect(), 4000); };
+}
+let treeTimer = 0;
+function throttledTree() { if (Date.now() - treeTimer < 8000) return; treeTimer = Date.now(); loadTree().then(() => state.route === "tos" && renderPage()); }
+let lastRunning = "";
+function updateBadge() {
+  const b = $("#activeBadge"); if (b && state.live) { const n = state.live.jobs.length; b.textContent = n; b.hidden = !n; }
+  // the "Running now" group follows the stream, but only re-renders when something there changed
+  const sig = state.live ? state.live.jobs.map((j) => `${j.id}:${j.status}:${j.inserted}`).join("|") : "";
+  if (sig !== lastRunning) { lastRunning = sig; if ($("#sideScroll") && b) renderSide(); }
+}
+
+/* ── shell ────────────────────────────────────────────────────────────────────── */
+async function boot() {
+  try { state.user = (await api("/api/me")).username; connect(); } catch { state.user = null; }
+  render();
+}
+const PATHS = { overview: "overview", tos: "tos", new: "jobs/new", monitor: "jobs/live", topics: "topics", sheets: "tos-sheets", stations: "stations", station: "stations/edit", review: "review", failures: "failures", settings: "settings" };
+const groupsOpen = store.get("groups", { mbbs: true, pget: true, fcps: false });
+function sideDocs() {
+  const fam = (f) => state.docs.filter((d) => d.family === f);
+  const item = (d) => `<button class="sitem ${state.route === "tos" && d.id === state.docId ? "on" : ""}" data-sdoc="${d.id}" title="${esc(d.title)}">
+      <span class="lbl">${esc(d.family === "PGET" ? "Table of Specifications" : (d.family === "MBBS" ? "Modular Curriculum (2K23)" : d.title.split(": ").pop()))}</span>${d.parse_status !== "parsed" ? `<span class="end"><span class="dot ${d.parse_status === "parsing" ? "run" : "warn"}"></span></span>` : ""}</button>`;
+  const group = (key, label, list) => list.length ? `<button class="sitem" data-group="${key}" aria-expanded="${!!groupsOpen[key]}">${svg("folder")}<span class="lbl">${label}</span><span class="end">${list.length}${svg("chev", 13).replace("<svg", '<svg class="chev"')}</span></button>
+      ${groupsOpen[key] ? `<div class="sub">${list.map(item).join("")}</div>` : ""}` : "";
+  return group("mbbs", "MBBS Modular", fam("MBBS")) + group("pget", "PGET", fam("PGET")) + group("fcps", "FCPS Part I", fam("FCPS"));
+}
+function sideRunning() {
+  const jobs = state.live ? state.live.jobs : [];
+  if (!jobs.length) return `<div class="sitem" style="cursor:default;color:var(--frame-ink-3)"><span class="dot"></span><span class="lbl">Nothing running</span></div>`;
+  return jobs.map((j) => `<a class="sitem" href="#monitor" title="${esc(j.scope)}"><span class="dot ${j.status === "running" ? "run" : j.status === "paused" ? "warn" : ""}"></span>
+      <span class="lbl">${esc((j.scope || "").split(" > ").pop())}</span><span class="end">${j.inserted}</span></a>`).join("");
+}
+function renderSide() {
+  const el = $("#sideScroll"); if (!el) return;
+  const nav = (k, label, icon, extra = "") => `<a class="sitem ${state.route === k ? "on" : ""}" href="#${k}" ${state.route === k ? 'aria-current="page"' : ""}>${svg(icon)}<span class="lbl">${label}</span>${extra}</a>`;
+  el.innerHTML = `<div class="glabel">Studio</div>
+      ${nav("overview", "Overview", "overview")}${nav("monitor", "Live monitor", "monitor", '<span class="end"><span class="badge" id="activeBadge" hidden></span></span>')}
+      ${nav("new", "New job", "new")}${nav("topics", "Topics", "topics")}${nav("sheets", "TOS sheets", "review")}${nav("stations", "TOACS stations", "topics")}
+      <div class="glabel">Tables of specifications</div>${sideDocs()}
+      <div class="sdivider"></div><div class="glabel">Running now</div>${sideRunning()}`;
+  updateBadge();
+}
+function render() {
+  const app = $("#app");
+  if (!state.user) { app.innerHTML = loginView(); bindLogin(); return; }
+  const collapsed = store.get("collapsed", false);
+  app.innerHTML = `<div class="shell ${collapsed ? "collapsed" : ""}" id="shell">
+    <aside class="side" aria-label="Navigation">
+      <div class="side-top"><a class="wordmark" href="#overview">med<i>NAMA</i><small>Seed Studio</small></a>
+        <button class="iconbtn-dark" id="closeMenu" aria-label="Close menu" style="display:none">✕</button></div>
+      <nav class="side-scroll" id="sideScroll"></nav>
+      <div class="side-foot">
+        <a class="sitem ${state.route === "review" ? "on" : ""}" href="#review">${svg("review")}<span class="lbl">Review</span></a>
+        <a class="sitem ${state.route === "failures" ? "on" : ""}" href="#failures">${svg("failures")}<span class="lbl">Failures</span></a>
+        <a class="sitem ${state.route === "settings" ? "on" : ""}" href="#settings">${svg("settings")}<span class="lbl">Settings and audit</span></a>
+        <div class="side-user"><span>${esc(state.user)}</span><span><button id="theme" title="Light, dark or system">Theme</button><button id="logout">Sign out</button></span></div>
+      </div>
+    </aside>
+    <main class="main" aria-label="Seed Studio">
+      <div class="toolbar">
+        <button class="rbtn menu-btn" id="openMenu" aria-label="Open menu">${svg("menu")}</button>
+        <button class="rbtn" id="collapse" aria-label="${collapsed ? "Show" : "Hide"} the sidebar" title="Sidebar">${svg("panel")}</button>
+        <span class="tsep" aria-hidden="true"></span>
+        <button class="rbtn" id="navBack" aria-label="Back">${svg("back")}</button>
+        <button class="rbtn" id="navFwd" aria-label="Forward">${svg("fwd")}</button>
+        <button class="rbtn" id="reload" aria-label="Reload this page">${svg("reload")}</button>
+        <div class="path" id="path"></div>
+        <a class="rbtn" href="#new" aria-label="New job" title="New job">${svg("new")}</a>
+      </div>
+      <div class="main-scroll" id="scroller"><div class="page" id="page"><div class="empty"><span class="spin"></span></div></div></div>
+    </main></div>`;
+  const shell = $("#shell");
+  $("#collapse").onclick = () => { const c = !shell.classList.contains("collapsed"); shell.classList.toggle("collapsed", c); store.set("collapsed", c); };
+  $("#openMenu").onclick = () => { shell.classList.add("menu-open"); $("#closeMenu").style.display = "grid"; };
+  $("#closeMenu").onclick = () => { shell.classList.remove("menu-open"); $("#closeMenu").style.display = "none"; };
+  $("#navBack").onclick = () => history.back();
+  $("#navFwd").onclick = () => history.forward();
+  $("#reload").onclick = () => { state.tree = null; renderPage(); };
+  $("#logout").onclick = async () => { await api("/api/logout", { method: "POST" }); state.user = null; es && es.close(); es = null; render(); };
+  $("#theme").onclick = () => { const cur = document.documentElement.dataset.theme; const next = cur === "dark" ? "light" : cur === "light" ? "" : "dark";
+    if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme; store.set("theme", next);
+    toast(next ? `${next[0].toUpperCase() + next.slice(1)} theme` : "Following the system theme"); };
+  $("#sideScroll").onclick = async (e) => {
+    const g = e.target.closest("[data-group]"); if (g) { groupsOpen[g.dataset.group] = !groupsOpen[g.dataset.group]; store.set("groups", groupsOpen); renderSide(); return; }
+    const d = e.target.closest("[data-sdoc]"); if (d) { state.docId = +d.dataset.sdoc; store.set("doc", state.docId); state.tree = null; shell.classList.remove("menu-open");
+      if (state.route === "tos") renderPage(); else go("tos"); }
+  };
+  shell.addEventListener("click", (e) => { if (e.target.closest(".side a.sitem")) shell.classList.remove("menu-open"); });
+  ensureDocs().then(renderSide).catch(renderSide);
+  renderPage();
+}
+function setPath() {
+  const el = $("#path"); if (!el) return;
+  const doc = state.docs.find((d) => d.id === state.docId);
+  let extra = "";
+  if (["tos", "topics"].includes(state.route) && doc) extra = `/${doc.family === "PGET" ? "pget" : (doc.family === "MBBS" ? "mbbs" : "fcps-i/" + doc.title.split(": ").pop().toLowerCase().replace(/[^a-z0-9]+/g, "-"))}`;
+  el.innerHTML = `studio://<b>${PATHS[state.route] || state.route}</b>${esc(extra)}`;
+}
+function loginView() {
+  return `<div class="login"><form id="loginForm">
+    <div class="wordmark">med<i>NAMA</i><small>Seed Studio</small></div>
+    <p class="muted" style="margin:0">Sign in with a medNAMA admin account.</p>
+    <label class="field">Username<input type="text" name="u" autocomplete="username" required></label>
+    <label class="field">Password<input type="password" name="p" autocomplete="current-password" required></label>
+    <div id="loginErr" class="small" style="color:var(--bad)"></div>
+    <button class="btn primary" type="submit">Sign in</button></form></div>`;
+}
+function bindLogin() {
+  $("#loginForm").onsubmit = async (e) => { e.preventDefault(); const f = e.target;
+    try { const r = await api("/api/login", { method: "POST", body: { username: f.u.value, password: f.p.value } });
+      state.user = r.username; connect(); render(); } catch (err) { $("#loginErr").textContent = err.message; } };
+}
+/* ── TOS sheets: pre-write refreshers and notes for the app's TOS screens ───────── */
+const sheetsSel = store.get("sheets_sel", { exam: "pget", paper: "mbbs-p1" });
+let sheetsTimer = 0;
+async function sheetsView() {
+  if (!state.sheetExams) state.sheetExams = await api("/api/sheets/exams");
+  const ex = state.sheetExams.find((e) => e.id === sheetsSel.exam) || state.sheetExams[0];
+  if (!ex.papers.some((p) => p.id === sheetsSel.paper)) sheetsSel.paper = ex.papers[0].id;
+  const st = await api(`/api/sheets/status?exam_id=${ex.id}&paper_id=${encodeURIComponent(sheetsSel.paper)}`);
+  const run = st.run || {};
+  const pct = st.total ? (100 * (st.refreshers + st.notes) / (2 * st.total)) : 0;
+  return `<div class="head"><div><h1>TOS sheets</h1><p class="sub">Write every topic's concept refresher and revision notes ahead of time, with the app's own generator and cache keys,
+    so learners never wait for them. Then copy them to the NAS with <code>python scripts/nas_sync_tos_sheets.py</code>.</p></div></div>
+  <div class="panel panel-pad stack">
+    <div class="row">
+      <label class="field">Examination<select id="shExam">${state.sheetExams.map((e) => `<option value="${e.id}" ${e.id === ex.id ? "selected" : ""}>${esc(e.short_name)}</option>`).join("")}</select></label>
+      <label class="field grow">Paper<select id="shPaper">${ex.papers.map((p) => `<option value="${esc(p.id)}" ${p.id === sheetsSel.paper ? "selected" : ""}>${esc(p.title)} (${p.topics} topics)</option>`).join("")}</select></label>
+    </div>
+    <div class="ledger"><section><dl>
+      <div class="ln"><dt>Topics</dt><dd>${fmt(st.total)}</dd></div>
+      <div class="ln"><dt>Refreshers written</dt><dd>${fmt(st.refreshers)}</dd></div>
+      <div class="ln"><dt>Topics with notes</dt><dd>${fmt(st.notes)}</dd></div></dl></section>
+      <section><h3>Coverage</h3>${bar(pct)}<p class="small muted">Refreshers plus notes, of ${fmt(2 * st.total)}.</p></section></div>
+    <div class="row" style="align-items:center">
+      <label class="check"><input type="checkbox" id="shRef" checked><span>Refreshers</span></label>
+      <label class="check"><input type="checkbox" id="shNotes" checked><span>Notes</span></label>
+      <label class="check"><input type="checkbox" id="shSubs"><span>Also each subtopic <small class="muted">(many more AI calls)</small></span></label>
+      <span class="grow"></span>
+      <button class="btn primary" id="shRun" ${run.running ? "disabled" : ""}>${run.running ? "Writing…" : "Write the missing sheets"}</button>
+    </div>
+    <div id="shRunBox">${sheetRunHtml(run)}</div>
+  </div>
+  <div class="panel"><div class="tablewrap" style="max-height:55vh"><table><thead><tr><th>Subject</th><th>Topic</th><th class="num">Subtopics</th><th>Refresher</th><th>Notes</th></tr></thead><tbody>
+    ${st.topics.map((t) => `<tr><td>${esc(t.subject)}</td><td>${esc(t.topic)}</td><td class="num">${t.subtopics}</td>
+      <td>${t.refresher ? pill("done", "written") : pill("pending", "missing")}</td>
+      <td>${t.notes ? pill("done", t.notes === "seed" ? "Seed Studio notes" : "written") : pill("pending", "missing")}</td></tr>`).join("")}
+  </tbody></table></div></div>`;
+}
+function sheetRunHtml(run) {
+  if (!run || !run.started_at) return `<p class="small muted">No sheet run since the Studio started.</p>`;
+  const c = run.counts || {};
+  const p = run.total ? 100 * run.done / run.total : 0;
+  return `<div class="callout ${run.error ? "bad" : ""}"><b>${run.running ? "Writing" : "Last run"}: ${esc(run.paper || "")}</b> · ${fmt(run.done)} of ${fmt(run.total)}
+    ${bar(p, run.running ? "run" : "")}
+    <span class="small">${esc(run.current || "")}</span><br>
+    <span class="small">written ${fmt(c.written || 0)} · already there ${fmt(c.cached || 0)} · no textbook passages ${fmt(c.no_passages || 0)} · AI failed ${fmt(c.failed || 0)}</span>
+    ${run.error ? `<br><span class="small">${esc(run.error)}</span>` : ""}</div>`;
+}
+function bindSheets() {
+  $("#shExam").onchange = (e) => { sheetsSel.exam = e.target.value; sheetsSel.paper = ""; store.set("sheets_sel", sheetsSel); renderPage(); };
+  $("#shPaper").onchange = (e) => { sheetsSel.paper = e.target.value; store.set("sheets_sel", sheetsSel); renderPage(); };
+  $("#shRun").onclick = async () => {
+    const kinds = [$("#shRef").checked && "refresher", $("#shNotes").checked && "notes"].filter(Boolean);
+    if (!kinds.length) return toast("Choose refreshers and/or notes.", true);
+    try { await api("/api/sheets/run", { method: "POST", body: { exam_id: sheetsSel.exam, paper_id: sheetsSel.paper, kinds, subtopics: $("#shSubs").checked } });
+      toast("Writing the missing sheets…"); pollSheets(); renderPage(); }
+    catch (e) { toast(e.message, true); }
+  };
+  if (!sheetsTimer) pollSheets();
+}
+function pollSheets() {
+  clearTimeout(sheetsTimer);
+  sheetsTimer = setTimeout(async () => {
+    sheetsTimer = 0;
+    if (state.route !== "sheets") return;
+    try {
+      const run = await api("/api/sheets/run");
+      const box = $("#shRunBox"); if (box) box.innerHTML = sheetRunHtml(run);
+      if (run.running) pollSheets(); else if (run.started_at) { const b = $("#shRun"); if (b && b.disabled) renderPage(); }
+    } catch { /* signed out or server restarting */ }
+  }, 2000);
+}
+
+/* ── TOACS stations: draft, review, gold answers, calibration ─────────────────── */
+let stationsTimer = 0;
+const stSel = { exam: "pget", paper: "p2-paediatric-medicine" };
+async function stationsView() {
+  const papers = await api("/api/stations-studio/papers");
+  if (!papers.length) return `<div class="panel empty">No pilot paper is configured for stations.</div>`;
+  const p = papers.find((x) => x.paper_id === stSel.paper) || papers[0];
+  stSel.exam = p.exam_id; stSel.paper = p.paper_id;
+  const o = await api(`/api/stations-studio/overview?exam_id=${p.exam_id}&paper_id=${encodeURIComponent(p.paper_id)}`);
+  state.stOverview = o;
+  const run = o.run || {};
+  const th = o.thresholds;
+  return `<div class="head"><div><h1>TOACS stations</h1>
+    <label class="field" style="max-width:520px;margin:6px 0">Specialty paper<select id="stPaper">${papers.map((x) => `<option value="${esc(x.paper_id)}" ${x.paper_id === p.paper_id ? "selected" : ""}>${esc(x.specialty)} · ${esc(x.title)}</option>`).join("")}</select></label>
+    <p class="sub">${esc(p.specialty)} · ${esc(p.title)}. Draft stations from the textbooks,
+    review and approve them, then mark a few sample answers so the AI scorer can be checked against an expert. Learners see a published station as
+    <b>practice-only</b> until its calibration passes (≥${th.min_gold} marked answers, mark error ≤${Math.round(th.max_mae * 100)}%, agreement ≥${Math.round(th.min_agreement * 100)}%, no missed safety deductions).</p></div></div>
+  <div class="cols" style="grid-template-columns:minmax(300px,380px) 1fr;align-items:start">
+    <div class="panel panel-pad stack">
+      <h2>Draft new stations</h2>
+      <p class="small muted">One station per ticked topic, written from Nelson. Drafts stay hidden from learners until approved and published.</p>
+      <div class="tablewrap" style="max-height:46vh"><table><thead><tr><th></th><th>Topic</th><th class="num">Stations</th></tr></thead><tbody>
+        ${o.topics.map((t) => `<tr><td><input type="checkbox" data-topic="${esc(t.topic_id)}" aria-label="Draft ${esc(t.topic)}"></td>
+          <td>${esc(t.topic)}<div class="small muted">${esc(t.subject)}</div></td><td class="num">${t.stations}</td></tr>`).join("")}
+      </tbody></table></div>
+      <button class="btn primary" id="stDraft" ${run.running ? "disabled" : ""}>${run.running ? "Drafting…" : "Draft stations for ticked topics"}</button>
+      <div id="stRunBox">${stRunHtml(run)}</div>
+    </div>
+    <div class="panel"><div class="tablewrap"><table><thead><tr><th>Station</th><th>Status</th><th class="num">Version</th>
+      <th class="num" title="Criteria whose textbook quote was not found">Flags</th><th class="num">Gold marked</th><th>Calibration</th></tr></thead><tbody>
+      ${o.stations.length ? o.stations.map((r) => `<tr class="clickable" data-station="${r.id}"><td><b>${esc(r.title)}</b></td>
+        <td>${pill(r.status === "published" ? "done" : r.status === "draft" ? "pending" : "info", r.status)}
+            ${r.status === "published" ? pill(r.readiness === "assessment_ready" ? "done" : "warn", r.readiness === "assessment_ready" ? "assessment-ready" : "practice-only") : ""}</td>
+        <td class="num">v${r.version}${r.approved ? " ✓" : ""}</td>
+        <td class="num" style="${r.flagged ? "color:var(--bad)" : ""}">${r.flagged}</td>
+        <td class="num">${r.gold_marked}/${r.gold}</td>
+        <td>${r.calibration ? pill(r.calibration.passed && r.calibration.current ? "done" : "warn", r.calibration.passed ? (r.calibration.current ? "passed" : "re-run (scorer changed)") : "not passed") : "—"}</td></tr>`).join("")
+        : `<tr><td colspan="6" class="muted">No stations yet. Tick topics and draft.</td></tr>`}
+    </tbody></table></div></div>
+  </div>`;
+}
+function stRunHtml(run) {
+  if (!run || !run.started_at) return "";
+  return `<div class="callout ${run.errors && run.errors.length ? "warn" : ""}"><b>${run.running ? "Drafting" : "Last run"}</b> · ${fmt(run.done)} of ${fmt(run.total)}
+    ${bar(run.total ? 100 * run.done / run.total : 0)}
+    ${(run.made || []).map((m) => `<div class="small">✓ ${esc(m.title)}</div>`).join("")}
+    ${(run.errors || []).map((e) => `<div class="small" style="color:var(--bad)">✗ ${esc(e.topic_id.split("/").pop())}: ${esc(e.error)}</div>`).join("")}</div>`;
+}
+function bindStations() {
+  $("#stPaper") && ($("#stPaper").onchange = (e) => { stSel.paper = e.target.value; renderPage(); });
+  $("#stDraft").onclick = async () => {
+    const ids = [...document.querySelectorAll("[data-topic]:checked")].map((i) => i.dataset.topic);
+    if (!ids.length) return toast("Tick at least one topic.", true);
+    if (!confirm(`Draft ${ids.length} station(s)? Each is one AI call grounded in Nelson.`)) return;
+    try { await api("/api/stations-studio/draft", { method: "POST", body: { exam_id: stSel.exam, paper_id: stSel.paper, topic_ids: ids } });
+      toast("Drafting…"); pollStations(); renderPage(); } catch (e) { toast(e.message, true); }
+  };
+  document.querySelectorAll("[data-station]").forEach((tr) => (tr.onclick = () => { state.stationId = +tr.dataset.station; go("station"); }));
+  if (state.stOverview?.run?.running) pollStations();
+}
+function pollStations() {
+  clearTimeout(stationsTimer);
+  stationsTimer = setTimeout(async () => {
+    if (state.route !== "stations") return;
+    try { const run = await api("/api/stations-studio/run"); const box = $("#stRunBox"); if (box) box.innerHTML = stRunHtml(run);
+      if (run.running) pollStations(); else renderPage(); } catch { /* ignore */ }
+  }, 2500);
+}
+
+async function stationView() {
+  if (!state.stationId) { go("stations"); return ""; }
+  const d = state.stationDetail = await api(`/api/stations-studio/stations/${state.stationId}`);
+  const v = d.latest;
+  const crit = v.criteria;
+  const cal = d.calibrations[0];
+  const goldHtml = d.gold.map((g) => `<div class="panel panel-pad stack" style="margin-top:8px">
+      <div class="row" style="align-items:center"><b>${esc(g.label)} answer</b><span class="small muted">${esc(g.origin)}</span><span class="grow"></span>
+        ${g.marked_at ? pill("done", `marked by ${g.marked_by}`) : pill("pending", "not marked")}</div>
+      <div class="small">${g.transcript.map((t) => t.role === "examiner" ? `<div class="muted" style="margin-top:6px"><b>Q.</b> ${esc(t.text)}</div>` : `<div><b>A.</b> ${esc(t.text)}</div>`).join("")}</div>
+      <table><thead><tr><th>Criterion</th><th class="num">Marks</th></tr></thead><tbody>
+        ${crit.map((c) => `<tr><td class="small">${c.safety_critical ? '<b style="color:var(--bad)">SAFETY</b> ' : ""}${esc(c.expected)}</td>
+          <td class="num"><input type="number" min="0" max="${c.marks}" step="0.5" style="width:70px" data-gold="${g.id}" data-crit="${c.id}"
+            value="${g.expert_marks[c.id] ?? g.expert_marks[String(c.id)] ?? ""}"> / ${c.marks}</td></tr>`).join("")}
+      </tbody></table>
+      <button class="btn" data-savegold="${g.id}">Save my marks</button></div>`).join("");
+  return `<div class="head"><div><a href="#stations" class="small">← Stations</a><h1>${esc(d.title)}</h1>
+    <p class="sub">${esc(d.specialty)} · v${v.version}${v.approved_at ? ` · approved by ${esc(v.approved_by || "")}` : " · not approved"} · status ${esc(d.status)}${d.status === "published" ? ` · ${esc(d.readiness)}` : ""}</p></div>
+    <div class="row"><button class="btn" id="stApprove" ${v.approved_at ? "disabled" : ""}>Approve v${v.version}</button>
+      <button class="btn primary" id="stPublish" ${v.approved_at ? "" : "disabled"}>${d.status === "published" ? "Re-publish latest approved" : "Publish to learners"}</button></div></div>
+  ${d.flagged ? `<div class="callout warn">${d.flagged} criterion/criteria cite text that was not found in the quoted passage. Check them against the source, fix the wording or clear the flag, and save a new version before approving.</div>` : ""}
+  <div class="panel panel-pad stack">
+    <label class="field">Scenario (shown first)<textarea id="stScenario" rows="3">${esc(v.scenario)}</textarea></label>
+    <label class="field">Timed-mode instructions (no answers!)<textarea id="stTimed" rows="2">${esc(v.instructions_timed)}</textarea></label>
+    <div class="field">Examiner questions (asked in order; follow-ups after "|")
+      ${v.framework.map((f, i) => `<input type="text" data-fw="${i}" value="${esc([f.prompt, ...(f.follow_ups || [])].join(" | "))}" style="margin-top:4px">`).join("")}</div>
+    <h3>Rubric</h3>
+    <div class="tablewrap"><table><thead><tr><th>Competency</th><th>Expected behaviour</th><th>Also acceptable (; separated)</th><th class="num">Marks</th><th>Safety</th><th>Source</th><th>Flag</th></tr></thead><tbody>
+      ${crit.map((c, i) => `<tr><td class="small">${esc(c.competency)}</td>
+        <td><textarea data-cexp="${i}" rows="2" style="min-width:220px">${esc(c.expected)}</textarea></td>
+        <td><textarea data-calt="${i}" rows="2" style="min-width:160px">${esc((c.alternatives || []).join("; "))}</textarea></td>
+        <td class="num"><input type="number" data-cmarks="${i}" min="0.5" max="4" step="0.5" value="${c.marks}" style="width:60px"></td>
+        <td><input type="checkbox" data-csafe="${i}" ${c.safety_critical ? "checked" : ""}></td>
+        <td class="small">${c.source_ref && c.source_ref.book_title ? `${esc(c.source_ref.book_title)} p.${esc(c.source_ref.page_number ?? "?")}<div class="muted">“${esc(c.source_ref.quote || "")}”</div>` : "—"}</td>
+        <td>${c.flagged ? `<label class="check small"><input type="checkbox" data-cflag="${i}" checked><span style="color:var(--bad)">unverified</span></label>` : ""}</td></tr>`).join("")}
+    </tbody></table></div>
+    <label class="field">Model answer<textarea id="stModel" rows="3">${esc(v.model_answer)}</textarea></label>
+    <div class="row"><span class="grow"></span><button class="btn" id="stSave">Save as v${v.version + 1}</button></div>
+  </div>
+  <div class="panel panel-pad stack">
+    <div class="row" style="align-items:center"><h2>Gold answers and calibration</h2><span class="grow"></span>
+      <button class="btn" id="stSamples">Write 3 sample answers</button><button class="btn primary" id="stCalibrate" ${d.gold_marked ? "" : "disabled"}>Run calibration</button></div>
+    <p class="small muted">The AI writes strong, borderline and unsafe sample performances. You mark each one against the rubric (the AI never marks its own gold).
+      Calibration then has the AI scorer mark them too, using the other marked answers as examples, and compares.</p>
+    ${cal ? `<div class="callout ${cal.passed && cal.current ? "" : "warn"}"><b>Last calibration: ${cal.passed ? "passed" : "not passed"}${cal.current ? "" : " (scorer changed since: re-run)"}</b> · ${cal.n_gold} gold ·
+      mark error ${cal.metrics.mae === null ? "—" : Math.round(cal.metrics.mae * 100) + "%"} · agreement ${cal.metrics.agreement === null ? "—" : Math.round(cal.metrics.agreement * 100) + "%"} ·
+      safety deductions missed ${cal.metrics.safety_misses} · false safety flags ${cal.metrics.false_flags}</div>` : ""}
+    ${goldHtml || `<p class="muted small">No gold answers yet.</p>`}
+  </div>`;
+}
+function readStationForm() {
+  const v = state.stationDetail.latest;
+  const framework = v.framework.map((f, i) => { const parts = $(`[data-fw="${i}"]`).value.split("|").map((x) => x.trim()).filter(Boolean);
+    return { ...f, prompt: parts[0] || f.prompt, follow_ups: parts.slice(1) }; });
+  const criteria = v.criteria.map((c, i) => ({ competency: c.competency, expected: $(`[data-cexp="${i}"]`).value.trim(),
+    alternatives: $(`[data-calt="${i}"]`).value.split(";").map((x) => x.trim()).filter(Boolean),
+    marks: +$(`[data-cmarks="${i}"]`).value, safety_critical: $(`[data-csafe="${i}"]`).checked, prompted_credit: c.prompted_credit,
+    source_ref: c.source_ref, flagged: c.flagged ? !!($(`[data-cflag="${i}"]`) && $(`[data-cflag="${i}"]`).checked) : false }));
+  return { scenario: $("#stScenario").value.trim(), stages: v.stages, instructions_timed: $("#stTimed").value.trim(),
+    instructions_guided: v.instructions_guided, framework, criteria, model_answer: $("#stModel").value.trim(),
+    time_limit_s: v.time_limit_s, difficulty: v.difficulty, difficulty_dims: v.difficulty_dims, sources: v.sources, pass_mark: v.pass_mark };
+}
+function bindStation() {
+  const id = state.stationId;
+  const act = async (path, body, msg) => { try { await api(path, { method: "POST", body: body || {} }); toast(msg); renderPage(); } catch (e) { toast(e.message, true); } };
+  $("#stSave").onclick = () => act(`/api/stations-studio/stations/${id}/versions`, { content: readStationForm() }, "Saved as a new version (needs approval).");
+  $("#stApprove").onclick = () => { const note = prompt("Approval note (optional): what you checked"); if (note === null) return;
+    act(`/api/stations-studio/stations/${id}/approve`, { note }, "Approved."); };
+  $("#stPublish").onclick = () => confirm("Publish the latest approved version to learners?") && act(`/api/stations-studio/stations/${id}/publish`, {}, "Published.");
+  $("#stSamples").onclick = () => act(`/api/stations-studio/stations/${id}/samples`, {}, "Sample answers written. Mark them below.");
+  $("#stCalibrate").onclick = async () => { $("#stCalibrate").disabled = true; $("#stCalibrate").textContent = "Calibrating…";
+    try { const r = await api(`/api/stations-studio/stations/${id}/calibrate`, { method: "POST", body: {} });
+      toast(r.passed ? "Calibration passed." : "Calibration did not pass.", !r.passed); } catch (e) { toast(e.message, true); } renderPage(); };
+  document.querySelectorAll("[data-savegold]").forEach((b) => (b.onclick = () => {
+    const gid = b.dataset.savegold; const marks = {};
+    document.querySelectorAll(`[data-gold="${gid}"]`).forEach((i) => { marks[i.dataset.crit] = i.value === "" ? null : +i.value; });
+    act(`/api/stations-studio/gold/${gid}/marks`, { marks }, "Marks saved.");
+  }));
+}
+
+async function renderPage() {
+  const el = $("#page"); if (!el) return;
+  setPath(); renderSide();
+  const sc = $("#scroller"); if (sc) sc.scrollTop = 0;
+  try {
+    if (state.route === "overview") el.innerHTML = await overviewView();
+    else if (state.route === "tos") { await ensureDocs(); await loadTree(); el.innerHTML = tosView(); bindTos(); }
+    else if (state.route === "new") { await ensureDocs(); el.innerHTML = await newJobView(); bindNewJob(); }
+    else if (state.route === "monitor") { el.innerHTML = monitorShell(); await loadJobsAll(); renderMonitorLive(); renderJobsTable(); }
+    else if (state.route === "topics") { await ensureDocs(); await loadTree(); el.innerHTML = topicsView(); bindTopics(); }
+    else if (state.route === "sheets") { el.innerHTML = await sheetsView(); bindSheets(); }
+    else if (state.route === "stations") { el.innerHTML = await stationsView(); bindStations(); }
+    else if (state.route === "station") { el.innerHTML = await stationView(); bindStation(); }
+    else if (state.route === "review") { await ensureDocs(); el.innerHTML = reviewShell(); await loadReview(); }
+    else if (state.route === "failures") el.innerHTML = await failuresView();
+    else if (state.route === "settings") el.innerHTML = await settingsView();
+    else go("overview");
+  } catch (e) { el.innerHTML = `<div class="callout bad">${esc(e.message)}</div>`; }
+}
+async function ensureDocs(force = false) {
+  if (!state.docs.length || force) state.docs = await api("/api/documents");
+  if (!state.docs.find((d) => d.id === state.docId)) state.docId = (state.docs.find((d) => d.parse_status === "parsed") || state.docs[0] || {}).id ?? null;
+}
+const docSelect = (id = "docSel") => `<select id="${id}" aria-label="TOS document">${state.docs.map((d) =>
+  `<option value="${d.id}" ${d.id === state.docId ? "selected" : ""}>${esc(d.family)} · ${esc(d.title.replace(/^CPSP FCPS Part I prospectus: /, "FCPS-I: "))}${d.parse_status !== "parsed" ? ` (${d.parse_status.replace("_", " ")})` : ""}</option>`).join("")}</select>`;
+function bindDocSelect(after) { const s = $("#docSel"); if (s) s.onchange = async () => { state.docId = +s.value; store.set("doc", state.docId); state.tree = null; await after(); }; }
+
+/* ── overview ─────────────────────────────────────────────────────────────────── */
+async function overviewView() {
+  const m = await api("/api/overview");
+  const progRow = (label, hint, p, cls = "") => `<div class="prog"><div class="lbl">${label}<small>${hint}</small></div>${bar(p, cls)}<div class="num">${pctTxt(p)}</div></div>`;
+  setTimeout(bindOmni, 0);
+  return `<section class="hero"><h1>What do you want to seed?</h1><p>Search every topic in the loaded Tables of Specifications, or pick up where a job left off.</p>
+    <div class="omni"><label class="omni-box">${svg("search")}<input id="omniQ" type="search" placeholder="Search a topic, e.g. renal physiology, pre-eclampsia, brachial plexus" autocomplete="off" aria-label="Search TOS topics"></label>
+      <div id="omniRes"></div></div></section>
+  <div class="stack">
+    <p class="sub" style="margin:0 0 -6px">Every number below is counted from saved records each time this page loads: job batches, every generated question and its outcome, notes, and the questions still in the bank.</p>
+    <div class="panel panel-pad"><div class="ledger">
+      <section><h3>Questions</h3><dl>
+        <div class="ln big"><dt>Planned (bank target)</dt><dd>${fmt(m.planned)}</dd></div>
+        <div class="ln"><dt>Generated</dt><dd>${fmt(m.generated)}</dd></div>
+        <div class="ln"><dt>Validated (unique)</dt><dd>${fmt(m.validated)}</dd></div>
+        <div class="ln big"><dt>Inserted in the bank</dt><dd>${fmt(m.inserted)}</dd></div>
+        <div class="ln"><dt>Remaining to insert</dt><dd>${fmt(m.remaining)}</dd></div></dl></section>
+      <section><h3>Not counted as output</h3><dl>
+        <div class="ln neg"><dt>Rejected in validation</dt><dd>${fmt(m.rejected)}</dd></div>
+        <div class="ln neg"><dt>Rejected as duplicates</dt><dd>${fmt(m.duplicate)}</dd></div>
+        <div class="ln neg"><dt>Failed generation attempts</dt><dd>${fmt(m.failed_attempts)}</dd></div></dl>
+        <h3 style="margin-top:14px">Revision notes</h3><dl>
+        <div class="ln"><dt>Planned</dt><dd>${fmt(m.notes_planned)}</dd></div>
+        <div class="ln"><dt>Completed</dt><dd>${fmt(m.notes_done)}</dd></div></dl></section>
+      <section><h3>Scope</h3><dl>
+        <div class="ln"><dt>TOS documents loaded</dt><dd>${fmt(m.documents)} <span class="muted small">(${m.documents_parsed} fully read)</span></dd></div>
+        <div class="ln"><dt>Examinations / papers</dt><dd>${fmt(m.examinations)}</dd></div>
+        <div class="ln"><dt>Specialties</dt><dd>${fmt(m.specialties)}</dd></div>
+        <div class="ln"><dt>TOS units (topics)</dt><dd>${fmt(m.units)}</dd></div>
+        <div class="ln"><dt>Active jobs</dt><dd>${fmt(m.active_jobs)}</dd></div></dl></section>
+    </div></div>
+    <div class="panel panel-pad"><h2>Progress</h2>
+      ${progRow("Overall pipeline", "inserted questions + finished notes, of everything planned", m.overall_pct, "ok")}
+      ${progRow("MCQ generation", "generated, capped per topic, of planned", m.generation_pct)}
+      ${progRow("MCQ validation", "validated unique, capped per topic, of planned", m.validation_pct)}
+      ${progRow("Database insertion", "inserted and still in the bank, of planned", m.insertion_pct, "ok")}
+      ${progRow("Revision notes", "leaves with a current note, of leaves", m.notes_pct, "run")}
+      ${progRow("TOS topic coverage", "topics with at least one inserted question", m.coverage_pct, "warn")}
+      <p class="small muted" style="margin:8px 0 0">Each topic counts at most its own target, so an over-full topic never makes another look done. Planned uses each document's multiplier (internal bank target, not an exam requirement).</p></div>
+    <div class="panel"><div class="panel-pad" style="padding-bottom:6px"><h2>Documents</h2></div><div class="tablewrap"><table>
+      <thead><tr><th>Document</th><th>Read</th><th class="num">Planned</th><th class="num">Validated</th><th class="num">Inserted</th><th class="num">Notes</th><th style="width:180px">Inserted %</th></tr></thead>
+      <tbody>${m.per_document.map((d) => `<tr><td><a href="#tos" data-doc="${d.id}">${esc(d.title)}</a> <span class="muted small">${esc(d.family)}</span></td>
+        <td>${pill(d.parse_status, d.parse_status.replace("_", " "))}</td>
+        ${d.summary ? `<td class="num">${fmt(d.summary.planned)}</td><td class="num">${fmt(d.summary.validated)}</td><td class="num">${fmt(d.summary.inserted)}</td><td class="num">${fmt(d.summary.notes_done)}/${fmt(d.summary.notes_planned)}</td><td>${bar(d.summary.insertion_pct, "ok")}</td>`
+          : `<td colspan="5" class="muted">Not read yet: open it in the TOS explorer and read it.</td>`}</tr>`).join("")}</tbody></table></div></div>
+    ${m.jobs.length ? `<div class="panel panel-pad"><h2>Active jobs</h2>${m.jobs.map((j) => `<div class="row" style="padding:6px 0;border-bottom:1px dashed var(--line)"><span class="mono">${esc(j.id)}</span>${pill(j.status)}<span class="grow">${esc(j.scope)}</span><span class="num">${fmt(j.inserted)} inserted</span><a class="btn sm" href="#monitor">Monitor</a></div>`).join("")}</div>` : ""}
+  </div>`;
+}
+document.addEventListener("click", (e) => { const a = e.target.closest("[data-doc]"); if (a) { state.docId = +a.dataset.doc; store.set("doc", state.docId); state.tree = null; } });
+
+let omniTimer = 0;
+function bindOmni() {
+  const q = $("#omniQ"); if (!q) return;
+  q.oninput = () => { clearTimeout(omniTimer); omniTimer = setTimeout(async () => {
+    const v = q.value.trim(); const out = $("#omniRes"); if (!out) return;
+    if (v.length < 2) { out.innerHTML = ""; return; }
+    try { const r = await api(`/api/search?q=${encodeURIComponent(v)}`);
+      out.innerHTML = r.length ? `<div class="omni-results">${r.map((n) => `<div class="lrow">
+          <div class="omni-txt"><span class="t">${esc(n.name)}</span><span class="chip" title="${esc(n.path)}">${esc(n.where)}</span></div>
+          <span class="acts"><span class="muted small">${fmt(n.planned)} planned · ${fmt(n.inserted)} in</span>
+          <button class="btn sm" data-oexp="${n.document_id}:${n.id}">Open</button><button class="btn sm primary" data-oseed="${n.document_id}:${n.id}">Seed…</button></span></div>`).join("")}</div>`
+        : `<div class="omni-results"><div class="empty">No topic matches “${esc(v)}”.</div></div>`;
+    } catch (e) { out.innerHTML = `<div class="callout bad">${esc(e.message)}</div>`; } }, 180); };
+  $("#omniRes").onclick = (e) => {
+    const s1 = e.target.closest("[data-oseed]"), x = e.target.closest("[data-oexp]");
+    if (s1) { const [d, n] = s1.dataset.oseed.split(":").map(Number); state.docId = d; store.set("doc", d); state.tree = null; state.wizard = { document_id: d, scope_node_id: n }; state.preview = null; go("new"); }
+    if (x) { const [d, n] = x.dataset.oexp.split(":").map(Number); state.docId = d; store.set("doc", d); state.tree = null; state.treeFilter = ""; state.expanded.add(n); state.focusNode = n; go("tos"); }
+  };
+}
+
+/* ── TOS explorer ─────────────────────────────────────────────────────────────── */
+async function loadTree() { if (!state.docId) { state.tree = null; return; } state.tree = await api(`/api/documents/${state.docId}/tree`); }
+function tosView() {
+  if (!state.docs.length) return `<div class="head"><h1>TOS explorer</h1></div><div class="panel empty">No TOS documents found under data/. <button class="btn" id="regBtn">Look again</button></div>`;
+  const t = state.tree; const d = t?.document; const s = t?.summary;
+  const parsing = d && (d.parse_status === "parsing");
+  const pagesRead = d ? (d.pages.done || 0) + (d.pages.skipped || 0) : 0;
+  return `<div class="head"><div><h1>TOS explorer</h1><p class="sub">Examination family → paper → specialty → subject → topic → sub-topic. <b>Official</b> counts are transcribed from the document; targets marked <span class="src">derived</span> share a printed count, <span class="src internal">internal</span> ones stand in where the document prints none.</p></div>
+    <div class="row">${docSelect()}<button class="btn" id="regBtn" title="Register new PDFs placed under data/">Find new PDFs</button><button class="btn" id="jsonBtn" title="Rebuild every document that has a curated JSON file in data/">Rebuild from curated JSON</button></div></div>
+  ${d ? `<div class="panel panel-pad" style="margin-bottom:16px"><div class="row" style="align-items:flex-start;gap:24px">
+      <div class="grow"><div style="font-weight:600">${esc(d.title)}</div>
+        <div class="small muted">${esc(d.version || "")} · ${d.page_count} pages · <a href="/api/documents/${d.id}/pdf" target="_blank" rel="noopener">open PDF</a>${d.source_url ? ` · <a href="${esc(d.source_url)}" target="_blank" rel="noopener">source</a>` : ""}${d.has_counts ? "" : " · <b>prints no MCQ counts</b>"}${(d.parse_method || "").startsWith("curated") ? ` · <b>tree from ${esc(d.parse_method)}</b>; page readings kept for reference` : ""}</div>
+        <div class="row small" style="margin-top:8px">${pill(d.parse_status, d.parse_status.replace("_", " "))}
+          <span class="muted">${pagesRead}/${d.page_count} pages read${d.pages.failed ? `, <b style="color:var(--bad)">${d.pages.failed} failed</b>` : ""}${d.parse_method ? ` · ${esc(d.parse_method)}` : ""}</span></div>
+        ${parsing ? `<div style="margin-top:8px;max-width:420px">${bar(100 * pagesRead / d.page_count, "run")}</div>` : ""}
+        ${d.parse_error ? `<div class="callout bad small" style="margin-top:8px">${esc(d.parse_error)}</div>` : ""}</div>
+      <div class="row"><label class="field">Multiplier<small>× official count</small><input type="number" step="0.5" min="0.5" max="20" id="mult" value="${d.multiplier}"></label>
+        <label class="field">Base per topic<small>where none printed</small><input type="number" min="0" max="50" id="base" value="${d.base_per_topic}"></label>
+        <button class="btn" id="saveTargets" style="align-self:flex-end">Save targets</button></div>
+      <div class="row" style="align-self:flex-end">${parsing ? `<span class="muted small"><span class="spin"></span> reading pages…</span>` :
+        `<button class="btn ${d.parse_status === "not_parsed" ? "primary" : ""}" id="parseBtn">${d.parse_status === "not_parsed" ? "Read this document" : d.pages.failed ? "Retry failed pages" : "Read missing pages"}</button>
+         ${d.parse_status !== "not_parsed" ? `<button class="btn ghost" id="reparseBtn">Re-read all</button>` : ""}`}</div></div>
+      ${s ? `<div class="row small" style="margin-top:12px;gap:22px"><span>Planned <b class="mono">${fmt(s.planned)}</b></span><span>Validated <b class="mono">${fmt(s.validated)}</b></span><span>Inserted <b class="mono">${fmt(s.inserted)}</b></span><span>Topics <b class="mono">${fmt(s.units)}</b></span><span>Notes <b class="mono">${fmt(s.notes_done)}/${fmt(s.notes_planned)}</b></span><span>Coverage <b class="mono">${pctTxt(s.coverage_pct)}</b></span></div>` : ""}
+    </div>` : ""}
+  ${t && t.nodes.length ? `<div class="panel"><div class="panel-pad row" style="padding-bottom:10px">
+      <input type="search" id="treeQ" placeholder="Search topics and sub-topics…" value="${esc(state.treeFilter)}" style="width:min(360px,100%)">
+      <button class="btn sm" id="expandAll">Expand all</button><button class="btn sm" id="collapseAll">Collapse</button>
+      <span class="grow"></span><span class="small muted">Rows marked ⚠ have counts that do not add up or no printed count: check the source page.</span></div>
+    <div class="tablewrap"><table id="treeTbl"><thead><tr><th>Item</th><th class="num" title="As printed in the TOS">Official</th><th class="num">Planned</th><th class="num">Generated</th><th class="num">Validated</th><th class="num">Inserted</th><th class="num">Rejected</th><th class="num">Notes</th><th>Status</th><th>Source</th><th></th></tr></thead>
+    <tbody>${treeRows()}</tbody></table></div></div>` : d && d.parse_status !== "parsing" ? `<div class="panel empty">This document has not been read into topics yet.</div>` : ""}`;
+}
+function treeRows() {
+  const t = state.tree; const nodes = t.nodes; const byParent = {};
+  nodes.forEach((n) => (byParent[n.parent_id] = byParent[n.parent_id] || []).push(n));
+  const q = state.treeFilter.trim().toLowerCase(); const keep = new Set();
+  if (q) { const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+    nodes.forEach((n) => { if (n.name.toLowerCase().includes(q)) { let a = n; while (a) { keep.add(a.id); a = byId[a.parent_id]; } } }); }
+  const out = [];
+  const walk = (n, depth) => {
+    if (q && !keep.has(n.id)) return;
+    const kids = byParent[n.id] || []; const open = q ? true : state.expanded.has(n.id) || depth < 1;
+    out.push(`<tr data-id="${n.id}"><td><div class="tree-name" style="padding-left:${depth * 16}px">
+      ${kids.length ? `<button class="tree-toggle" data-tog="${n.id}" aria-label="${open ? "Collapse" : "Expand"} ${esc(n.name)}" aria-expanded="${open}">${open ? "▾" : "▸"}</button>` : '<span style="width:18px"></span>'}
+      <span>${n.ambiguous ? `<span title="${esc(n.ambiguity_note || "")}" style="color:var(--warn)">⚠ </span>` : ""}${esc(n.name)}<span class="lvl">${n.level}</span>
+      ${n.detail ? `<div class="small muted" style="max-width:520px">${esc(n.detail)}</div>` : ""}
+      ${n.count_note ? `<div class="small muted">${esc(n.count_note)}</div>` : ""}</span></div></td>
+      <td class="num">${n.official_count ?? '<span class="muted">—</span>'}</td>
+      <td class="num">${fmt(n.planned)}${n.planned_source !== "rollup" ? `<span class="src ${n.planned_source}" title="${esc(n.planned_note || "")}">${n.planned_source}</span>` : ""}</td>
+      <td class="num">${fmt(n.generated)}</td><td class="num">${fmt(n.validated)}</td><td class="num">${fmt(n.inserted)}</td><td class="num">${fmt(n.rejected + n.duplicate)}</td>
+      <td class="num">${n.notes_planned ? `${n.notes_done}/${n.notes_planned}` : "—"}</td>
+      <td>${n.status ? pill(n.status) : ""}${n.difficulty_flag ? `<div class="small" style="color:var(--warn)">${esc(n.difficulty_flag)}</div>` : ""}</td>
+      <td>${n.page_no ? `<button class="btn sm ghost" data-page="${n.page_no}">p.${n.page_no}</button>` : ""}</td>
+      <td class="row" style="flex-wrap:nowrap"><button class="btn sm" data-seed="${n.id}">Seed…</button><button class="btn sm ghost" data-edit="${n.id}" title="Target override or count correction">Edit</button></td></tr>`);
+    if (open) kids.forEach((k) => walk(k, depth + 1));
+  };
+  (byParent[null] || []).forEach((r) => walk(r, 0));
+  return out.join("") || `<tr><td colspan="11" class="empty">Nothing matches.</td></tr>`;
+}
+function bindTos() {
+  bindDocSelect(async () => { await loadTree(); renderPage(); });
+  $("#regBtn") && ($("#regBtn").onclick = async () => { const r = await api("/api/documents/register", { method: "POST" }); toast(`${r.added} new document(s).`); await ensureDocs(true); renderPage(); });
+  $("#jsonBtn") && ($("#jsonBtn").onclick = async () => {
+    try { const r = await api("/api/documents/import-json", { method: "POST" });
+      toast(`${r.imported.length} document(s) rebuilt from curated JSON${r.unmatched.length ? `; not matched: ${r.unmatched.join(", ")}` : ""}.`, !!r.unmatched.length);
+      state.tree = null; await ensureDocs(true); renderPage(); } catch (e) { toast(e.message, true); } });
+  const parse = async (restart) => { if (restart && !confirm("Re-read every page from scratch? Targets you set are kept; the page readings are replaced.")) return;
+    try { await api(`/api/documents/${state.docId}/parse`, { method: "POST", body: { restart } }); toast("Reading pages in the background."); await ensureDocs(true); setTimeout(renderPage, 400); } catch (e) { toast(e.message, true); } };
+  $("#parseBtn") && ($("#parseBtn").onclick = () => parse(false));
+  $("#reparseBtn") && ($("#reparseBtn").onclick = () => parse(true));
+  $("#saveTargets") && ($("#saveTargets").onclick = async () => {
+    try { await api(`/api/documents/${state.docId}`, { method: "PATCH", body: { multiplier: +$("#mult").value, base_per_topic: +$("#base").value } });
+      toast("Targets saved; the change is in the audit log."); await loadTree(); renderPage(); } catch (e) { toast(e.message, true); } });
+  if (state.focusNode) { const r = document.querySelector(`#treeTbl tr[data-id="${state.focusNode}"]`);
+    if (r) { r.scrollIntoView({ block: "center" }); r.style.background = "var(--accent-soft)"; } state.focusNode = null; }
+  const q = $("#treeQ"); if (q) q.oninput = () => { state.treeFilter = q.value; $("#treeTbl tbody").innerHTML = treeRows(); };
+  $("#expandAll") && ($("#expandAll").onclick = () => { state.tree.nodes.forEach((n) => state.expanded.add(n.id)); store.set("expanded", [...state.expanded]); $("#treeTbl tbody").innerHTML = treeRows(); });
+  $("#collapseAll") && ($("#collapseAll").onclick = () => { state.expanded.clear(); store.set("expanded", []); $("#treeTbl tbody").innerHTML = treeRows(); });
+  const tbl = $("#treeTbl");
+  tbl && (tbl.onclick = (e) => {
+    const tog = e.target.closest("[data-tog]"); if (tog) { const id = +tog.dataset.tog; state.expanded.has(id) ? state.expanded.delete(id) : state.expanded.add(id); store.set("expanded", [...state.expanded]); $("#treeTbl tbody").innerHTML = treeRows(); return; }
+    const pg = e.target.closest("[data-page]"); if (pg) return showPage(+pg.dataset.page);
+    const sd = e.target.closest("[data-seed]"); if (sd) { state.wizard = { document_id: state.docId, scope_node_id: +sd.dataset.seed }; state.preview = null; go("new"); return; }
+    const ed = e.target.closest("[data-edit]"); if (ed) editNode(state.tree.nodes.find((n) => n.id === +ed.dataset.edit));
+  });
+}
+async function showPage(p) {
+  const d = state.tree.document; let rows = null;
+  try { rows = await api(`/api/documents/${d.id}/pages/${p}`); } catch { /* page not read */ }
+  dialog(`Source · page ${p}`, `<div class="row" style="align-items:flex-start;gap:16px"><img src="/api/documents/${d.id}/page/${p}.png" alt="Page ${p} of the TOS" style="max-width:min(560px,100%);border:1px solid var(--line);border-radius:6px">
+    <div class="grow small" style="min-width:240px"><b>What was read from this page</b>${rows ? `<div class="muted">${esc(rows.model || "")}</div><table style="margin-top:6px"><tbody>${rows.rows.map((r) =>
+      `<tr><td>${esc([r.subject, r.topic, r.subtopic].filter(Boolean).join(" › ") || r.paper || "")}</td><td class="num">${r.count ?? ""}</td></tr>`).join("")}</tbody></table>` : '<div class="muted">Not read yet.</div>'}</div></div>
+    <a href="/api/documents/${d.id}/pdf#page=${p}" target="_blank" rel="noopener">Open the PDF at this page</a>`, null, true);
+}
+function editNode(n) {
+  dialog(`Edit · ${n.name}`, `<p class="small muted" style="margin:0">${esc(n.path)}</p>
+    <label class="field">Planned target override<small>Replaces the calculated target (${n.planned}, ${n.planned_source}). Leave empty to keep it.</small><input type="number" min="0" id="ovr" value="${n.target_override ?? ""}"></label>
+    <label class="field">Correct the official count<small>Only to fix a mis-read: say what the source page shows.</small><input type="number" min="0" id="cnt" value="${n.official_count ?? ""}"></label>
+    <label class="field">Reason<input type="text" id="why" placeholder="e.g. page 31 prints MCQs-3"></label>
+    ${n.ambiguity_note ? `<div class="callout warn small">${esc(n.ambiguity_note)}</div>` : ""}`,
+  async () => {
+    const body = { reason: $("#why").value }; const o = $("#ovr").value, c = $("#cnt").value;
+    if (o === "" && n.target_override !== null) body.clear_override = true; else if (o !== "") body.target_override = +o;
+    if (c !== "" && +c !== n.official_count) body.official_count = +c;
+    await api(`/api/nodes/${n.id}`, { method: "PATCH", body }); toast("Saved to the audit log."); await loadTree(); renderPage();
+  });
+}
+
+/* ── new job wizard ───────────────────────────────────────────────────────────── */
+const DEFAULT_DIFF = { 1: 10, 2: 25, 3: 35, 4: 20, 5: 10 };
+async function newJobView() {
+  const w = state.wizard = { document_id: state.docId, scope_node_id: null, multiplier: 5, notes: true, regenerate_notes: false, difficulty: { ...DEFAULT_DIFF },
+    batch_size: 5, max_retries: 3, options: 5, dup_stem_cosine: 0.9, require_grounding: true, require_rationales: true, publish_on_insert: false, dry_run: false, ...(state.wizard || {}) };
+  if (w.document_id !== state.docId || !state.tree) { state.docId = w.document_id || state.docId; await loadTree(); }
+  const nodes = state.tree?.nodes || [];
+  const scopeOpts = nodes.filter((n) => ["family", "paper", "specialty", "subject", "topic"].includes(n.level)).map((n) =>
+    `<option value="${n.id}" ${n.id === w.scope_node_id ? "selected" : ""}>${"  ".repeat(["family", "paper", "specialty", "subject", "topic"].indexOf(n.level))}${esc(n.name)} (${n.level}, ${n.planned})</option>`).join("");
+  const p = state.preview;
+  return `<div class="head"><div><h1>New seeding job</h1><p class="sub">Choose a scope and settings, preview exactly what would run, then confirm. Nothing is generated or written before you start it; a dry run only saves the manifest.</p></div></div>
+  <div class="cols" style="grid-template-columns:minmax(320px,420px) 1fr;align-items:start">
+    <div class="panel panel-pad stack" id="wiz">
+      <label class="field">TOS document${docSelect()}</label>
+      <label class="field">Scope<small>An examination, paper, specialty, subject or topic</small><select id="scope"><option value="">Choose…</option>${scopeOpts}</select></label>
+      <div class="field">Bank target<div class="row" style="align-items:center;gap:8px"><div class="seg" role="radiogroup">${[1, 2, 5, 10].map((m) => `<button type="button" data-mult="${m}" class="${+w.multiplier === m ? "on" : ""}" role="radio" aria-checked="${+w.multiplier === m}">${m}×${m === 5 ? " initial" : m === 10 ? " expanded" : ""}</button>`).join("")}</div>
+        <label class="field" style="gap:2px;flex-direction:row;align-items:center"><input type="number" id="multIn" step="0.5" min="0.5" max="20" value="${w.multiplier}" style="width:72px" aria-label="Custom multiplier"> ×</label></div>
+        <small>Any value from 0.5× to 20× the official count (type your own or pick a preset). An internal bank target, not an exam requirement.</small></div>
+      <div class="field">Difficulty distribution (%)<div class="row">${[1, 2, 3, 4, 5].map((d) => `<label class="field" style="gap:2px">L${d}<input type="number" min="0" max="100" data-diff="${d}" value="${w.difficulty[d] ?? 0}" style="width:62px"></label>`).join("")}</div></div>
+      <div class="row"><label class="field">Batch size<input type="number" id="bs" min="1" max="10" value="${w.batch_size}"></label>
+        <label class="field">Max retries<input type="number" id="mr" min="0" max="8" value="${w.max_retries}"></label>
+        <label class="field">Options<select id="opt"><option value="5" ${w.options == 5 ? "selected" : ""}>A–E</option><option value="4" ${w.options == 4 ? "selected" : ""}>A–D</option></select></label>
+        <label class="field">Duplicate threshold<input type="number" id="dup" step="0.01" min="0.8" max="0.98" value="${w.dup_stem_cosine}"></label></div>
+      <label class="check"><input type="checkbox" id="g" ${w.require_grounding ? "checked" : ""}><span>Require textbook support<br><small class="muted">Reject a question whose cited passage does not state the keyed answer.</small></span></label>
+      <label class="check"><input type="checkbox" id="r" ${w.require_rationales ? "checked" : ""}><span>Require a rationale for every distractor</span></label>
+      <label class="check"><input type="checkbox" id="n" ${w.notes ? "checked" : ""}><span>Revision notes for every leaf in scope<br><small class="muted">One note per sub-topic (or topic without sub-topics); existing notes are kept.</small></span></label>
+      <label class="check"><input type="checkbox" id="rn" ${w.regenerate_notes ? "checked" : ""}><span>Regenerate existing notes <small class="muted">(approved notes are never replaced)</small></span></label>
+      <label class="check"><input type="checkbox" id="pub" ${w.publish_on_insert ? "checked" : ""}><span>Publish to students on insert<br><small class="muted">Off: inserted as held for review; you approve them in Review.</small></span></label>
+      <label class="check"><input type="checkbox" id="dry" ${w.dry_run ? "checked" : ""}><span>Dry run: save the target manifest only</span></label>
+      <div class="row"><button class="btn" id="previewBtn">Preview plan</button><span class="grow"></span>
+        <button class="btn primary" id="startBtn" ${p ? "" : "disabled"}>${w.dry_run ? "Save dry-run manifest" : "Start job…"}</button></div>
+    </div>
+    <div id="previewPane">${p ? previewView(p) : `<div class="panel empty">Preview the plan to see topics, targets, difficulty allocation, batches, evidence readiness and the estimated cost.</div>`}</div>
+  </div>`;
+}
+function previewView(p) {
+  const maxD = Math.max(1, ...Object.values(p.allocation_by_difficulty));
+  return `<div class="stack"><div class="panel panel-pad"><h2>Plan for ${esc(p.scope.path)}</h2>
+    <div class="ledger"><section><dl>
+      <div class="ln"><dt>Topics (units)</dt><dd>${fmt(p.topics)}</dd></div>
+      <div class="ln"><dt>Bank target in scope</dt><dd>${fmt(p.target_questions)}</dd></div>
+      <div class="ln"><dt>Already validated</dt><dd>${fmt(p.have_questions)}</dd></div>
+      <div class="ln big"><dt>Questions to generate</dt><dd>${fmt(p.need_questions)}</dd></div></dl></section>
+    <section><dl><div class="ln"><dt>Question batches</dt><dd>${fmt(p.batches)}</dd></div>
+      <div class="ln"><dt>Revision notes to write</dt><dd>${fmt(p.notes_need)} <span class="muted small">of ${fmt(p.notes_planned)}</span></dd></div>
+      <div class="ln"><dt>Estimated tokens</dt><dd>${fmt(p.estimated_tokens.input)} in · ${fmt(p.estimated_tokens.output)} out</dd></div>
+      <div class="ln"><dt>Estimated cost</dt><dd>${p.estimated_cost_usd === null ? '<span class="muted small">set SEED_STUDIO_PRICE_IN/OUT</span>' : "$" + p.estimated_cost_usd.toFixed(2)}</dd></div></dl></section>
+    <section><h3>New questions by difficulty</h3><div class="diffbars" style="margin-top:22px">${[1, 2, 3, 4, 5].map((d) => `<div style="height:${100 * p.allocation_by_difficulty[d] / maxD}%"><span>${p.allocation_by_difficulty[d]}</span></div>`).join("")}</div><div class="difflabels">${[1, 2, 3, 4, 5].map((d) => `<span>L${d}</span>`).join("")}</div></section></div>
+    ${p.missing_evidence.length ? `<div class="callout warn" style="margin-top:12px"><b>${p.missing_evidence.length} topic(s) have no matching textbook passages</b> (quick full-text check). Their batches will likely fail with “insufficient evidence”: <span class="small">${p.missing_evidence.slice(0, 8).map(esc).join("; ")}${p.missing_evidence.length > 8 ? "…" : ""}</span></div>` : `<div class="callout small" style="margin-top:12px">Every topic in scope matches textbook passages (quick full-text check).</div>`}
+    ${p.ambiguous.length ? `<div class="callout warn" style="margin-top:8px"><b>${p.ambiguous.length} ambiguous TOS entr${p.ambiguous.length === 1 ? "y" : "ies"}</b> in scope: <span class="small">${p.ambiguous.slice(0, 6).map((a) => `${esc(a.path.split(" > ").slice(-2).join(" › "))}: ${esc(a.note || "")}`).join("; ")}</span></div>` : ""}
+    ${p.need_questions === 0 && p.notes_need === 0 ? `<div class="callout" style="margin-top:8px">Nothing to do: every topic in scope already has its target and every leaf a note.</div>` : ""}
+  </div>
+  <div class="panel"><div class="tablewrap" style="max-height:46vh"><table><thead><tr><th>Topic</th><th class="num">Planned</th><th class="num">Have</th><th class="num">Need</th><th class="num">Batches</th><th class="num">Sub-topics</th><th class="num" title="Passages matching the topic name">Evidence</th></tr></thead><tbody>
+    ${p.units.map((u) => `<tr><td>${u.ambiguous ? '<span style="color:var(--warn)">⚠ </span>' : ""}${esc(u.path.split(" > ").slice(-2).join(" › "))}</td><td class="num">${u.planned}<span class="src ${u.planned_source}">${u.planned_source}</span></td><td class="num">${u.have}</td><td class="num">${u.need}</td><td class="num">${u.batches}</td><td class="num">${u.subtopics}</td><td class="num" style="${u.evidence === 0 ? "color:var(--bad)" : ""}">${u.evidence === null ? "—" : u.evidence >= 20 ? "20+" : u.evidence}</td></tr>`).join("")}</tbody></table></div></div></div>`;
+}
+function readWizard() {
+  const w = state.wizard;
+  w.document_id = +$("#docSel").value; w.scope_node_id = +$("#scope").value || null;
+  document.querySelectorAll("[data-diff]").forEach((i) => (w.difficulty[i.dataset.diff] = +i.value || 0));
+  w.batch_size = +$("#bs").value; w.max_retries = +$("#mr").value; w.options = +$("#opt").value; w.dup_stem_cosine = +$("#dup").value;
+  w.require_grounding = $("#g").checked; w.require_rationales = $("#r").checked; w.notes = $("#n").checked; w.regenerate_notes = $("#rn").checked;
+  w.publish_on_insert = $("#pub").checked; w.dry_run = $("#dry").checked;
+  const m = +$("#multIn").value;
+  if (Number.isFinite(m) && m > 0) w.multiplier = Math.min(20, Math.max(0.5, Math.round(m * 2) / 2));
+  const { document_id, scope_node_id, dry_run, ...config } = w;
+  return { document_id, scope_node_id, dry_run, config };
+}
+function bindNewJob() {
+  bindDocSelect(async () => { state.wizard.document_id = state.docId; state.wizard.scope_node_id = null; state.preview = null; await loadTree(); renderPage(); });
+  document.querySelectorAll("[data-mult]").forEach((b) => (b.onclick = () => { $("#multIn").value = b.dataset.mult; readWizard(); state.preview = null; renderPage(); }));
+  // A typed value lights up the matching preset (if any) without re-rendering the form under the cursor.
+  $("#multIn").oninput = () => document.querySelectorAll("[data-mult]").forEach((b) => {
+    const on = +b.dataset.mult === +$("#multIn").value; b.classList.toggle("on", on); b.setAttribute("aria-checked", on);
+  });
+  $("#wiz").addEventListener("change", (e) => { if (e.target.id !== "docSel") { readWizard(); if (state.preview) { state.preview = null; $("#startBtn").disabled = true; $("#previewPane").innerHTML = `<div class="panel empty">Settings changed: preview again.</div>`; } } });
+  $("#dry").onchange = () => { readWizard(); $("#startBtn").textContent = state.wizard.dry_run ? "Save dry-run manifest" : "Start job…"; };
+  $("#previewBtn").onclick = async () => {
+    const req = readWizard(); if (!req.scope_node_id) return toast("Choose a scope first.", true);
+    $("#previewPane").innerHTML = `<div class="panel empty"><span class="spin"></span> Working out the plan…</div>`;
+    try { state.preview = await api("/api/jobs/preview", { method: "POST", body: req }); $("#previewPane").innerHTML = previewView(state.preview); $("#startBtn").disabled = false; }
+    catch (e) { $("#previewPane").innerHTML = `<div class="callout bad">${esc(e.message)}</div>`; }
+  };
+  $("#startBtn").onclick = () => {
+    const req = readWizard(); const p = state.preview; if (!p) return;
+    const total = p.batches + p.notes_need;
+    if (req.dry_run) return submitJob({ ...req, confirm: false, expected_batches: total });
+    if (!total) return toast("Nothing to do for this scope.", true);
+    dialog("Start this job?", `<p style="margin:0">This will run <b>${fmt(p.batches)}</b> question batches (<b>${fmt(p.need_questions)}</b> questions) and <b>${fmt(p.notes_need)}</b> revision notes for <b>${esc(p.scope.path)}</b>.</p>
+      <p class="small muted" style="margin:0">It calls the AI provider (about ${fmt(p.estimated_tokens.input + p.estimated_tokens.output)} tokens${p.estimated_cost_usd !== null ? `, ~$${p.estimated_cost_usd.toFixed(2)}` : ""}) and writes to the database. Questions are inserted ${req.config.publish_on_insert ? "<b>published to students</b>" : "held for review"}. You can pause or cancel it from the monitor.</p>
+      <label class="check"><input type="checkbox" id="ack"><span>I have checked the plan and want to start it.</span></label>`,
+      async () => { if (!$("#ack").checked) throw new Error("Tick the box to confirm."); await submitJob({ ...req, confirm: true, expected_batches: total }); }, false, "Start job");
+  };
+}
+async function submitJob(body) {
+  try { const j = await api("/api/jobs", { method: "POST", body }); toast(body.dry_run ? `Manifest saved as ${j.id}.` : `Job ${j.id} queued.`);
+    state.preview = null; state.openJob = j.id; go("monitor"); } catch (e) { toast(e.message, true); throw e; }
+}
+
+/* ── live monitor ─────────────────────────────────────────────────────────────── */
+const STAGES = [["retrieving", "Evidence"], ["generating", "Generate"], ["validating", "Validate"], ["deduplicating", "Duplicates"], ["saving", "Save"]];
+const NOTE_STAGES = [["retrieving", "Evidence"], ["writing_note", "Write note"], ["saving", "Save"]];
+function stageChips(kind, stage) {
+  const list = kind === "note" ? NOTE_STAGES : STAGES; const i = list.findIndex(([k]) => k === stage);
+  return `<div class="stages">${list.map(([k, l], j) => `<span class="stage ${j < i ? "done" : j === i ? "now" : ""}">${l}</span>`).join("")}</div>`;
+}
+function monitorShell() {
+  return `<div class="head"><div><h1>Live monitor</h1><p class="sub">Read from the job records every 2 seconds. Refreshing the page loses nothing: progress is saved per batch.</p></div>
+    <span class="small muted" id="liveAt"></span></div><div class="stack"><div id="liveJobs"></div>
+    <div><div class="row" style="margin:14px 0 14px"><h2 style="margin:0">History</h2><span class="grow"></span><button class="btn sm" id="reloadJobs">Reload</button></div><div id="jobsTable"></div></div>
+    <div id="jobDetail"></div></div>`;
+}
+function renderMonitorLive() {
+  const el = $("#liveJobs"); if (!el || !state.live) return;
+  $("#liveAt").textContent = `updated ${new Date(state.live.at).toLocaleTimeString()} · ${state.live.workers.alive}/${state.live.workers.workers} workers`;
+  const jobs = state.live.jobs;
+  el.innerHTML = jobs.length ? jobs.map(jobCard).join("") : `<div class="panel empty">No job is running. <a href="#new">Start one</a>.</div>`;
+  bindJobButtons(el);
+}
+function jobCard(j) {
+  const totalB = j.mcq_batches + j.note_batches; const doneB = j.mcq_batches_finished + (j.batches["note:done"] || 0) + (j.batches["note:failed"] || 0) + (j.batches["note:cancelled"] || 0);
+  return `<article class="jobcard"><header><span class="mono" style="font-weight:600">${esc(j.id)}</span>${pill(j.status)}<span class="grow">${esc(j.scope)}</span>
+      <span class="small muted">elapsed ${dur(j.elapsed_s)}</span>${jobButtons(j)}</header>
+    <div class="body"><div class="prog" style="grid-template-columns:120px 1fr 90px"><div class="lbl">Batches</div>${bar(totalB ? 100 * doneB / totalB : 0, "run")}<div class="num">${doneB}/${totalB}</div></div>
+      <div class="counters">
+        <div><b>${fmt(j.planned_questions)}</b><span>planned questions</span></div><div><b>${fmt(j.generated)}</b><span>generated</span></div>
+        <div><b>${fmt(j.validated)}</b><span>validated</span></div><div><b style="color:var(--ok)">${fmt(j.inserted)}</b><span>inserted</span></div>
+        <div><b style="color:var(--bad)">${fmt(j.rejected)}</b><span>rejected</span></div><div><b style="color:var(--warn)">${fmt(j.duplicate)}</b><span>duplicates</span></div>
+        <div><b>${fmt(j.notes_done)}/${fmt(j.planned_notes)}</b><span>notes</span></div><div><b>${fmt(j.retries)}</b><span>retries</span></div>
+        <div><b>${fmt(j.failed_attempts)}</b><span>failed attempts</span></div><div><b>${fmt(j.tokens_in + j.tokens_out)}</b><span>tokens${j.cost_usd !== null ? ` · $${j.cost_usd.toFixed(2)}` : ""}</span></div></div>
+      ${j.running && j.running.length ? `<div class="running">${j.running.map((b) => `<div class="runline">
+        <div><div style="font-weight:550">${esc((b.path || "").split(" > ").slice(-3).join(" › "))}</div><div class="small muted">${b.kind === "note" ? "revision note" : `batch ${b.seq + 1} · difficulty ${b.difficulty} · ${b.target} question(s)`} · attempt ${b.attempts} · ${esc(b.worker || "")}</div></div>
+        <div>${stageChips(b.kind, b.stage)}<div class="small muted" style="margin-top:4px">${b.progress.generated !== undefined ? `${b.progress.generated} generated` : ""}${b.progress.validated !== undefined ? ` · ${b.progress.validated} valid so far` : ""}${b.progress.passages ? ` · ${b.progress.passages} passages` : ""}</div></div>
+        <div class="small muted num">${dur(b.elapsed_s)}<br>beat ${ago(b.heartbeat_at)}</div></div>`).join("")}</div>` : ""}
+      ${j.error ? `<div class="callout warn small">${esc(j.error)}</div>` : ""}
+    </div></article>`;
+}
+function jobButtons(j) {
+  const b = [];
+  if (["queued", "running"].includes(j.status)) b.push(`<button class="btn sm" data-act="pause" data-job="${j.id}">Pause</button>`);
+  if (j.status === "paused") b.push(`<button class="btn sm primary" data-act="resume" data-job="${j.id}">Resume</button>`);
+  if (["queued", "running", "paused"].includes(j.status)) b.push(`<button class="btn sm danger" data-act="cancel" data-job="${j.id}">Cancel</button>`);
+  if ((j.batches["mcq:failed"] || 0) + (j.batches["note:failed"] || 0)) b.push(`<button class="btn sm" data-act="retry_failed" data-job="${j.id}">Retry failed</button>`);
+  b.push(`<button class="btn sm ghost" data-open="${j.id}">Batches</button>`);
+  return `<span class="row">${b.join("")}</span>`;
+}
+function bindJobButtons(el) {
+  el.onclick = async (e) => {
+    const a = e.target.closest("[data-act]");
+    if (a) { const act = a.dataset.act;
+      if (act === "cancel" && !confirm("Cancel this job? Pending batches are dropped; a batch already running finishes but its results are discarded.")) return;
+      try { await api(`/api/jobs/${a.dataset.job}/${act}`, { method: "POST" }); toast(`${act.replace("_", " ")}: done.`); await loadJobsAll(); renderJobsTable(); } catch (err) { toast(err.message, true); } return; }
+    const o = e.target.closest("[data-open]"); if (o) { state.openJob = o.dataset.open; showJob(); }
+  };
+}
+async function loadJobsAll() { state.jobsAll = await api("/api/jobs"); }
+function renderJobsTable() {
+  const el = $("#jobsTable"); if (!el) return; const rows = state.jobsAll || [];
+  if (!rows.length) { el.innerHTML = `<div class="empty">No jobs yet. <a href="#new">Start one</a>.</div>`; }
+  else {
+    const days = {};
+    rows.forEach((j) => { const d = new Date((j.created_at || "") + "Z"); const k = d.toDateString(); (days[k] = days[k] || { d, list: [] }).list.push(j); });
+    el.innerHTML = Object.values(days).map(({ d, list }) => `<div class="lgroup"><div class="lgroup-head"><h3>${d.toLocaleDateString(undefined, { weekday: "long" })}, <span>${d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</span></h3><span class="grow"></span><span class="chip">${list.length} job${list.length === 1 ? "" : "s"}</span></div>
+      ${list.map((j) => `<div class="lrow"><span class="time">${new Date(j.created_at + "Z").toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
+        <span class="t" title="${esc(j.scope)}">${esc((j.scope || "").split(" > ").slice(-2).join(" › "))}</span><span class="chip mono">${esc(j.id)}</span>${j.dry_run ? '<span class="chip">dry run</span>' : ""}
+        <span class="acts"><span class="muted small">${fmt(j.inserted)} in · ${fmt(j.rejected + j.duplicate)} out · notes ${fmt(j.notes_done)}/${fmt(j.planned_notes)}</span>${pill(j.status)}${jobButtons(j)}</span></div>`).join("")}</div>`).join("");
+  }
+  bindJobButtons(el); $("#reloadJobs") && ($("#reloadJobs").onclick = async () => { await loadJobsAll(); renderJobsTable(); });
+  if (state.openJob) showJob();
+}
+async function showJob() {
+  const el = $("#jobDetail"); if (!el || !state.openJob) return;
+  const d = await api(`/api/jobs/${state.openJob}`); const j = d.job;
+  el.innerHTML = `<div class="panel"><div class="panel-pad row"><h2 style="margin:0">Job <span class="mono">${esc(j.id)}</span></h2>${pill(j.status)}<span class="grow"></span>
+      <a class="btn sm" href="/api/jobs/${j.id}/manifest" download>Download manifest</a><button class="btn sm ghost" id="closeJob">Close</button></div>
+    <div class="panel-pad small muted" style="padding-top:0">${esc(j.scope)} · target ${j.config.multiplier}× · batch ${j.config.batch_size} · retries ${j.config.max_retries} · ${j.config.require_grounding ? "textbook support required" : "AI-only allowed"} · ${j.config.publish_on_insert ? "publish on insert" : "held for review"}</div>
+    <div class="tablewrap" style="max-height:52vh"><table><thead><tr><th>#</th><th>Kind</th><th>Topic / leaf</th><th class="num">Diff</th><th class="num">Target</th><th>Status</th><th>Stage</th><th class="num">Tries</th><th>Result</th><th>Errors</th></tr></thead><tbody>
+    ${d.batches.map((b) => `<tr><td class="mono">${b.id}</td><td>${b.kind}</td><td>${esc((b.path || "").split(" > ").slice(-2).join(" › "))}</td><td class="num">${b.difficulty ?? ""}</td><td class="num">${b.target}</td><td>${pill(b.status)}</td><td class="small">${esc(b.stage || "")}</td><td class="num">${b.attempts}</td>
+      <td class="small">${b.kind === "mcq" && b.progress.generated !== undefined ? `${b.progress.inserted ?? 0} in · ${b.progress.rejected ?? 0} rej · ${b.progress.duplicate ?? 0} dup` : b.progress.note ? esc(b.progress.note + (b.progress.reason ? ": " + b.progress.reason : "")) : b.progress.skipped ? esc(b.progress.skipped) : b.progress.discarded ? esc(b.progress.discarded) : ""}</td>
+      <td class="small">${b.errors.length ? b.errors.map((e) => `<div><b>${esc(e.kind)}</b> ${esc(e.message)}</div>`).join("") : ""}</td></tr>`).join("") || `<tr><td colspan="10" class="empty">${j.dry_run ? "A dry run has no batches; download its manifest." : "No batches."}</td></tr>`}</tbody></table></div></div>`;
+  $("#closeJob").onclick = () => { state.openJob = null; el.innerHTML = ""; };
+}
+
+/* ── topics table ─────────────────────────────────────────────────────────────── */
+function topicsView() {
+  const f = state.topicFilters; const units = (state.tree?.nodes || []).filter((n) => n.unit);
+  const lineage = (n) => { const parts = n.path.split(" > "); return { exam: parts.slice(0, 2).join(" › "), specialty: state.tree.nodes.find((x) => x.level === "specialty" && n.path.startsWith(x.path + " > "))?.name || "", subject: state.tree.nodes.find((x) => x.level === "subject" && n.path.startsWith(x.path + " > "))?.name || "" }; };
+  const rows = units.map((n) => ({ ...n, ...lineage(n) }));
+  const uniq = (k) => [...new Set(rows.map((r) => r[k]).filter(Boolean))].sort();
+  const sel = (id, label, opts) => `<label class="field">${label}<select id="${id}"><option value="">All</option>${opts.map((o) => `<option ${f[id] === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></label>`;
+  return `<div class="head"><div><h1>Topics</h1><p class="sub">Every TOS unit with its target and outcome. A topic is only complete when its inserted questions reach its target; stopping a job never marks it complete.</p></div><div class="row">${docSelect()}</div></div>
+  <div class="panel"><div class="panel-pad row" style="align-items:flex-end">
+    ${sel("specialty", "Specialty", uniq("specialty"))}${sel("subject", "Subject", uniq("subject"))}${sel("status", "Status", uniq("status"))}
+    <label class="check" style="align-self:center"><input type="checkbox" id="incomplete" ${f.incomplete ? "checked" : ""}>Incomplete only</label>
+    <label class="check" style="align-self:center"><input type="checkbox" id="failedOnly" ${f.failedOnly ? "checked" : ""}>With failures</label>
+    <input type="search" id="tq" placeholder="Search…" value="${esc(f.q || "")}"></div>
+    <div class="tablewrap"><table id="topicTbl"><thead><tr>${[["path", "Topic"], ["specialty", "Specialty"], ["subject", "Subject"], ["official_count", "Official", 1], ["planned", "Planned", 1], ["generated", "Generated", 1], ["validated", "Validated", 1], ["inserted", "Inserted", 1], ["notes_done", "Notes", 1], ["status", "Status"]].map(([k, l, n]) => `<th class="${n ? "num" : ""}" data-sort="${k}">${l}${f.sort === k ? (f.desc ? " ↓" : " ↑") : ""}</th>`).join("")}</tr></thead>
+    <tbody>${topicRows(rows)}</tbody></table></div></div><div id="topicDrill"></div>`;
+}
+function topicRows(rows) {
+  const f = state.topicFilters; const q = (f.q || "").toLowerCase();
+  let r = rows.filter((n) => (!f.specialty || n.specialty === f.specialty) && (!f.subject || n.subject === f.subject) && (!f.status || n.status === f.status)
+    && (!f.incomplete || n.inserted < n.planned) && (!f.failedOnly || n.failed_attempts > 0 || n.status === "Failed") && (!q || n.path.toLowerCase().includes(q)));
+  if (f.sort) r.sort((a, b) => { const x = a[f.sort] ?? "", y = b[f.sort] ?? ""; const c = typeof x === "number" ? x - y : String(x).localeCompare(String(y)); return f.desc ? -c : c; });
+  return r.slice(0, 1500).map((n) => `<tr data-unit="${n.id}" style="cursor:pointer"><td>${esc(n.name)}<div class="small muted">${esc(n.exam)}</div></td><td>${esc(n.specialty)}</td><td>${esc(n.subject)}</td><td class="num">${n.official_count ?? "—"}</td><td class="num">${n.planned}<span class="src ${n.planned_source}">${n.planned_source}</span></td><td class="num">${n.generated}</td><td class="num">${n.validated}</td><td class="num">${n.inserted}</td><td class="num">${n.notes_done}/${n.notes_planned}</td><td>${pill(n.status)}</td></tr>`).join("")
+    || `<tr><td colspan="10" class="empty">No topics match.</td></tr>`;
+}
+function bindTopics() {
+  bindDocSelect(async () => { await loadTree(); renderPage(); });
+  const f = state.topicFilters; const save = () => { store.set("tf", f); renderPage(); };
+  ["specialty", "subject", "status"].forEach((k) => { const s = $("#" + k); if (s) s.onchange = () => { f[k] = s.value; save(); }; });
+  $("#incomplete").onchange = (e) => { f.incomplete = e.target.checked; save(); };
+  $("#failedOnly").onchange = (e) => { f.failedOnly = e.target.checked; save(); };
+  $("#tq").onchange = (e) => { f.q = e.target.value; save(); };
+  $("#topicTbl thead").onclick = (e) => { const th = e.target.closest("[data-sort]"); if (!th) return; f.desc = f.sort === th.dataset.sort ? !f.desc : false; f.sort = th.dataset.sort; save(); };
+  $("#topicTbl tbody").onclick = (e) => { const tr = e.target.closest("[data-unit]"); if (tr) drill(+tr.dataset.unit); };
+}
+async function drill(id) {
+  const n = state.tree.nodes.find((x) => x.id === id); const el = $("#topicDrill");
+  const items = await api(`/api/items?node_id=${id}&limit=200`);
+  const reasons = {}; items.items.filter((i) => ["rejected", "duplicate"].includes(i.status)).forEach((i) => { const k = (i.reason || "").split(":")[0]; reasons[k] = (reasons[k] || 0) + 1; });
+  const vd = n.valid_by_difficulty || {};
+  el.innerHTML = `<div class="panel panel-pad" style="margin-top:16px"><div class="row"><h2 style="margin:0">${esc(n.name)}</h2>${pill(n.status)}<span class="grow"></span>
+      <button class="btn sm" id="drillSeed">Run this topic…</button><a class="btn sm" href="#review" id="drillReview">Review its questions</a>${n.page_no ? `<button class="btn sm ghost" id="drillSrc">TOS p.${n.page_no}</button>` : ""}</div>
+    <p class="small muted">${esc(n.path)}</p>
+    <div class="cols"><div><h3 class="small muted">Why it is ${n.status === "Completed" ? "complete" : "not complete"}</h3>
+      <div class="callout ${n.status === "Failed" ? "bad" : n.status === "Completed" ? "" : "warn"} small">${esc(n.why || (n.status === "Completed" ? "Inserted questions reached the target." : n.status === "Not started" ? "No job has run on this topic yet." : "—"))}</div>
+      ${n.ambiguity_note ? `<div class="callout warn small" style="margin-top:6px">TOS: ${esc(n.ambiguity_note)}</div>` : ""}
+      ${Object.keys(reasons).length ? `<table style="margin-top:8px"><thead><tr><th>Rejected because</th><th class="num">Count</th></tr></thead><tbody>${Object.entries(reasons).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${esc(k || "(no reason)")}</td><td class="num">${v}</td></tr>`).join("")}</tbody></table>` : ""}</div>
+    <div><h3 class="small muted">Validated questions by difficulty</h3><div class="diffbars" style="margin-top:22px">${[1, 2, 3, 4, 5].map((d) => { const m = Math.max(1, ...[1, 2, 3, 4, 5].map((k) => vd[k] || 0)); return `<div style="height:${100 * (vd[d] || 0) / m}%"><span>${vd[d] || 0}</span></div>`; }).join("")}</div><div class="difflabels">${[1, 2, 3, 4, 5].map((d) => `<span>L${d}</span>`).join("")}</div>
+      ${n.difficulty_flag ? `<div class="small" style="color:var(--warn);margin-top:6px">${esc(n.difficulty_flag)}</div>` : ""}</div></div></div>`;
+  $("#drillSeed").onclick = () => { state.wizard = { document_id: state.docId, scope_node_id: id }; state.preview = null; go("new"); };
+  $("#drillReview").onclick = () => { state.review = { ...state.review, node_id: id, status: "", offset: 0 }; };
+  $("#drillSrc") && ($("#drillSrc").onclick = () => showPage(n.page_no));
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ── review ───────────────────────────────────────────────────────────────────── */
+function reviewShell() {
+  const r = state.review;
+  return `<div class="head"><div><h1>Review</h1><p class="sub">Every generated question with its outcome and reasons, and every revision note. Approving publishes a held question to students; flagging takes it back out.</p></div>
+    <div class="seg">${["items", "notes"].map((t) => `<button class="${r.tab === t ? "on" : ""}" data-tab="${t}">${t === "items" ? "Questions" : "Revision notes"}</button>`).join("")}</div></div>
+  <div class="panel panel-pad row" style="margin-bottom:14px;align-items:flex-end">
+    ${r.tab === "items" ? `<label class="field">Outcome<select id="rs">${[["", "All"], ["inserted", "Inserted"], ["validated", "Validated, not inserted"], ["rejected", "Rejected"], ["duplicate", "Duplicate"]].map(([v, l]) => `<option value="${v}" ${r.status === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      <label class="field">Review<select id="rr">${[["", "Any"], ["none", "Not reviewed"], ["flagged", "Flagged"], ["approved", "Approved"]].map(([v, l]) => `<option value="${v}" ${r.review === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>` :
+      `<label class="field">Status<select id="ns"><option value="">All</option><option value="done" ${r.nstatus === "done" ? "selected" : ""}>Written</option><option value="failed" ${r.nstatus === "failed" ? "selected" : ""}>Failed</option></select></label>`}
+    <label class="field">Job<input type="text" id="rj" placeholder="job id" value="${esc(r.job_id || "")}" style="width:150px"></label>
+    ${r.node_id ? `<span class="pill info">Topic #${r.node_id}</span><button class="btn sm ghost" id="clearNode">All topics</button>` : ""}
+    <span class="grow"></span>${r.tab === "items" && (r.node_id || r.job_id) ? `<button class="btn sm" id="approveAll">Approve all unflagged inserted</button>` : ""}</div>
+  <div id="reviewList"><div class="empty"><span class="spin"></span></div></div>`;
+}
+async function loadReview() {
+  const r = state.review; const el = $("#reviewList");
+  document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { r.tab = b.dataset.tab; r.offset = 0; renderPage(); }));
+  $("#rs") && ($("#rs").onchange = (e) => { r.status = e.target.value; r.offset = 0; renderPage(); });
+  $("#rr") && ($("#rr").onchange = (e) => { r.review = e.target.value; r.offset = 0; renderPage(); });
+  $("#ns") && ($("#ns").onchange = (e) => { r.nstatus = e.target.value; r.offset = 0; renderPage(); });
+  $("#rj").onchange = (e) => { r.job_id = e.target.value.trim(); r.offset = 0; renderPage(); };
+  $("#clearNode") && ($("#clearNode").onclick = () => { r.node_id = null; renderPage(); });
+  $("#approveAll") && ($("#approveAll").onclick = async () => { if (!confirm("Publish every inserted, unflagged question in this selection to students?")) return;
+    const res = await api("/api/items/approve_all", { method: "POST", body: { node_id: r.node_id || null, job_id: r.job_id || null } }); toast(`${res.approved} published.`); renderPage(); });
+  const qs = new URLSearchParams({ limit: 30, offset: r.offset }); if (r.node_id) qs.set("node_id", r.node_id); if (r.job_id) qs.set("job_id", r.job_id);
+  if (r.tab === "items") { if (r.status) qs.set("status", r.status); if (r.review) qs.set("review", r.review);
+    const d = await api("/api/items?" + qs); el.innerHTML = d.items.length ? `<div class="stack">${d.items.map(itemCard).join("")}</div>${pager(d.total)}` : `<div class="panel empty">No questions match.</div>`; }
+  else { if (r.nstatus) qs.set("status", r.nstatus);
+    const d = await api("/api/notes?" + qs); el.innerHTML = d.notes.length ? `<div class="stack">${d.notes.map(noteCard).join("")}</div>${pager(d.total)}` : `<div class="panel empty">No notes match.</div>`; }
+  el.onclick = async (e) => {
+    const b = e.target.closest("[data-rev]"); if (b) { const [kind, id, st] = b.dataset.rev.split(":");
+      try { await api(`/api/${kind}/${id}/review`, { method: "POST", body: { state: st } }); toast(st === "approved" ? "Approved." : st === "flagged" ? "Flagged and held back." : "Cleared."); loadReview(); } catch (err) { toast(err.message, true); } return; }
+    const pg = e.target.closest("[data-off]"); if (pg) { r.offset = +pg.dataset.off; loadReview(); }
+  };
+}
+const pager = (total) => { const r = state.review; return `<div class="row" style="margin-top:12px"><span class="small muted">${r.offset + 1}–${Math.min(total, r.offset + 30)} of ${fmt(total)}</span><span class="grow"></span>
+  <button class="btn sm" data-off="${Math.max(0, r.offset - 30)}" ${r.offset ? "" : "disabled"}>Previous</button><button class="btn sm" data-off="${r.offset + 30}" ${r.offset + 30 < total ? "" : "disabled"}>Next</button></div>`; };
+function itemCard(i) {
+  const p = i.payload || {}; const opts = p.options || {}; const cite = (p.citations || [])[0];
+  return `<article class="qcard"><div class="row small">${pill(i.status)}${i.review_state !== "none" ? pill(i.review_state) : ""}${i.mcq_id ? `<span class="muted">MCQ #${i.mcq_id} · ${esc(i.mcq_status || "deleted")}</span>` : ""}
+      <span class="muted">difficulty ${i.difficulty ?? "—"}</span><span class="grow"></span><span class="muted mono">${esc(i.job_id)}</span></div>
+    <div class="small muted">${esc((i.path || "").split(" > ").slice(-3).join(" › "))}${i.subtopic ? ` › <b>${esc(i.subtopic)}</b>` : ""}</div>
+    ${i.reason ? `<div class="callout ${i.status === "rejected" ? "bad" : "warn"} small"><b>${i.status === "duplicate" ? "Duplicate" : "Rejected"}:</b> ${esc(i.reason)}</div>` : ""}
+    <div class="stem">${esc(p.question_text)}</div>
+    <ol>${Object.keys(opts).sort().map((k) => `<li class="${k === p.key ? "key" : ""}"><b>${k}.</b> ${esc(opts[k])}</li>`).join("")}</ol>
+    ${p.explanation ? `<div class="why"><b>Why ${esc(p.key)}:</b> ${esc(p.explanation)}</div>` : ""}
+    ${p.distractor_rationales && Object.keys(p.distractor_rationales).length ? `<details><summary>Distractor rationales</summary><ul class="why">${Object.entries(p.distractor_rationales).map(([k, v]) => `<li><b>${esc(k)}.</b> ${esc(v)}</li>`).join("")}</ul></details>` : ""}
+    ${p.learning_objective ? `<div class="small"><b>Objective:</b> ${esc(p.learning_objective)}</div>` : ""}
+    ${cite ? `<div class="cite">${cite.supported ? "✓ supports the key" : "✗ does not support the key"} · ${esc(cite.book_title || "")}, p.${esc(cite.page_number ?? "")}<div class="muted">${esc((cite.excerpt || "").slice(0, 260))}…</div></div>` : `<div class="cite muted">No source passage cited.</div>`}
+    ${i.status === "inserted" ? `<div class="row"><button class="btn sm ${i.review_state === "approved" ? "" : "primary"}" data-rev="items:${i.id}:approved" ${i.review_state === "approved" ? "disabled" : ""}>Approve & publish</button>
+      <button class="btn sm" data-rev="items:${i.id}:flagged" ${i.review_state === "flagged" ? "disabled" : ""}>Flag</button>${i.review_state !== "none" ? `<button class="btn sm ghost" data-rev="items:${i.id}:none">Clear</button>` : ""}</div>` : ""}
+  </article>`;
+}
+function md(text) {
+  return (text || "").split("\n").map((l) => { const t = esc(l);
+    if (/^#{1,3}\s/.test(l)) return `<h3>${t.replace(/^#+\s/, "")}</h3>`;
+    if (/^\s*[-*]\s/.test(l)) return `<li>${t.replace(/^\s*[-*]\s/, "").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")}</li>`;
+    return t ? `<p style="margin:4px 0">${t}</p>` : ""; }).join("").replace(/(<li>.*?<\/li>)+/g, (m) => `<ul>${m}</ul>`);
+}
+function noteCard(n) {
+  return `<article class="qcard"><div class="row small">${pill(n.status === "done" ? "done" : "failed", n.status === "done" ? "written" : "failed")}${n.review_state !== "none" ? pill(n.review_state) : ""}<span class="grow"></span><span class="muted mono">${esc(n.job_id || "")}</span></div>
+    <div class="small muted">${esc((n.path || "").split(" > ").slice(-3).join(" › "))}</div>
+    ${n.reason ? `<div class="callout bad small">${esc(n.reason)}</div>` : ""}
+    ${n.plan ? `<div class="small muted" style="margin:6px 0">${n.plan.intent ? `<div><b>Planned as:</b> ${esc(n.plan.intent)}</div>` : ""}<div><b>Sections:</b> ${esc((n.plan.sections || []).join(" · "))}</div><div><b>Books:</b> ${esc((n.plan.books || []).join(" · "))}</div></div>` : ""}
+    ${n.markdown ? `<details ${n.status === "done" ? "" : "open"}><summary>Note (${(n.citations || []).length} cited pages)</summary><div class="note-md">${md(n.markdown)}</div></details>` : ""}
+    ${n.status === "done" ? `<div class="row"><button class="btn sm ${n.review_state === "approved" ? "" : "primary"}" data-rev="notes:${n.id}:approved" ${n.review_state === "approved" ? "disabled" : ""}>Approve</button><button class="btn sm" data-rev="notes:${n.id}:flagged">Flag</button></div>` : ""}</article>`;
+}
+
+/* ── failures & settings ──────────────────────────────────────────────────────── */
+async function failuresView() {
+  const f = await api("/api/failures");
+  return `<div class="head"><div><h1>Failures and diagnostics</h1><p class="sub">Failed batches with every attempt's error, why questions were rejected, failed notes and TOS pages that could not be read.</p></div></div>
+  <div class="cols"><div class="panel"><div class="panel-pad"><h2>Why questions were rejected</h2></div><table><thead><tr><th>Outcome</th><th>Reason</th><th class="num">Count</th></tr></thead><tbody>${f.rejection_reasons.map((r) => `<tr><td>${pill(r.status)}</td><td>${esc(r.reason)}</td><td class="num">${fmt(r.count)}</td></tr>`).join("") || `<tr><td colspan="3" class="empty">None yet.</td></tr>`}</tbody></table></div>
+    <div class="panel"><div class="panel-pad"><h2>Errors by kind</h2><p class="small muted" style="margin:0">Transient errors are retried with back-off; permanent ones fail the batch at once.</p></div><table><thead><tr><th>Kind</th><th>Message</th><th class="num">Count</th></tr></thead><tbody>${f.error_kinds.map((r) => `<tr><td>${esc(r.kind)}</td><td class="small">${esc(r.message)}</td><td class="num">${fmt(r.count)}</td></tr>`).join("") || `<tr><td colspan="3" class="empty">None.</td></tr>`}</tbody></table></div></div>
+  <div class="panel" style="margin-top:16px"><div class="panel-pad"><h2>Failed batches</h2></div><div class="tablewrap" style="max-height:50vh"><table><thead><tr><th>Batch</th><th>Kind</th><th>Topic</th><th class="num">Tries</th><th>Last error</th><th></th></tr></thead><tbody>
+    ${f.failed_batches.map((b) => `<tr><td class="mono">${b.id}</td><td>${b.kind}</td><td>${esc((b.path || "").split(" > ").slice(-2).join(" › "))}</td><td class="num">${b.attempts}</td><td class="small">${esc((b.errors.at(-1) || {}).message || "")}</td><td><button class="btn sm" onclick="state.wizard={document_id:null,scope_node_id:${b.node_id}};location.hash='new'" title="Preview a new job for just this topic">Run topic…</button></td></tr>`).join("") || `<tr><td colspan="6" class="empty">No failed batches.</td></tr>`}</tbody></table></div></div>
+  ${f.failed_notes.length ? `<div class="panel" style="margin-top:16px"><div class="panel-pad"><h2>Notes that could not be written</h2></div><table><tbody>${f.failed_notes.map((n) => `<tr><td>${esc(n.path)}</td><td class="small">${esc(n.reason)}</td></tr>`).join("")}</tbody></table></div>` : ""}
+  ${f.failed_pages.length ? `<div class="panel" style="margin-top:16px"><div class="panel-pad"><h2>TOS pages not read</h2></div><table><tbody>${f.failed_pages.map((p) => `<tr><td>document ${p.document_id}, page ${p.page_no}</td><td class="small">${esc(p.error)}</td></tr>`).join("")}</tbody></table></div>` : ""}`;
+}
+async function settingsView() {
+  const [s, a] = await Promise.all([api("/api/settings"), api("/api/audit?limit=150")]);
+  const ok = (b) => (b ? pill("done", "configured") : pill("failed", "not configured"));
+  return `<div class="head"><div><h1>Settings and audit</h1><p class="sub">Providers come from the root .env and are used server-side only; no key is sent to this page. Change them there and restart the Studio.</p></div></div>
+  <div class="cols"><div class="panel panel-pad"><h2>Providers</h2><dl class="ledger" style="display:block">
+      <div class="ln"><dt>Question generation</dt><dd class="small">${esc(s.generation.model)} ${ok(s.generation.configured)}</dd></div>
+      <div class="ln"><dt>Revision notes</dt><dd class="small">${esc(s.notes.model)} ${ok(s.notes.configured)}</dd></div>
+      <div class="ln"><dt>TOS page reader</dt><dd class="small">${esc(s.tos_reader.model)} (+${s.tos_reader.fallbacks.length} fallbacks) ${ok(s.tos_reader.configured)}</dd></div>
+      <div class="ln"><dt>Workers</dt><dd>${s.workers}</dd></div>
+      <div class="ln"><dt>Interrupted after</dt><dd>${s.stale_after_s}s without a heartbeat</dd></div>
+      <div class="ln"><dt>Prices (USD / 1M tokens)</dt><dd class="small">${s.prices.input_per_m ?? "—"} in · ${s.prices.output_per_m ?? "—"} out</dd></div></dl></div>
+    <div class="panel panel-pad"><h2>Job defaults</h2><pre class="mono small" style="margin:0;white-space:pre-wrap">${esc(JSON.stringify(s.defaults, null, 2))}</pre></div></div>
+  <div class="panel" style="margin-top:16px"><div class="panel-pad"><h2>Audit log</h2><p class="small muted" style="margin:0">Targets, corrections, jobs, pauses, cancellations, retries, approvals and sign-ins.</p></div><div class="tablewrap" style="max-height:50vh"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>On</th><th>Detail</th></tr></thead><tbody>
+    ${a.map((x) => `<tr><td class="small">${new Date(x.at + "Z").toLocaleString()}</td><td>${esc(x.actor)}</td><td>${esc(x.action)}</td><td class="small">${esc(x.entity)} ${esc(x.entity_id)}</td><td class="small mono" style="max-width:520px;word-break:break-word">${esc(JSON.stringify(x.detail))}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+
+/* ── dialog ───────────────────────────────────────────────────────────────────── */
+function dialog(title, html, onOk, wide = false, okLabel = "Save") {
+  const o = document.createElement("div"); o.className = "overlay";
+  o.innerHTML = `<div class="dialog ${wide ? "wide" : ""}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><header><b>${esc(title)}</b><button class="btn sm ghost" data-x aria-label="Close">✕</button></header>
+    <div class="content">${html}<div class="small" id="dlgErr" style="color:var(--bad)"></div></div>${onOk ? `<footer><button class="btn" data-x>Cancel</button><button class="btn primary" id="dlgOk">${esc(okLabel)}</button></footer>` : ""}</div>`;
+  document.body.appendChild(o);
+  const close = () => { o.remove(); document.removeEventListener("keydown", esc_); };
+  const esc_ = (e) => e.key === "Escape" && close(); document.addEventListener("keydown", esc_);
+  o.addEventListener("click", (e) => { if (e.target === o || e.target.closest("[data-x]")) close(); });
+  if (onOk) $("#dlgOk", o).onclick = async () => { const b = $("#dlgOk", o); b.disabled = true; try { await onOk(); close(); } catch (e) { $("#dlgErr", o).textContent = e.message; b.disabled = false; } };
+  const first = o.querySelector("input,button"); first && first.focus();
+}
+
+const savedTheme = store.get("theme", ""); if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+boot();
+</script>
+</body>
+</html>
