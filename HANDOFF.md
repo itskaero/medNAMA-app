@@ -224,6 +224,17 @@ The app had grown to ~25 screens. The user chose to keep everything but focus th
   - Never alongside the PaedNAMA server or a Next dev server: on 16 GB, out-of-memory kills the workers ("process pool terminated abruptly").
   - Essential Clinical Skills crashed Docling on one page range at 32-page slices. It went through with `--slice-size 4`.
 
+### 12.1 PaedNAMA on the NAS (2026-10-22)
+
+- **One backend.** `mednama-backend` now runs image `app-backend-paeds:latest`: the NAS's `app-backend:latest` plus `apps/` (`apps/paednama/server/Dockerfile`, built on the NAS, no pip). Its entrypoint runs the migrations, then `python -m apps.paednama.server.main`, which serves medNAMA's API unchanged plus `/api/paeds`. The models load once; a second backend would not fit in 3.8 GB.
+- **Web.** Container `paednama-web` (image built on the PC from `apps/paednama/web/Dockerfile`, standalone Next, ~41 MB RAM, `mem_limit` 256 MB) on network `app_mednama`, alias `paednama-web`, port 3100 (LAN: `http://192.168.1.42:3100`). "Open medNAMA" points at `https://mednama.rekorex.online`.
+- **Compose.** `/DATA/mednama/app/docker-compose.paednama.yml` (copy in `apps/paednama/deploy/`), layered over the medNAMA compose:
+  `docker compose -p app --env-file .env -f docker-compose.yml -f docker-compose.paednama.yml up -d`
+  **A plain medNAMA `deploy.sh` run brings the backend back without PaedNAMA**: rerun the command above after it (and rebuild `app-backend-paeds` from the new `app-backend` first).
+- **Rollback:** `docker compose -p app --env-file .env -f docker-compose.yml up -d backend && docker rm -f paednama-web`.
+- **Public hostname:** the tunnel is token-run (remotely managed), so the hostname is added in the Cloudflare dashboard: Zero Trust → Networks → Tunnels → this tunnel → Public hostnames → `paeds.rekorex.online` → HTTP → `paednama-web:3100`.
+- **Books on the NAS:** only Nelson 22e (ids 88, 89) so far. Books 99–111 (~150k passages) and the guidelines are on the PC only. Copy them with `backend/scripts/books_transfer.py` when the NAS is quiet; the HNSW index makes this slow there (see the script's docstring).
+
 ---
 
 ## 8. Binding constraints carried forward (from `revision.md`)
