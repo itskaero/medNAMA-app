@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>medNAMA core ad renderer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: "Bespoke Serif"; src: url("../../site/assets/fonts/BespokeSerif-Italic.woff2") format("woff2"); font-style: italic; }
+  @font-face { font-family: "Bespoke Serif"; src: url("../../site/assets/fonts/BespokeSerif-Regular.woff2") format("woff2"); }
+  html, body { margin: 0; background: #000; }
+  canvas { display: block; }
+  .warm { position: absolute; opacity: 0; font: 20px Inter; } .warm i { font-family: "Bespoke Serif"; } .warm b { font-family: "Fragment Mono"; }
+</style>
+</head>
+<body>
+<span class="warm">Inter <i>Serif</i> <b>Mono</b> <i style="font-style:normal">Serif</i></span>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// medNAMA (core), 30-second ad: "Show me the page". Every frame is a pure function of time: renderAt(t).
+// The timeline (timeline.json) is passed in by render.js through setTimeline(), so picture and sound agree.
+const W = 1920, H = 1080;
+const cv = document.getElementById("c"), MAIN = cv.getContext("2d");
+const OFF = document.createElement("canvas"); OFF.width = W; OFF.height = H; const OFFG = OFF.getContext("2d");
+let g = MAIN;          // scenes draw into g; renderAt points it offscreen to draw the outgoing scene of a cross-fade
+let TL = null;
+window.setTimeline = (tl) => { TL = tl; };
+
+// the product page's palette: paper, ink, one ember accent
+const C = { page: "#F7F4EF", paper: "#FFFFFF", ink: "#15130F", ink2: "#3A3631", grey: "#8F877D", line: "#E7E1D8", soft: "#F1ECE4",
+  ember: "#E2582B", emberSoft: "#FDF0EA", green: "#22A35A", red: "#D5442F", hi: "rgba(255,196,92,0.55)" };
+const SANS = "Inter, system-ui, sans-serif", MONO = "'Fragment Mono', ui-monospace, monospace", SERIF = "'Bespoke Serif', Georgia, serif";
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const easeOut = (k) => 1 - Math.pow(1 - clamp(k), 3);
+const easeInOut = (k) => { k = clamp(k); return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; };
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const fadeIn = (t, at, d = 0.3) => easeOut(prog(t, at, at + d));
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let x = Math.imul(seed ^ seed >>> 15, 1 | seed); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; }; }
+function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function text(s, x, y, { font = `500 32px ${SANS}`, color = C.ink, align = "left", alpha = 1, ls = 0 } = {}) {
+  if (alpha <= 0) return;
+  g.save(); g.globalAlpha *= alpha; g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = "alphabetic";
+  if (ls) g.letterSpacing = `${ls}px`; g.fillText(s, x, y); g.restore();
+}
+function measure(s, font) { g.save(); g.font = font; const w = g.measureText(s).width; g.restore(); return w; }
+function wrapLines(s, maxW, font) { const words = s.split(" "), out = []; let line = "";
+  for (const w of words) { const t2 = line ? line + " " + w : w; if (measure(t2, font) > maxW && line) { out.push(line); line = w; } else line = t2; }
+  if (line) out.push(line); return out; }
+function card(x, y, w, h, { fill = C.paper, stroke = C.line, r = 22, alpha = 1, shadow = 1 } = {}) {
+  if (alpha <= 0) return;
+  g.save(); g.globalAlpha *= alpha;
+  if (shadow) { g.shadowColor = `rgba(60,40,20,${0.16 * shadow})`; g.shadowBlur = 50; g.shadowOffsetY = 20; }
+  rr(x, y, w, h, r); g.fillStyle = fill; g.fill(); g.shadowColor = "transparent"; if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1.5; g.stroke(); } g.restore();
+}
+function chip(s, x, y, { fg = C.ember, bg = C.emberSoft, size = 26, alpha = 1, font = SANS, border = null } = {}) {
+  if (alpha <= 0) return 0;
+  const f = `600 ${size}px ${font}`, w = measure(s, f) + size * 1.2, h = size * 1.75;
+  g.save(); g.globalAlpha *= alpha; rr(x, y - h * 0.68, w, h, h / 2); g.fillStyle = bg; g.fill();
+  if (border) { g.strokeStyle = border; g.lineWidth = 2; g.stroke(); } g.restore();
+  text(s, x + size * 0.6, y, { font: f, color: fg, alpha }); return w;
+}
+function glow(x, y, r, color, a) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, color); gr.addColorStop(1, "rgba(0,0,0,0)"); g.save(); g.globalAlpha = a; g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); g.restore(); }
+
+// dotted paper, drawn once
+const DOTS = document.createElement("canvas"); DOTS.width = W; DOTS.height = H;
+{ const d = DOTS.getContext("2d"); d.fillStyle = C.page; d.fillRect(0, 0, W, H); d.fillStyle = "rgba(60,50,40,0.16)";
+  for (let y = 7; y < H; y += 16) for (let x = 7; x < W; x += 16) { d.beginPath(); d.arc(x, y, 1.2, 0, 7); d.fill(); } }
+function paper() { g.drawImage(DOTS, 0, 0); }
+function vignette(a, color = "120,60,20") { const gr = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+  gr.addColorStop(0, `rgba(${color},0)`); gr.addColorStop(1, `rgba(${color},${a})`); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+function title(s, sub, a, y = 150) { text(s, 120, y, { font: `600 68px ${SANS}`, alpha: a, ls: -2.5 }); if (sub) text(sub, 120, y + 62, { font: `500 40px ${SANS}`, color: C.grey, alpha: a, ls: -1 }); }
+function caption(s, t, at, end, size = 92) {      // a big line on a solid paper slab, readable over anything
+  const a = prog(t, at, at + 0.12) * (1 - prog(t, end - 0.12, end)); if (a <= 0) return;
+  const f = `700 ${size}px ${SANS}`, w = measure(s, f);
+  g.save(); g.globalAlpha = a; g.shadowColor = "rgba(60,40,20,0.25)"; g.shadowBlur = 60; rr(W / 2 - w / 2 - 56, H / 2 - size * 1.05, w + 112, size * 1.6, 28);
+  g.fillStyle = C.paper; g.fill(); g.restore();
+  text(s, W / 2, H / 2 + size * 0.3, { font: f, align: "center", alpha: a, ls: -size / 30 });
+}
+function wordmark(cx, y, size, a, color = C.ink) {
+  const f1 = `400 ${size}px ${SANS}`, f2 = `700 ${size}px ${SANS}`, w1 = measure("med", f1), w2 = measure("NAMA", f2);
+  const x0 = cx - (w1 + w2) / 2; text("med", x0, y, { font: f1, color, alpha: a, ls: -size / 28 }); text("NAMA", x0 + w1 - size / 30, y, { font: f2, color, alpha: a, ls: -size / 28 });
+}
+function cursor(x, y, a, press = 0) { if (a <= 0) return; g.save(); g.globalAlpha = a; g.fillStyle = "rgba(21,19,15,0.18)"; g.beginPath(); g.arc(x, y, 34 + press * 14, 0, 7); g.fill();
+  g.fillStyle = C.ink; g.beginPath(); g.arc(x, y, 12 - press * 3, 0, 7); g.fill(); g.restore(); }
+
+// ── scene plumbing ───────────────────────────────────────────────────────────
+const S = (id) => TL.scenes.find((s) => s.id === id);
+const sceneAt = (t) => TL.scenes.find((s) => t >= s.start && t < s.end) || TL.scenes[TL.scenes.length - 1];
+
+// ── 1. one question, three unsourced answers ─────────────────────────────────
+const Q = "Exercise shifts the O₂–Hb curve which way?";
+function askBox(t, x, y, w, typed, a) {
+  card(x, y, w, 150, { alpha: a, r: 26 });
+  text(typed, x + 48, y + 92, { font: `500 50px ${SANS}`, alpha: a, ls: -1 });
+  if ((t * 2) % 1 < 0.55) { const cx = x + 48 + measure(typed, `500 50px ${SANS}`) + 6; g.save(); g.globalAlpha = a; g.fillStyle = C.ember; g.fillRect(cx, y + 50, 4, 56); g.restore(); }
+}
+function sceneQuestion(t) {
+  paper();
+  askBox(t, 260, 230, 1400, Q, 1);
+  const bad = ["Left.", "Right.", "It depends."];
+  const pos = [[290, 520, -0.04], [790, 560, 0.03], [1250, 515, -0.02]];
+  bad.forEach((ans, i) => { const at = TL.bad_answers[i], k = fadeIn(t, at, 0.18); if (k <= 0) return;
+    const [x, y, r] = pos[i], j = rng(Math.floor(t * 30) * 7 + i)(), shake = t > TL.verdict ? (j - 0.5) * 6 : 0, sl = 1 + 0.25 * (1 - k);
+    g.save(); g.translate(x + 190 + shake, y + 80); g.rotate(r); g.scale(sl, sl); g.translate(-190, -80);
+    card(0, 0, 380, 160, { alpha: k, r: 20 });
+    text(ans, 34, 82, { font: `700 60px ${SANS}`, alpha: k, ls: -1.5 });
+    text("no page", 34, 128, { font: `600 26px ${MONO}`, color: C.red, alpha: k });
+    g.restore(); });
+  text("Three answers. No page.", W / 2, 900, { font: `700 84px ${SANS}`, align: "center", alpha: fadeIn(t, TL.verdict, 0.2), ls: -3 });
+}
+
+// ── 2. the flood: every page you might need ────────────────────────────────────
+const BOOKS = ["Guyton & Hall", "Robbins", "Snell", "Davidson's"];
+const PAGES = (() => { const r = rng(21); return Array.from({ length: 60 }, (_, i) => ({ x: 80 + r() * (W - 380), y: 60 + r() * (H - 420), rot: (r() - 0.5) * 0.5,
+  from: r() * 6.28, book: BOOKS[i % 4], pg: 100 + Math.floor(r() * 1100), lines: 8 + Math.floor(r() * 5), s: 0.85 + r() * 0.35 })); })();
+function pageCard(p, x, y, a, sc, rot) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(sc, sc);
+  card(0, 0, 230, 300, { r: 6, alpha: a, shadow: 0.7 });
+  g.save(); g.globalAlpha = a; text(p.book, 20, 34, { font: `600 16px ${SANS}`, color: C.grey });
+  text(String(p.pg), 210, 34, { font: `600 16px ${MONO}`, color: C.grey, align: "right" });
+  const r = rng(p.pg); g.fillStyle = "#D9D2C8"; for (let i = 0; i < p.lines; i++) g.fillRect(20, 60 + i * 20, 190 * (0.55 + r() * 0.45), 6);
+  g.restore(); g.restore();
+}
+const PAGE_SLOT = [260, 110, 680, 880];
+const FOUND = (() => { let last = 0; return () => { if (!last) { const n = TL.flutters.length; last = (n - 1) % PAGES.length; PAGES[last].book = "Guyton & Hall"; PAGES[last].pg = 525; } return last; }; })();
+function sceneFlood(t) {
+  const sc = S("flood"), k = prog(t, sc.start, sc.end); paper(); FOUND();
+  const jr = rng(Math.floor(t * 30) + 5), shake = 9 * k * k;
+  g.save(); g.translate((jr() - 0.5) * shake, (jr() - 0.5) * shake);
+  TL.flutters.forEach((ft, i) => { if (t < ft) return; const p = PAGES[i % PAGES.length], fk = easeOut(prog(t, ft, ft + 0.3));
+    const sx = W / 2 + Math.cos(p.from) * 1400, sy = H / 2 + Math.sin(p.from) * 900;
+    pageCard(p, lerp(sx, p.x, fk), lerp(sy, p.y, fk), 1, p.s, p.rot * fk + (1 - fk) * 1.2); });
+  g.restore();
+  floodHud(t, 1, k);
+  caption("The answer is in here.", t, 4.0, 5.3);
+  caption("Somewhere.", t, 5.6, 6.8, 120);
+}
+function floodHud(t, alpha, k) {
+  g.save(); g.globalAlpha = alpha;
+  const [c0, c1] = TL.counter, ck = easeInOut(prog(t, c0, c1)), pages = Math.round(21000 * ck);
+  card(80, 64, 620, 200, { r: 24, alpha: fadeIn(t, c0 - 0.1, 0.2) });
+  text(pages.toLocaleString("en-US"), 120, 172, { font: `700 96px ${SANS}`, alpha: fadeIn(t, c0 - 0.1, 0.2), ls: -4 });
+  text(`pages · ${Math.max(1, Math.round(20 * ck))} textbooks`, 124, 226, { font: `500 32px ${SANS}`, color: C.grey, alpha: fadeIn(t, c0 - 0.1, 0.2) });
+  const ca = fadeIn(t, TL.countdown, 0.2);
+  if (ca > 0) { const s2 = "FCPS Part 1 · countdown on"; chip(s2, W - 80 - (measure(s2, `600 34px ${SANS}`) + 41), 150, { size: 34, fg: "#fff", bg: C.ember, alpha: ca }); }
+  vignette(0.25 + 0.35 * k); g.restore();
+}
+
+// ── 3. the page ──────────────────────────────────────────────────────────────
+// verbatim, Guyton and Hall 15e p. 525; the highlight starts at "which shift the curve to the right"
+const PASSAGE = ["In addition to pH changes, several other", "factors are known to shift the curve. Three", "of these, which shift the curve to the right,",
+  "are the following: (1) increased CO₂", "concentration; (2) increased blood", "temperature; and (3) increased 2,3-", "biphosphoglycerate (BPG) …"];
+const HL_FROM = 2;
+function bigPage(x, y, w, h, a, hl) {
+  card(x, y, w, h, { r: 10, alpha: a });
+  g.save(); g.globalAlpha = a;
+  text("GUYTON & HALL · 15e", x + 50, y + 64, { font: `600 ${Math.max(24, w * 0.036)}px ${SANS}`, color: C.grey, ls: 1.5 });
+  text("525", x + w - 50, y + 64, { font: `600 ${Math.max(26, w * 0.04)}px ${MONO}`, color: C.grey, align: "right" });
+  const r = rng(525), lh = h * 0.043; g.fillStyle = "#DED7CC";
+  for (let i = 0; i < 6; i++) g.fillRect(x + 50, y + 120 + i * lh, (w - 100) * (0.7 + r() * 0.3), lh * 0.32);
+  const py = y + 120 + 6 * lh + lh * 0.6, fs = w * 0.04;
+  PASSAGE.forEach((ln, i) => { const lw = measure(ln, `400 ${fs}px ${SERIF}`), k = i < HL_FROM ? 0 : clamp(hl * (PASSAGE.length - HL_FROM) - (i - HL_FROM));
+    if (k > 0) { g.fillStyle = C.hi; g.fillRect(x + 44, py + i * fs * 1.45 - fs * 0.95, (lw + 12) * k, fs * 1.25); }
+    text(ln, x + 50, py + i * fs * 1.45, { font: `400 ${fs}px ${SERIF}`, color: C.ink }); });
+  g.fillStyle = "#DED7CC"; const py2 = py + PASSAGE.length * fs * 1.45 + lh * 0.4;
+  for (let i = 0; i < 5; i++) g.fillRect(x + 50, py2 + i * lh, (w - 100) * (0.6 + r() * 0.4), lh * 0.32);
+  g.restore();
+}
+function sceneFreeze(t) {      // the flood stops dead; then every page flies off but one, which becomes the page
+  const [f0, f1] = TL.fly_off, k = easeInOut(prog(t, f0, f1)), last = FOUND();
+  paper();
+  TL.flutters.forEach((ft, i) => { const p = PAGES[i % PAGES.length]; if (i % PAGES.length === last) return;
+    const dx = p.x + 115 - W / 2, dy = p.y + 150 - H / 2, d = Math.hypot(dx, dy) || 1;
+    pageCard(p, p.x + dx / d * 1600 * k, p.y + dy / d * 1600 * k, 1 - k, p.s, p.rot); });
+  g.fillStyle = `rgba(247,244,239,${0.35 * (1 - k)})`; g.fillRect(0, 0, W, H);      // the freeze drains the colour
+  floodHud(S("flood").end - 0.01, 1 - easeOut(prog(t, f0, f0 + 0.25)), 1);
+  const p = PAGES[last], [sx, sy, sw] = PAGE_SLOT, sc = lerp(p.s, sw / 230, k);
+  pageCard(p, lerp(p.x, sx, k), lerp(p.y, sy, k), 1, sc, lerp(p.rot, 0, k));
+}
+function scenePage(t) {
+  paper();
+  bigPage(...PAGE_SLOT, 1, prog(t, TL.highlight[0], TL.highlight[1]));
+  text("Guyton & Hall 15e", 1080, 470, { font: `700 84px ${SANS}`, alpha: fadeIn(t, TL.page + 0.15), ls: -3 });
+  text("page 525", 1080, 580, { font: `700 84px ${SANS}`, color: C.ember, alpha: fadeIn(t, TL.page + 0.35), ls: -3 });
+}
+
+// ── 4. the answer, cited ─────────────────────────────────────────────────────
+function proofCard(x, y, w, a) {      // the highlighted lines of p. 525, at a size that reads
+  const lines = PASSAGE.slice(HL_FROM), fs = 27, h = 120 + lines.length * fs * 1.5;
+  card(x, y, w, h, { r: 12, alpha: a });
+  text("Guyton & Hall 15e · p. 525", x + 36, y + 56, { font: `600 26px ${SANS}`, color: C.grey, alpha: a });
+  lines.forEach((ln, i) => { const ly = y + 116 + i * fs * 1.5, lw = measure(ln, `400 ${fs}px ${SERIF}`);
+    g.save(); g.globalAlpha = a; g.fillStyle = C.hi; g.fillRect(x + 30, ly - fs * 0.95, Math.min(lw + 12, w - 50), fs * 1.25); g.restore();
+    text(ln, x + 36, ly, { font: `400 ${fs}px ${SERIF}`, alpha: a }); });
+}
+const ANS = "Right. Exercise raises H⁺, CO₂ and temperature, so haemoglobin lets go of more oxygen in working muscle.";
+function sceneAnswer(t) {
+  paper(); const a = fadeIn(t, TL.card, 0.35);
+  text("Every answer, with the page.", 120, 150, { font: `700 72px ${SANS}`, alpha: fadeIn(t, TL.caption, 0.25), ls: -2.5 });
+  const x = 120, y = 210, w = 1040, h = 760;
+  card(x, y + (1 - a) * 30, w, h, { alpha: a });
+  g.save(); g.globalAlpha = a;
+  const qw = measure(Q, `500 30px ${SANS}`) + 48; rr(x + w - 40 - qw, y + 40, qw, 96, 22); g.fillStyle = "#EAF2F8"; g.fill();
+  text(Q, x + w - 40 - qw + 24, y + 98, { font: `500 30px ${SANS}`, color: C.ink2 });
+  text("Dr. MedNama", x + 50, y + 210, { font: `italic 400 44px ${SERIF}`, color: C.ember });
+  g.restore();
+  chip("Textbook-backed", x + 50, y + 280, { fg: C.green, bg: "rgba(34,163,90,0.08)", border: "rgba(34,163,90,0.6)", size: 26, font: MONO, alpha: fadeIn(t, TL.type_a[0] - 0.1) });
+  const n = Math.floor(prog(t, TL.type_a[0], TL.type_a[1]) * ANS.length), lines = wrapLines(ANS, w - 100, `500 44px ${SANS}`);
+  let left = n; lines.forEach((ln, i) => { const s = ln.slice(0, Math.max(0, left)); left -= ln.length + 1; text(s, x + 50, y + 380 + i * 62, { font: `500 44px ${SANS}`, alpha: a, ls: -0.5 }); });
+  const ck = fadeIn(t, TL.chip, 0.2), pulse = Math.max(0, 1 - Math.abs(t - TL.chip - 0.1) / 0.25);
+  let chipEnd = x + 560;
+  if (ck > 0) chipEnd = x + 50 + chip("Guyton & Hall 15e, p. 525", x + 50, y + 650, { fg: C.ember, bg: C.emberSoft, border: C.ember, size: 34, font: MONO, alpha: ck }) + 12;
+  // the proof: the page itself slides in beside the answer, joined to the chip
+  const pk = easeOut(prog(t, TL.proof, TL.proof + 0.5));
+  if (pk > 0) { g.save(); g.globalAlpha = pk; g.strokeStyle = C.ember; g.lineWidth = 3; g.setLineDash([10, 10]);
+      g.beginPath(); g.moveTo(chipEnd, y + 638); g.bezierCurveTo(1230, y + 640, 1180, 520, 1260 + (1 - pk) * 200, 520); g.stroke(); g.restore();
+    proofCard(1240 + (1 - pk) * 200, 300, 640, pk); }
+}
+
+// ── 5. recall: a miss comes back, and sticks ─────────────────────────────────
+function mcq(x, y, w, stem, opts, a, { picked = -1, right = -1, reveal = 0, pickAt = 0, t = 0 } = {}) {
+  card(x, y, w, 140 + opts.length * 108 + 30, { alpha: a });
+  text(stem, x + 50, y + 92, { font: `600 46px ${SANS}`, alpha: a, ls: -1 });
+  opts.forEach((o, i) => { const oy = y + 140 + i * 108, isPick = i === picked && t >= pickAt, isRight = i === right && reveal > 0;
+    const stroke = isPick ? (i === right ? C.green : C.red) : isRight ? C.green : C.line;
+    const fill = isPick ? (i === right ? "rgba(34,163,90,0.08)" : "rgba(213,68,47,0.08)") : isRight ? "rgba(34,163,90,0.06)" : C.paper;
+    g.save(); g.globalAlpha = a; rr(x + 40, oy, w - 80, 88, 18); g.fillStyle = fill; g.fill(); g.strokeStyle = stroke; g.lineWidth = isPick || isRight ? 3 : 1.5; g.stroke();
+    g.beginPath(); g.arc(x + 92, oy + 44, 24, 0, 7); g.fillStyle = isPick ? stroke : isRight ? C.green : C.soft; g.fill(); g.restore();
+    text(String.fromCharCode(65 + i), x + 92, oy + 54, { font: `700 26px ${SANS}`, color: isPick || isRight ? "#fff" : C.ink2, align: "center", alpha: a });
+    text(o, x + 140, oy + 57, { font: `500 38px ${SANS}`, alpha: a });
+    if (isPick) text(i === right ? "✓" : "✕", x + w - 80, oy + 58, { font: `800 40px ${SANS}`, color: stroke, align: "right", alpha: a });
+  });
+}
+function sceneRecall(t) {
+  paper(); const sc = S("recall");
+  const second = t >= TL.returns - 0.1;
+  if (!second) title("Miss one?", null, fadeIn(t, sc.start, 0.3));
+  else title("3 days later, it asks again.", null, fadeIn(t, TL.returns, 0.3));
+  const opt1 = ["↑ temperature", "↑ 2,3-BPG", "↓ H⁺ (higher pH)", "↑ CO₂"];
+  const opt2 = ["Left", "Right"];
+  const x = 120, y = 230, w = 1040;
+  if (!second) {
+    const a = fadeIn(t, TL.recall_q, 0.3);
+    mcq(x, y, w, "Which shifts the curve to the LEFT?", opt1, a, { picked: 1, right: 2, reveal: t >= TL.wrong ? 1 : 0, pickAt: TL.wrong, t });
+    const tap = Math.max(0, 1 - Math.abs(t - TL.tap_wrong) / 0.15); cursor(x + 600, y + 140 + 108 + 44, prog(t, TL.tap_wrong - 0.5, TL.tap_wrong - 0.3) * (1 - prog(t, TL.explain, TL.explain + 0.2)), tap);
+  } else {
+    const a = fadeIn(t, TL.returns - 0.1, 0.3);
+    mcq(x, y, w, "Lower H⁺ (higher pH) shifts the curve…", opt2, a, { picked: 0, right: 0, reveal: t >= TL.right ? 1 : 0, pickAt: TL.right, t });
+    const tap = Math.max(0, 1 - Math.abs(t - TL.tap_right) / 0.15); cursor(x + 500, y + 140 + 44, prog(t, TL.tap_right - 0.5, TL.tap_right - 0.3) * (1 - prog(t, TL.right + 0.3, TL.right + 0.5)), tap);
+  }
+  // right column: why, when, and the outcome
+  const rx = 1240, ew = 560;
+  const gone = 1 - prog(t, TL.returns - 0.25, TL.returns), ea = fadeIn(t, TL.explain, 0.3) * gone;
+  card(rx, 330, ew, 200, { alpha: ea });
+  text("Textbook explanation", rx + 36, 400, { font: `600 34px ${SANS}`, alpha: ea });
+  chip("Guyton & Hall 15e, p. 525", rx + 36, 476, { size: 26, font: MONO, alpha: ea });
+  const la = fadeIn(t, TL.later, 0.25) * gone;
+  card(rx, 560, ew, 130, { fill: C.ink, stroke: null, alpha: la });
+  text("Concept card", rx + 36, 610, { font: `500 28px ${SANS}`, color: "#BDB5AA", alpha: la });
+  text("Back in 3 days", rx + 36, 662, { font: `700 44px ${SANS}`, color: "#fff", alpha: la, ls: -1 });
+  ["Mon", "Tue", "Wed", "Thu"].forEach((d, i) => { const at = TL.days[i], on = t >= at, da = fadeIn(t, TL.days[0] - 0.2, 0.2) * gone;
+    g.save(); g.globalAlpha = da; rr(rx + i * 145, 720, 125, 110, 18); g.fillStyle = on ? (i === 3 ? C.ember : C.soft) : C.paper; g.fill(); g.strokeStyle = C.line; g.lineWidth = 1.5; g.stroke(); g.restore();
+    text(d, rx + i * 145 + 62, 788, { font: `600 32px ${SANS}`, color: on && i === 3 ? "#fff" : C.ink2, align: "center", alpha: da }); });
+  const ra = fadeIn(t, TL.right + 0.1, 0.25);
+  text("Remembered.", x + 1120, 520, { font: `700 80px ${SANS}`, color: C.green, alpha: ra, ls: -3 });
+}
+
+// ── 6. the plan: your paper, your questions, anywhere ────────────────────────
+function scenePlan(t) {
+  paper(); const [p1, p2] = TL.plan_cards;
+  const panel = (at, until, draw) => { const a = fadeIn(t, at - 0.15, 0.3) * (until ? 1 - prog(t, until - 0.05, until + 0.15) : 1); if (a > 0) draw(a, easeOut(prog(t, at, at + 0.4))); };
+  panel(p1, p2, (a) => {
+    title("Built on your paper's blueprint.", "Plus 25,000+ recalled questions, 2016–2026.", a);
+    const subj = [["Physiology", 0.72], ["Anatomy", 0.55], ["Pathology", 0.48], ["Pharmacology", 0.36], ["Biochemistry", 0.62]];
+    card(120, 300, 1680, 640, { alpha: a });
+    text("YOUR COVERAGE · FCPS PART 1", 180, 370, { font: `700 24px ${SANS}`, color: C.grey, alpha: a, ls: 3 });
+    subj.forEach(([s2, v], i) => { const y = 450 + i * 100, fill = v * easeOut(prog(t, p1 + 0.2 + i * 0.08, p1 + 0.9 + i * 0.08));
+      text(s2, 180, y + 14, { font: `600 40px ${SANS}`, alpha: a });
+      g.save(); g.globalAlpha = a; rr(620, y - 16, 1020, 34, 17); g.fillStyle = C.soft; g.fill(); rr(620, y - 16, 1020 * fill, 34, 17); g.fillStyle = C.ember; g.fill(); g.restore();
+      text(`${Math.round(fill * 100)}%`, 1740, y + 14, { font: `600 34px ${MONO}`, color: C.grey, align: "right", alpha: a }); });
+  });
+  panel(p2, null, (a, k) => {
+    title("No signal? Still practising.", "Question packs work without signal.", a);
+    const px = 1180, py = 140 + (1 - k) * 60;
+    g.save(); g.globalAlpha = a; g.shadowColor = "rgba(60,40,20,0.25)"; g.shadowBlur = 60; g.shadowOffsetY = 24; rr(px, py, 440, 880, 60); g.fillStyle = C.ink; g.fill(); g.restore();
+    g.save(); g.globalAlpha = a; rr(px + 16, py + 16, 408, 848, 46); g.fillStyle = C.page; g.fill(); g.restore();
+    text("No service", px + 50, py + 70, { font: `600 26px ${SANS}`, color: C.red, alpha: a });
+    text("Offline pack", px + 50, py + 160, { font: `italic 400 52px ${SERIF}`, alpha: a });
+    chip("Questions ready", px + 50, py + 236, { size: 26, fg: C.green, bg: "rgba(34,163,90,0.1)", alpha: a });
+    for (let i = 0; i < 4; i++) { g.save(); g.globalAlpha = a; rr(px + 50, py + 300 + i * 120, 340, 96, 18); g.fillStyle = C.paper; g.fill(); g.strokeStyle = C.line; g.lineWidth = 1.5; g.stroke(); g.restore();
+      g.save(); g.globalAlpha = a; g.fillStyle = "#DED7CC"; g.fillRect(px + 80, py + 336 + i * 120, 230, 10); g.fillRect(px + 80, py + 358 + i * 120, 160, 10); g.restore(); }
+  });
+}
+
+// ── 7. the end: the painted valley ───────────────────────────────────────────
+const ART = new Image(); ART.src = "../../site/assets/hero.jpg";
+function sceneEnd(t) {
+  const [a0, a1] = TL.end_art, k = easeInOut(prog(t, a0, a1));
+  g.save(); const z = Math.max(W / ART.width, H / ART.height) * (1.08 - 0.06 * prog(t, a0, 30)), iw = ART.width * z, ih = ART.height * z;
+  g.drawImage(ART, W / 2 - iw / 2, H / 2 - ih / 2, iw, ih);
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, `rgba(25,15,8,${0.45 * k})`); gr.addColorStop(0.55, `rgba(25,15,8,${0.15 * k})`); gr.addColorStop(1, `rgba(25,15,8,${0.4 * k})`);
+  g.fillStyle = gr; g.fillRect(0, 0, W, H); g.restore();
+  wordmark(W / 2, 420, 150, fadeIn(t, TL.end_motif[0], 0.3), "#fff");
+  text("PGET · FCPS Part 1 · MBBS", W / 2, 488, { font: `600 36px ${SANS}`, color: "rgba(255,255,255,0.85)", align: "center", alpha: fadeIn(t, TL.end_motif[0] + 0.3, 0.3), ls: 1 });
+  text("Learn from the source.", W / 2, 596, { font: `600 60px ${SANS}`, color: "#fff", align: "center", alpha: fadeIn(t, TL.tagline, 0.35), ls: -2 });
+  text("Practise with purpose.", W / 2, 672, { font: `600 60px ${SANS}`, color: "#fff", align: "center", alpha: fadeIn(t, TL.tagline + 0.35, 0.35), ls: -2 });
+  const ca = fadeIn(t, TL.cta, 0.35), f = `600 40px ${SANS}`, s = "Invite-only early access  →", w = measure(s, f) + 80;
+  card(W / 2 - w / 2, 744, w, 88, { r: 16, alpha: ca, stroke: null });
+  text(s, W / 2, 802, { font: f, align: "center", alpha: ca, ls: -0.5 });
+  text("mednama.rekorex.online", W / 2, 900, { font: `400 40px ${MONO}`, color: "#fff", align: "center", alpha: ca });
+}
+
+const DRAW = { question: sceneQuestion, flood: sceneFlood, freeze: sceneFreeze, page: scenePage, answer: sceneAnswer, recall: sceneRecall, plan: scenePlan, end: sceneEnd };
+window.renderAt = (t) => {
+  if (!TL) throw new Error("timeline not set");
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.letterSpacing = "0px";
+  const cur = sceneAt(t), idx = TL.scenes.indexOf(cur), XF = 0.25;
+  DRAW[cur.id](t);
+  if (idx > 0 && t - cur.start < XF && !["freeze", "page"].includes(cur.id)) {
+    const prev = TL.scenes[idx - 1];
+    g = OFFG; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.letterSpacing = "0px"; DRAW[prev.id](cur.start - 1 / 60); g = MAIN;
+    g.save(); g.globalAlpha = 1 - easeInOut((t - cur.start) / XF); g.drawImage(OFF, 0, 0); g.restore();
+  }
+  const fo = prog(t, TL.fade_out[0], TL.fade_out[1]); if (fo > 0) { g.fillStyle = `rgba(0,0,0,${easeInOut(fo)})`; g.fillRect(0, 0, W, H); }
+  return true;
+};
+window.ready = async () => { await document.fonts.ready; if (!ART.complete) await new Promise((r) => { ART.onload = r; ART.onerror = r; }); await new Promise((r) => setTimeout(r, 300)); return true; };
+</script>
+</body>
+</html>

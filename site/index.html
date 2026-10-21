@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>medNAMA — Learn from the source. Practice with purpose.</title>
-  <meta name="description" content="medNAMA answers medical questions from trusted textbooks, with the page to prove it, then turns what you learn into focused practice for PGET, FCPS Part 1 and MBBS, paced to your paper&rsquo;s official blueprint.">
-  <meta name="theme-color" content="#000912">
-  <meta property="og:title" content="medNAMA — Learn from the source. Practice with purpose.">
-  <meta property="og:description" content="Textbook-grounded answers with page references, recalled past papers, a daily plan built on your paper&rsquo;s official blueprint, and viva practice, for PGET, FCPS Part 1 and MBBS.">
-  <meta property="og:image" content="assets/film-poster.jpg">
+  <title>medNAMA — Learn from the source. Practise with purpose.</title>
+  <meta name="description" content="medNAMA answers medical questions from trusted textbooks, with the page to prove it, then turns what you learn into focused practice for PGET, FCPS and MBBS. Invite-only early access on a private, self-hosted server.">
+  <meta name="theme-color" content="#f7f4ef">
+  <meta name="color-scheme" content="light">
+  <meta property="og:title" content="medNAMA — Learn from the source. Practise with purpose.">
+  <meta property="og:description" content="Textbook-grounded answers with page references, recalled past papers, a daily plan built on your paper&rsquo;s official blueprint, and viva practice.">
+  <meta property="og:image" content="assets/hero.jpg">
   <link rel="icon" href="assets/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,300 +18,229 @@
 </head>
 <body>
   <header class="nav" id="top">
-    <a class="brand" href="#top" aria-label="medNAMA home"><span class="mark">mN</span><span class="word">med<i>NAMA</i></span></a>
+    <a class="brand" href="#top" aria-label="medNAMA home"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1v18M1 10h18M3.6 3.6l12.8 12.8M16.4 3.6L3.6 16.4"/></svg><span>med<b>NAMA</b></span></a>
     <nav class="links" aria-label="Sections">
-      <a href="#film">Film</a>
-      <a href="#features">Features</a>
-      <a href="#why">Why medNAMA</a>
-      <a href="#launch">Launch</a>
+      <a href="#product">Product</a>
+      <a href="#demo">See it work</a>
+      <a href="#access">Access</a>
       <a href="#faq">FAQ</a>
       <a href="progress.html">Progress</a>
     </nav>
-    <a class="launch-pill" href="#launch" aria-label="Launch status">
-      <span class="lp-label">Launch</span>
-      <span class="lp-track"><span class="lp-fill" data-launch-fill></span></span>
-      <span class="lp-pct" data-launch-pct>–</span>
-    </a>
+    <a class="btn btn-white nav-cta" href="#access">Get access</a>
   </header>
 
-  <!-- Hero: dusk sky over hills; the film tilts up into place as you scroll -->
+  <!-- Hero: a painted valley, the promise, and the ask box laid over its lower edge -->
   <section class="hero">
-    <div class="sky" aria-hidden="true"></div>
-    <div class="stars" aria-hidden="true"></div>
-    <svg class="hills" viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0 210 C 180 150, 330 170, 480 205 S 780 260, 960 210 S 1260 150, 1440 190 L1440 320 L0 320 Z" fill="#2b2a2c"/>
-      <path d="M0 250 C 220 200, 420 230, 620 255 S 980 300, 1180 250 S 1380 220, 1440 235 L1440 320 L0 320 Z" fill="#1b1d20"/>
-      <path d="M0 290 C 260 260, 520 280, 760 292 S 1200 300, 1440 280 L1440 320 L0 320 Z" fill="#0d1014"/>
-    </svg>
+    <div class="hero-art" aria-hidden="true"></div>
     <div class="hero-inner">
-      <span class="pill"><span class="live-dot"></span>Close to launch · PGET · FCPS Part 1 · MBBS</span>
-      <h1>Learn from the source.<br>Practice with purpose.</h1>
-      <p class="lede">medNAMA answers your medical questions from trusted textbooks, with the page to prove it, then turns what you learn into focused board-exam practice.</p>
-      <div class="cta-row">
-        <a class="btn btn-light" href="#film">Watch the film</a>
-        <a class="btn btn-ghost" href="#launch">See launch status</a>
+      <a class="badge" href="#access"><span class="dot" data-status-dot></span><span data-status-badge>Invite-only early access</span></a>
+      <h1>Learn from the source.<br>Practise with purpose.</h1>
+      <p>medNAMA answers from standard textbooks with the page to prove it, then turns what you learn into the practice your exam asks for: MCQs, past papers, TOACS stations and viva.</p>
+      <a class="btn btn-white" href="#access">Request access <span aria-hidden="true">&rarr;</span></a>
+    </div>
+  </section>
+
+  <div class="ask-wrap">
+    <div class="ask" aria-label="What asking medNAMA looks like">
+      <p class="ask-text"><span data-ask-text>A 2-year-old with fever for six days, red eyes and cracked lips. What must I not miss?</span><span class="caret" aria-hidden="true"></span></p>
+      <div class="chips" aria-hidden="true">
+        <span class="chip" data-chip="0"><svg viewBox="0 0 16 16"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM8 5v3.5l2.2 1.4"/></svg>Clinical reasoning</span>
+        <span class="chip" data-chip="1"><svg viewBox="0 0 16 16"><path d="M2.5 3.5h4.5a1.5 1.5 0 0 1 1 .4 1.5 1.5 0 0 1 1-.4h4.5v9H9a1 1 0 0 0-1 1 1 1 0 0 0-1-1H2.5z"/></svg>Explain</span>
+        <span class="chip" data-chip="2"><svg viewBox="0 0 16 16"><path d="M3 3h10v7H7l-3 3v-3H3z"/></svg>Tutor me</span>
+        <span class="chip" data-chip="3"><svg viewBox="0 0 16 16"><path d="M2.5 2.5h11v11h-11zM5.5 6h5M5.5 9h3"/></svg>TOACS station</span>
+      </div>
+      <div class="ask-foot">
+        <span class="scope"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.5h3v11H3zM7 2.5h3v11H7zM11 3.2l2.6-.6 2 10.7-2.6.5z"/></svg>Your textbooks &middot; cited by page</span>
+        <a class="btn btn-soft" href="#access">Ask <span aria-hidden="true">&rarr;</span></a>
       </div>
     </div>
-    <div class="stage" id="film">
-      <div class="glow" aria-hidden="true"></div>
-      <div class="frame" data-tilt="hero">
-        <div class="win-bar"><span></span><span></span><span></span><em>medNAMA</em></div>
-        <video controls preload="metadata" playsinline poster="assets/film-poster.jpg" aria-label="medNAMA in 45 seconds">
-          <source src="assets/medNAMA-film.mp4" type="video/mp4">
-          Your browser can&rsquo;t play this video. <a href="assets/medNAMA-film.mp4">Download it</a>.
+    <p class="for">Built for <span>PGET</span><span>FCPS Part 1</span><span>MBBS</span><span>IMM</span><span>FCPS-II</span></p>
+  </div>
+
+  <!-- What it builds: editorial headline, then a bento of painted cards with real screens -->
+  <section class="section" id="product">
+    <h2 class="ed">Answers, plans, papers and stations.<br><span>Everything medNAMA builds is cited and checkable.</span></h2>
+    <div class="bento">
+      <article class="tile t-ask" style="--pos:18% 70%">
+        <div class="tile-copy"><small>Ask anything</small><h3>Get the book<br>and the page.</h3></div>
+        <img class="shot" src="assets/shots/answer.jpg" alt="An answer with inline textbook citations" loading="lazy" width="1600" height="856">
+      </article>
+      <article class="tile t-plan" style="--pos:70% 40%">
+        <div class="tile-copy"><small>Today</small><h3>Your paper, today&rsquo;s step.</h3></div>
+        <img class="shot" src="assets/shots/plan.jpg" alt="Today: the next topic on your paper" loading="lazy" width="1320" height="1000">
+      </article>
+      <article class="tile t-phone" style="--pos:85% 80%">
+        <div class="tile-copy"><small>Offline pack</small><h3>Practise with no signal.</h3></div>
+        <img class="shot phone" src="assets/shots/offline-phone.jpg" alt="An offline question pack on a phone" loading="lazy" width="780" height="1600">
+      </article>
+      <article class="tile t-papers" style="--pos:40% 90%">
+        <div class="tile-copy"><small>Past papers</small><h3>25,000+ recalled questions, by year and topic.</h3></div>
+        <img class="shot" src="assets/shots/pastpapers.jpg" alt="Past papers by year and sitting" loading="lazy" width="1600" height="1368">
+      </article>
+      <article class="tile t-viva" style="--pos:55% 20%">
+        <div class="tile-copy"><small>TOACS &amp; viva</small><h3>An examiner who quotes you back.</h3></div>
+        <img class="shot" src="assets/shots/viva.jpg" alt="Viva stations with guided and timed modes" loading="lazy" width="1320" height="1000">
+      </article>
+    </div>
+    <ul class="row-facts">
+      <li><b>20</b> standard textbooks</li>
+      <li><b>21,000+</b> pages read</li>
+      <li><b>25,000+</b> recalled questions</li>
+      <li><b>70,000+</b> practice questions</li>
+    </ul>
+  </section>
+
+  <!-- The product on a painted backdrop; a clinical-reasoning exchange plays as you scroll -->
+  <section class="reveal" id="demo" aria-label="A clinical-reasoning conversation">
+    <div class="reveal-sticky">
+      <div class="reveal-head">
+        <h2 class="ed">Asked, not just told.<br><span>It wants your differential before it gives you its own.</span></h2>
+      </div>
+      <div class="reveal-stage">
+        <div class="reveal-win" data-reveal-win>
+          <div class="win-bar"><span></span><span></span><span></span><em>Dr. Shifa &middot; Paediatrics &middot; Clinical reasoning</em><i>Preview</i></div>
+          <div class="thread">
+            <div class="msg me" data-step="1">A 2-year-old with fever for six days, red eyes without discharge, cracked red lips, a rash and swollen hands.</div>
+            <div class="msg ai" data-step="2"><small>Dr. Shifa</small>Before I give you mine: what are your <b>top three diagnoses</b>, and the <b>one you must not miss</b>?</div>
+            <div class="msg me" data-step="3">Kawasaki disease, measles, scarlet fever. Must not miss: Kawasaki, because of the coronary arteries.</div>
+            <div class="msg ai" data-step="4"><small>Dr. Shifa</small>Good. Fever for five days or more with four of the five principal features is Kawasaki disease until proven otherwise. Measles would bring cough, coryza and Koplik spots; scarlet fever rarely reddens the eyes. <span class="cite">Nelson &middot; Kawasaki disease</span></div>
+            <div class="msg ai" data-step="5"><small>Dr. Shifa &middot; next steps</small>CBC, CRP and ESR, albumin, urinalysis and an <b>echocardiogram now</b>. Treat with IVIG and aspirin; don&rsquo;t wait for the echo. <span class="cite">Nelson &middot; Kawasaki disease</span>
+              <div class="probe">Your turn: he is still febrile 36 hours after IVIG. What now?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The one rule -->
+  <section class="section quote-sec">
+    <blockquote class="quote">&laquo;Most question banks tell you the answer. medNAMA shows you where it&rsquo;s written, <span>then asks you again, just before you&rsquo;d forget.&raquo;</span></blockquote>
+    <p class="quote-by">The one rule medNAMA is built on</p>
+  </section>
+
+  <!-- The film -->
+  <section class="section film" id="film">
+    <div class="split">
+      <h2 class="ed">The answer is in here.<br><span>Somewhere. Here&rsquo;s the page.</span></h2>
+      <p>Two thirty-second films. Every frame is drawn in code and every sound is synthesised, and each cut went through rounds of review by separate critic agents before it shipped.</p>
+    </div>
+    <div class="film-frame">
+      <video controls preload="metadata" playsinline poster="assets/film-poster.jpg" aria-label="The medNAMA film: show me the page">
+        <source src="assets/medNAMA-film.mp4" type="video/mp4">
+        Your browser can&rsquo;t play this video. <a href="assets/medNAMA-film.mp4">Download it</a>.
+      </video>
+    </div>
+    <div class="film-second">
+      <div class="film-frame small">
+        <video controls preload="none" playsinline poster="assets/film-poster-paeds.jpg" aria-label="The Paediatrics film: residency is chaos">
+          <source src="assets/medNAMA-paeds-film.mp4" type="video/mp4">
+          Your browser can&rsquo;t play this video. <a href="assets/medNAMA-paeds-film.mp4">Download it</a>.
         </video>
       </div>
-    </div>
-  </section>
-
-  <!-- Statement: words light up as you scroll -->
-  <section class="statement">
-    <p class="reveal-words">Most question banks tell you the answer. medNAMA shows you where it&rsquo;s written: the book, the page, the passage. Then it asks you again, just before you&rsquo;d forget.</p>
-  </section>
-
-  <!-- A drifting wall of real screens -->
-  <section class="wall" aria-label="medNAMA screens">
-    <div class="wall-tilt">
-      <div class="wall-row" data-dir="left">
-        <img src="assets/shots/answer.jpg" alt="" loading="lazy"><img src="assets/shots/pastpapers.jpg" alt="" loading="lazy"><img src="assets/shots/plan.jpg" alt="" loading="lazy"><img src="assets/shots/library.jpg" alt="" loading="lazy">
-      </div>
-      <div class="wall-row" data-dir="right">
-        <img src="assets/shots/explain.jpg" alt="" loading="lazy"><img src="assets/shots/tutor.jpg" alt="" loading="lazy"><img src="assets/shots/offline.jpg" alt="" loading="lazy"><img src="assets/shots/viva.jpg" alt="" loading="lazy">
-      </div>
-      <div class="wall-row" data-dir="left">
-        <img src="assets/shots/blueprint.jpg" alt="" loading="lazy"><img src="assets/shots/dashboard.jpg" alt="" loading="lazy"><img src="assets/shots/pastpapers.jpg" alt="" loading="lazy"><img src="assets/shots/explain.jpg" alt="" loading="lazy">
-      </div>
-    </div>
-    <div class="wall-fade" aria-hidden="true"></div>
-  </section>
-
-  <!-- Core features, one tab at a time -->
-  <section class="section" id="features">
-    <div class="split-head">
       <div>
-        <span class="pill dot">Core features</span>
-        <h2>One place to understand,<br><span class="dim">practise and remember.</span></h2>
+        <small>The Paediatrics cut &middot; IMM &amp; FCPS-II</small>
+        <h3>Residency is chaos.<br><span>Preparation shouldn&rsquo;t be.</span></h3>
+        <p>A night on call, a febrile two-year-old, and the syllabus that turns one ER note into a topic, a tutor and a TOACS station.</p>
       </div>
-      <p>Tell it your paper. Study each topic of the official blueprint, ask about anything, practise the recalled papers, rehearse the viva, and let medNAMA bring back what you got wrong. No switching between apps, notes and PDFs.</p>
-    </div>
-
-    <div class="tabs" role="tablist" aria-label="Features">
-      <button role="tab" aria-selected="true" aria-controls="tab-plan" id="t-plan">Plan</button>
-      <button role="tab" aria-selected="false" aria-controls="tab-blueprint" id="t-blueprint">Blueprint</button>
-      <button role="tab" aria-selected="false" aria-controls="tab-ask" id="t-ask">Ask</button>
-      <button role="tab" aria-selected="false" aria-controls="tab-practise" id="t-practise">Practise</button>
-      <button role="tab" aria-selected="false" aria-controls="tab-viva" id="t-viva">Viva</button>
-      <button role="tab" aria-selected="false" aria-controls="tab-review" id="t-review">Review</button>
-    </div>
-
-    <div class="panel" role="tabpanel" id="tab-plan" aria-labelledby="t-plan">
-      <div class="panel-copy">
-        <span class="eyebrow">Today</span>
-        <h3>Your paper.<br>Today&rsquo;s step.</h3>
-        <p>Answer three questions once: which paper you&rsquo;re sitting, when, and how long you can study a day. Today then gives you one clear next step, today&rsquo;s topics, and how many topics to cover this week to finish in time.</p>
-        <ul class="ticks">
-          <li>Weak topics first, then the ones the paper asks most</li>
-          <li>Due re-tests and unfinished sessions never get lost</li>
-          <li>A mock built to your paper when you&rsquo;re ready</li>
-        </ul>
-      </div>
-      <div class="scene"><div class="win" data-tilt><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/plan.jpg" alt="Today: the next topic on your paper and this week&rsquo;s target" loading="lazy" width="1320" height="1000"></div></div>
-    </div>
-
-    <div class="panel" role="tabpanel" id="tab-blueprint" aria-labelledby="t-blueprint" hidden>
-      <div class="panel-copy">
-        <span class="eyebrow">My paper</span>
-        <h3>Study to the<br>official blueprint.</h3>
-        <p>Every paper of the official Table of Specifications for PGET, FCPS Part 1 and MBBS, topic by topic. Each topic opens with a short refresher and revision notes written from the textbooks, then practice on that topic only.</p>
-        <ul class="ticks">
-          <li>Learn, practise, then test, in that order</li>
-          <li>Mocks with the official question count per subject</li>
-          <li>See which topics you&rsquo;ve covered, and how well</li>
-        </ul>
-      </div>
-      <div class="scene"><div class="win" data-tilt><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/blueprint.jpg" alt="A blueprint topic with its textbook refresher and sub-topics" loading="lazy" width="1320" height="1000"></div></div>
-    </div>
-
-    <div class="panel" role="tabpanel" id="tab-ask" aria-labelledby="t-ask" hidden>
-      <div class="panel-copy">
-        <span class="eyebrow">Dr MedNama</span>
-        <h3>Ask anything.<br>Get the page.</h3>
-        <p>Answers come from your textbooks, with every fact cited as [Book, Page] and the relevant figures alongside. Anything the books don&rsquo;t cover is clearly labelled as AI knowledge.</p>
-        <ul class="ticks">
-          <li>Inline textbook citations you can check</li>
-          <li>&ldquo;Tutor me&rdquo;: one question at a time, corrected from the books</li>
-          <li>Pitched for MBBS, FCPS-I or FCPS-II</li>
-        </ul>
-      </div>
-      <div class="scene"><div class="win" data-tilt><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/answer.jpg" alt="Dr MedNama answering with textbook citations" loading="lazy" width="1600" height="856"></div></div>
-    </div>
-
-    <div class="panel" role="tabpanel" id="tab-practise" aria-labelledby="t-practise" hidden>
-      <div class="panel-copy">
-        <span class="eyebrow">Past papers &amp; practice</span>
-        <h3>Every recalled question,<br>by year and topic.</h3>
-        <p>More than 25,000 recalled FCPS Part 1 questions from 2016 to 2026, by year, sitting, subject or topic, with timed papers and a weekly mock everyone sits.</p>
-        <ul class="ticks">
-          <li>Harder versions that keep the fact, not the wording</li>
-          <li>New-angle twists, checked against the textbooks</li>
-          <li>Questions you&rsquo;ve seen don&rsquo;t come back too soon</li>
-        </ul>
-      </div>
-      <div class="scene"><div class="win" data-tilt><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/pastpapers.jpg" alt="Past papers by year and sitting" loading="lazy" width="1600" height="1368"></div></div>
-    </div>
-
-    <div class="panel" role="tabpanel" id="tab-viva" aria-labelledby="t-viva" hidden>
-      <div class="panel-copy">
-        <span class="eyebrow">TOACS &amp; viva practice</span>
-        <h3>Rehearse<br>the viva.</h3>
-        <p>An examiner asks one question at a time and releases the findings as you go. Answer, ask for a hint if you&rsquo;re stuck, then get a criterion-by-criterion debrief that quotes your own words for every mark.</p>
-        <ul class="ticks">
-          <li>Guided with hints, or timed like the real station</li>
-          <li>Safety-critical points marked apart from the rest</li>
-          <li>Paediatrics first, as a pilot; an educational simulation, not an official assessment</li>
-        </ul>
-      </div>
-      <div class="scene"><div class="win" data-tilt><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/viva.jpg" alt="Paediatrics viva stations with guided and timed modes" loading="lazy" width="1320" height="1000"></div></div>
-    </div>
-
-    <div class="panel" role="tabpanel" id="tab-review" aria-labelledby="t-review" hidden>
-      <div class="panel-copy">
-        <span class="eyebrow">Explanations &amp; re-tests</span>
-        <h3>Wrong answers<br>become lessons.</h3>
-        <p>Each explanation shows why the key is right and where the textbook says so. A miss becomes a concept card that comes back as a different question, right before you&rsquo;d forget it.</p>
-        <ul class="ticks">
-          <li>Spaced re-tests timed by FSRS</li>
-          <li>Look-alike pairs for the mix-ups you keep making</li>
-          <li>Export your cards to Anki</li>
-        </ul>
-      </div>
-      <div class="scene"><div class="win" data-tilt><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/explain.jpg" alt="A question with its textbook explanation" loading="lazy" width="1600" height="1091"></div></div>
     </div>
   </section>
 
-  <!-- Why: cards with layered, tilting screens -->
-  <section class="section" id="why">
-    <div class="split-head">
-      <div>
-        <span class="pill dot">Why medNAMA</span>
-        <h2>Built the way students<br><span class="dim">actually study.</span></h2>
-      </div>
-      <p>Early mornings, short breaks between wards, a long bus ride. medNAMA is designed around how revision really happens, and around one rule: show the source.</p>
+  <!-- Access: is it up, where it runs, how to get in -->
+  <section class="section" id="access">
+    <div class="split">
+      <h2 class="ed">How to get in.<br><span>Invite-only, on our own private server.</span></h2>
+      <p>medNAMA isn&rsquo;t on a public cloud. It runs on a self-hosted server we maintain ourselves, for a small group of trainees while it grows. Here&rsquo;s whether it&rsquo;s up right now, and how to join.</p>
     </div>
 
-    <article class="card">
-      <div class="card-copy">
-        <span class="eyebrow">Your library, not the internet</span>
-        <h3>Every answer has<br>a page number.</h3>
-        <p>medNAMA reads only the textbooks in its library: 20 standard references across the basic sciences and clinical subjects, more than 21,000 pages. A citation that doesn&rsquo;t match a passage it actually read is removed before you see it.</p>
-        <span class="foot">+ Sources you can open and check</span>
+    <div class="access">
+      <div class="status-card" data-status-card>
+        <div class="status-top">
+          <span class="dot big" data-status-dot></span>
+          <div>
+            <b data-status-label>Checking&hellip;</b>
+            <small data-status-checked>Contacting the server</small>
+          </div>
+        </div>
+        <a class="addr" href="https://mednama.rekorex.online" target="_blank" rel="noopener">mednama.rekorex.online <span aria-hidden="true">&nearr;</span></a>
+        <dl class="status-facts">
+          <div><dt>Hosting</dt><dd>Private, self-hosted server. Not shared or commercial cloud hosting.</dd></div>
+          <div><dt>Hours</dt><dd>Maintained hours. It can go offline briefly for updates; this light is live.</dd></div>
+          <div><dt>Accounts</dt><dd>Invite-only. Sign-in details are arranged privately, never posted publicly.</dd></div>
+        </dl>
+        <a class="btn btn-dark wide" href="https://mednama.rekorex.online" target="_blank" rel="noopener" data-open-app>Open medNAMA <span aria-hidden="true">&nearr;</span></a>
       </div>
-      <div class="scene layered">
-        <div class="win back" data-tilt><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/library.jpg" alt="The medNAMA textbook library, grouped by subject" loading="lazy" width="1600" height="970"></div>
-        <div class="win front" data-tilt data-depth="1.6"><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/answer.jpg" alt="" loading="lazy" width="1600" height="856"></div>
-      </div>
-    </article>
 
-    <article class="card">
-      <div class="card-copy">
-        <span class="eyebrow">Tutor me</span>
-        <h3>Be asked,<br>not just told.</h3>
-        <p>Switch Dr MedNama to Tutor me and it works through a topic with you like a good viva examiner: one question, your answer, a correction from the book, the next question. The full answer comes at the end.</p>
-        <span class="foot">+ Active recall, built into every chat</span>
-      </div>
-      <div class="scene"><div class="win" data-tilt><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/tutor.jpg" alt="Dr MedNama in Tutor me mode asking a guiding question" loading="lazy" width="1600" height="1196"></div></div>
-    </article>
-
-    <article class="card">
-      <div class="card-copy">
-        <span class="eyebrow">Three questions, once</span>
-        <h3>Start with<br>your paper.</h3>
-        <p>Pick your exam and paper, add your exam date and how long a day you can give it. That&rsquo;s the whole setup. The app then shows what your paper needs: the blueprint for your paper, viva practice if it&rsquo;s a clinical one, and nothing you&rsquo;ll never use.</p>
-        <span class="foot">+ Change it any time from the sidebar</span>
-      </div>
-      <div class="scene"><div class="win" data-tilt style="max-width:420px;margin-inline:auto"><div class="win-bar"><span></span><span></span><span></span></div><img src="assets/shots/onboarding.jpg" alt="Choosing your exam and paper" loading="lazy" width="560" height="692"></div></div>
-    </article>
-
-    <article class="card">
-      <div class="card-copy">
-        <span class="eyebrow">Offline pack</span>
-        <h3>Practise with<br>no signal.</h3>
-        <p>Download a pack of questions with their keys and explanations while you&rsquo;re connected. Answer on the bus or in the ward; your answers wait on your phone and sync the moment you&rsquo;re back online.</p>
-        <span class="foot">+ Nothing lost, nothing counted twice</span>
-      </div>
-      <div class="scene phone-scene"><div class="phone" data-tilt><img src="assets/shots/offline-phone.jpg" alt="Offline pack on a phone with no connection" loading="lazy" width="780" height="1600"></div></div>
-    </article>
-  </section>
-
-  <!-- Numbers -->
-  <section class="numbers" aria-label="medNAMA in numbers">
-    <div><b>20</b><span>textbooks</span></div>
-    <div><b>21,000+</b><span>textbook pages</span></div>
-    <div><b>25,000+</b><span>recalled past-paper questions</span></div>
-    <div><b>70,000+</b><span>practice questions</span></div>
+      <ol class="steps">
+        <li>
+          <span class="n">1</span>
+          <div><h3>Request an invite</h3>
+            <p>Open a short GitHub issue: your training stage, institution and exam. It&rsquo;s public, so never include a phone number or password.</p>
+            <a class="btn btn-soft" href="https://github.com/itskaero/medNAMA/issues/new?template=invite.yml" target="_blank" rel="noopener">Request on GitHub <span aria-hidden="true">&rarr;</span></a></div>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <div><h3>We set up your account</h3>
+            <p>We reply on the issue and arrange your sign-in privately. Invites go out in small batches so every report can be read.</p></div>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <div><h3>Open it and sign in</h3>
+            <p>Go to <a href="https://mednama.rekorex.online" target="_blank" rel="noopener">mednama.rekorex.online</a> on any device while the light is green. On your phone, add it to your home screen and it opens like an app.</p></div>
+        </li>
+      </ol>
+    </div>
   </section>
 
   <!-- Launch status -->
   <section class="section" id="launch">
-    <div class="split-head">
-      <div>
-        <span class="pill"><span class="live-dot"></span>Launch status</span>
-        <h2>Close to launch.<br><span class="dim">Here&rsquo;s where we are.</span></h2>
-      </div>
-      <p>medNAMA is running with a small group of students today. The last steps are about how it reaches you: an app you install, the textbooks you choose, and the web version alongside.</p>
+    <div class="split">
+      <h2 class="ed">Close to launch.<br><span>Here&rsquo;s where we are.</span></h2>
+      <p>Running with a small group of trainees today. The last steps are about how it reaches you: an app you install, the textbooks you choose, and the web version alongside.</p>
     </div>
-
     <div class="launch">
-      <div class="launch-head">
-        <span class="launch-big" data-launch-pct>–</span>
-        <span class="muted">of the way to public launch</span>
-      </div>
-      <div class="launch-track" role="progressbar" aria-label="Progress to launch" aria-valuemin="0" aria-valuemax="100" data-launch-bar>
-        <span class="launch-fill" data-launch-fill></span>
-      </div>
-      <ol class="steps" data-launch-steps></ol>
+      <div class="launch-head"><span class="launch-big" data-launch-pct>–</span><span>of the way to public launch</span></div>
+      <div class="launch-track" role="progressbar" aria-label="Progress to launch" aria-valuemin="0" aria-valuemax="100" data-launch-bar><span class="launch-fill" data-launch-fill></span></div>
+      <ol class="lsteps" data-launch-steps></ol>
     </div>
   </section>
 
   <!-- FAQ -->
   <section class="section" id="faq">
-    <div class="split-head">
+    <div class="faq-grid">
       <div>
-        <span class="pill dot">FAQ</span>
-        <h2>Answers to the questions<br><span class="dim">that come up most.</span></h2>
+        <h2 class="ed">Everything you might<br><span>be wondering about.</span></h2>
+        <p class="faq-more">Still have a question? <a href="https://github.com/itskaero/medNAMA/issues/new" target="_blank" rel="noopener">Ask on GitHub</a>.</p>
       </div>
-    </div>
-    <div class="faq">
-      <details><summary>Who is medNAMA for?</summary><p>Candidates preparing for PGET, FCPS Part 1 and MBBS exams, with each paper&rsquo;s official Table of Specifications built in. FCPS-II candidates can rehearse viva stations (a Paediatrics pilot for now), and Dr MedNama can pitch answers for FCPS-II, MD and MS.</p></details>
-      <details><summary>Is the viva practice an official TOACS?</summary><p>No. It is an educational simulation: an AI examiner works from a reviewed station and marking scheme and quotes your answers for every mark. It shows where your reasoning is thin; it does not predict a CPSP result. Stations are labelled &ldquo;Practice only&rdquo; until their marking has been checked against expert-marked answers.</p></details>
-      <details><summary>Where do the answers come from?</summary><p>From a library of standard medical textbooks. Every textbook fact is cited with the book and page; anything beyond the books is labelled as AI knowledge, so you always know which is which.</p></details>
-      <details><summary>Can it be wrong?</summary><p>Yes. Any AI can make mistakes, which is why medNAMA shows its sources and puts a Report button on every answer and question. Answer keys that the textbooks contradict are flagged and reviewed.</p></details>
-      <details><summary>Are the past papers official?</summary><p>No. They are questions recalled by candidates after each sitting, collected and matched across years. They show what tends to be asked, not CPSP&rsquo;s official papers.</p></details>
-      <details><summary>How will I get medNAMA?</summary><p>As an app you install on your own computer, with the textbook packs you choose, plus a web version for your phone and other devices. Details come with the launch.</p></details>
-      <details><summary>What will it cost?</summary><p>Pricing is being finalised. The plan is per textbook pack, so you pay for the books you actually study from.</p></details>
-      <details><summary>Who can see my progress?</summary><p>Only you. Other students see a shortened version of your name on a weekly mock leaderboard, and &ldquo;how others did&rdquo; only appears once enough students take part.</p></details>
+      <div class="faq">
+        <details><summary>Where does medNAMA run?</summary><p>On a private, self-hosted server that we maintain ourselves, not on a commercial cloud platform. That keeps the early-access build small and under our control. It also means it can be offline now and then for maintenance; the status light on this page checks it live.</p></details>
+        <details><summary>How do I get access?</summary><p>Request an invite with a short GitHub issue. We reply there and arrange your sign-in privately. Then open mednama.rekorex.online and sign in.</p></details>
+        <details><summary>Who is it for?</summary><p>Candidates preparing for PGET, FCPS Part 1 and MBBS exams, with each paper&rsquo;s official Table of Specifications built in. FCPS-II and IMM Paediatrics candidates can rehearse viva stations, as a pilot.</p></details>
+        <details><summary>Where do the answers come from?</summary><p>From a library of standard medical textbooks. Every textbook fact is cited with the book and page; anything beyond the books is labelled as AI knowledge, so you always know which is which.</p></details>
+        <details><summary>Can it be wrong?</summary><p>Yes. Any AI can make mistakes, which is why medNAMA shows its sources and puts a Report button on every answer and question. Keys the textbooks contradict are flagged and reviewed.</p></details>
+        <details><summary>Is the viva practice an official TOACS?</summary><p>No. It is an educational simulation: an AI examiner works from a reviewed station and marking scheme and quotes your answers for every mark. It does not predict a CPSP result.</p></details>
+        <details><summary>Are the past papers official?</summary><p>No. They are questions recalled by candidates after each sitting, collected and matched across years. They show what tends to be asked, not CPSP&rsquo;s official papers.</p></details>
+        <details><summary>What will it cost?</summary><p>Pricing for the public launch is being finalised; the plan is per textbook pack, so you pay for the books you study from.</p></details>
+      </div>
     </div>
   </section>
 
-  <!-- Closing -->
+  <!-- Closing: dusk over the same valley -->
   <section class="closing">
-    <div class="sky sky-end" aria-hidden="true"></div>
+    <div class="closing-art" aria-hidden="true"></div>
     <div class="closing-inner">
-      <span class="wordmark">med<i>NAMA</i></span>
-      <h2>Almost ready.<br>Your next question is one tap away.</h2>
-      <a class="launch-pill big" href="#launch" aria-label="Launch status">
-        <span class="lp-label">Launch</span>
-        <span class="lp-track"><span class="lp-fill" data-launch-fill></span></span>
-        <span class="lp-pct" data-launch-pct>–</span>
-      </a>
+      <h2>Your next question<br>is one tap away.</h2>
+      <div class="cta-row">
+        <a class="btn btn-white" href="https://github.com/itskaero/medNAMA/issues/new?template=invite.yml" target="_blank" rel="noopener">Request an invite <span aria-hidden="true">&rarr;</span></a>
+        <a class="btn btn-glass" href="https://mednama.rekorex.online" target="_blank" rel="noopener"><span class="dot" data-status-dot></span>Open medNAMA</a>
+      </div>
     </div>
   </section>
 
   <footer class="footer">
-    <span class="word">med<i>NAMA</i></span>
-    <span>Learn from the source. Practice with purpose.</span>
-    <span class="muted">medNAMA can make mistakes. Check the cited sources. Recalled past papers are not official CPSP papers.</span>
-    <span class="muted">&copy; 2026 medNAMA</span>
+    <span class="brand"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1v18M1 10h18M3.6 3.6l12.8 12.8M16.4 3.6L3.6 16.4"/></svg><span>med<b>NAMA</b></span></span>
+    <span>medNAMA can make mistakes. Check the cited sources. Recalled past papers are not official CPSP papers.</span>
+    <span>&copy; 2026 medNAMA</span>
   </footer>
 
   <script src="launch.js"></script>

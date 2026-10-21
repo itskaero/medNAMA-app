@@ -1,0 +1,11 @@
+{
+  "name": "paednama-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PaedNAMA web app. node_modules is a link to frontend/node_modules (scripts/link_modules.bat): one copy of React and Next for both apps.",
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100"
+  }
+}

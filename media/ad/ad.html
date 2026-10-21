@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>medNAMA ad renderer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: "Bespoke Serif"; src: url("../../site/assets/fonts/BespokeSerif-Italic.woff2") format("woff2"); font-style: italic; }
+  @font-face { font-family: "Bespoke Serif"; src: url("../../site/assets/fonts/BespokeSerif-Regular.woff2") format("woff2"); }
+  html, body { margin: 0; background: #000; }
+  canvas { display: block; }
+  /* warm the fonts so the first frame draws with them */
+  .warm { position: absolute; opacity: 0; font: 20px Inter; } .warm i { font-family: "Bespoke Serif"; } .warm b { font-family: "JetBrains Mono"; } .warm u { font-family: Caveat; }
+</style>
+</head>
+<body>
+<span class="warm">Inter <i>Serif</i> <b>Mono</b> <u>Hand</u></span>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// medNAMA, 30-second ad. Every frame is a pure function of time: renderAt(t) draws frame t (seconds).
+// The shared timeline (timeline.json) is passed in by render.js through setTimeline(), so picture and sound agree.
+const W = 1920, H = 1080;
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+let TL = null;
+window.setTimeline = (tl) => { TL = tl; BEATS = [...tl.beats_calm, ...tl.beats_rising, ...tl.beats_steady].sort((a, b) => a - b); };
+let BEATS = [];
+
+const C = { ink: "#0B0A0A", char: "#161414", char2: "#1E1B1A", ember: "#FF5A1F", ember2: "#FF7A45", paper: "#F4EEE8",
+  text: "#F5F1EE", text2: "#B8B0AA", muted: "#8F8782", green: "#3DDC97", red: "#FF3B47", line: "rgba(255,255,255,0.09)" };
+const HAND = "Caveat, cursive", SANS = "Inter, system-ui, sans-serif", MONO = "'JetBrains Mono', ui-monospace, monospace", SERIF = "'Bespoke Serif', Georgia, serif";
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const easeOut = (k) => 1 - Math.pow(1 - clamp(k), 3);
+const easeInOut = (k) => { k = clamp(k); return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; };
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let x = Math.imul(seed ^ seed >>> 15, 1 | seed); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; }; }
+function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function text(s, x, y, { font = `500 32px ${SANS}`, color = C.text, align = "left", base = "alphabetic", alpha = 1, ls = 0 } = {}) {
+  g.save(); g.globalAlpha *= alpha; g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = base;
+  if (ls) g.letterSpacing = `${ls}px`; g.fillText(s, x, y); g.restore();
+}
+function wrap(s, x, y, maxW, lh, opts) {
+  g.save(); g.font = opts.font; const words = s.split(" "); let line = "", yy = y;
+  for (const w of words) { const t2 = line ? line + " " + w : w; if (g.measureText(t2).width > maxW && line) { text(line, x, yy, opts); line = w; yy += lh; } else line = t2; }
+  if (line) text(line, x, yy, opts); g.restore(); return yy;
+}
+function pill(s, x, y, { bg = "rgba(255,90,31,0.14)", fg = C.ember2, size = 20, alpha = 1 } = {}) {
+  g.save(); g.globalAlpha *= alpha; g.font = `600 ${size}px ${SANS}`; const w = g.measureText(s).width + size * 1.1, h = size * 1.6;
+  rr(x, y - h * 0.72, w, h, h / 2); g.fillStyle = bg; g.fill(); text(s, x + size * 0.55, y, { font: `600 ${size}px ${SANS}`, color: fg }); g.restore(); return w;
+}
+function card(x, y, w, h, { fill = C.char, stroke = C.line, r = 22, alpha = 1, shadow = true } = {}) {
+  g.save(); g.globalAlpha *= alpha;
+  if (shadow) { g.shadowColor = "rgba(0,0,0,0.55)"; g.shadowBlur = 40; g.shadowOffsetY = 18; }
+  rr(x, y, w, h, r); g.fillStyle = fill; g.fill(); g.shadowColor = "transparent"; g.strokeStyle = stroke; g.lineWidth = 1.5; g.stroke(); g.restore();
+}
+function glow(x, y, r, color, a) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, color); gr.addColorStop(1, "rgba(0,0,0,0)"); g.save(); g.globalAlpha = a; g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); g.restore(); }
+
+// ECG: a PQRST complex around each beat time (seconds).
+const gauss = (d, m, s) => Math.exp(-((d - m) * (d - m)) / (2 * s * s));
+function ecg(tau) {
+  let v = 0;
+  for (const b of BEATS) { const d = tau - b; if (d < -0.3 || d > 0.5) continue;
+    v += gauss(d, 0, 0.011) * 1.0 - gauss(d, -0.022, 0.008) * 0.16 - gauss(d, 0.026, 0.01) * 0.32 + gauss(d, 0.24, 0.045) * 0.24 + gauss(d, -0.15, 0.028) * 0.11; }
+  return v;
+}
+function trace(t, x0, y0, w, h, { span = 2.6, color = C.green, width = 4, alpha = 1, glowA = 0.6 } = {}) {
+  g.save(); g.globalAlpha = alpha; g.lineWidth = width; g.lineJoin = "round"; g.strokeStyle = color; g.shadowColor = color; g.shadowBlur = 18 * glowA;
+  g.beginPath(); const n = Math.round(w / 3);
+  for (let i = 0; i <= n; i++) { const tau = t - span + (i / n) * span; const x = x0 + (i / n) * w, y = y0 - ecg(tau) * h; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+  g.stroke(); g.shadowBlur = 0; const yh = y0 - ecg(t) * h; glow(x0 + w, yh, 26, color, 0.9 * alpha); g.fillStyle = "#fff"; g.beginPath(); g.arc(x0 + w, yh, 5, 0, 7); g.fill(); g.restore();
+}
+function heartRate(t) { const past = BEATS.filter((b) => b <= t); if (past.length < 2) return 75; const d = past[past.length - 1] - past[past.length - 2]; return Math.round(60 / d); }
+
+// ── content (real: the CPSP 2026 curriculum's systems and their topic counts) ──
+const SYSTEMS = [["General principles", 9], ["Lab med & radiology", 1], ["Drug therapy", 8], ["Growth & development", 8], ["Adolescent medicine", 5],
+  ["Vaccinology", 6], ["Nutrition", 16], ["Fluids & electrolytes", 8], ["Dev. & behaviour", 11], ["Emergency", 19], ["Neonatology", 27],
+  ["Infectious diseases", 17], ["Critical care", 20], ["Allergy", 10], ["Immunology", 8], ["Genetics", 9], ["Metabolic", 6], ["Nervous system", 28],
+  ["Neuromuscular", 10], ["GI & hepatobiliary", 33], ["Respiratory", 41], ["Cardiovascular", 17], ["Haem & oncology", 34], ["Nephrology & urology", 18],
+  ["Endocrinology", 21], ["Rheumatology", 17], ["Bone & joint", 14], ["Gynaecology", 9], ["Psychiatry", 18], ["Skin", 23], ["Paediatric surgery", 42]];
+const FRAGS = [
+  ["note", "Bili chart: which line?"], ["note", "Jaundice < 24 h = pathological"], ["note", "Holliday–Segar 100 / 50 / 20"], ["note", "DKA fluids??"],
+  ["note", "Nelson p. ???"], ["duty", "Synopsis to RTMC??"], ["note", "PALS algorithm (again)"], ["note", "EPI schedule — check"],
+  ["recall", "Q. Early-onset neonatal sepsis: commonest organism?"], ["recall", "Q. Koplik spots appear on day…?"], ["duty", "e-Logbook: sign-off pending"],
+  ["duty", "Cot 7: 2 babies"], ["duty", "ER: 2 y, fever day 6"], ["duty", "36-hour call"], ["duty", "Mini-CEX on Tuesday"], ["curr", "NEONATOLOGY · 27 topics"],
+  ["curr", "RESPIRATORY · 41 topics"], ["curr", "PAEDIATRIC SURGERY · 42"], ["time", "IMM in 118 days"], ["note", "Read Cloherty tonight"],
+  ["recall", "Q. Antidote for paracetamol?"], ["duty", "Shift ends 08:00 (it won't)"], ["note", "Ask senior: IVIG dose?"], ["curr", "GI & HEPATOBILIARY · 33"]];
+const HERO_FRAG = FRAGS.findIndex(([, s]) => s.startsWith("ER: 2 y"));
+const PULLED = ["Ask senior: IVIG dose?", "Nelson p. ???", "Q. Koplik spots appear on day…?", "Mini-CEX on Tuesday", "IMM in 118 days", "Read Cloherty tonight", "e-Logbook: sign-off pending", "Synopsis to RTMC??"].map((t) => FRAGS.findIndex(([, s]) => s === t));
+
+// ── scene plumbing: every boundary comes from the timeline ─────────────────
+const S = (id) => TL.scenes.find((s) => s.id === id);
+const sceneAt = (t) => TL.scenes.find((s) => t >= s.start && t < s.end) || TL.scenes[TL.scenes.length - 1];
+
+function bg(color = C.ink) { g.fillStyle = color; g.fillRect(0, 0, W, H); }
+function grain(t, a = 0.06) { const r = rng(Math.floor(t * 30) + 7); g.save(); g.globalAlpha = a; g.fillStyle = "#fff";
+  for (let i = 0; i < 900; i++) g.fillRect(r() * W, r() * H, 1.4, 1.4); g.restore(); }
+function vignette(a = 0.65, color = "0,0,0") { const gr = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+  gr.addColorStop(0, `rgba(${color},0)`); gr.addColorStop(1, `rgba(${color},${a})`); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+function monitorGrid(alpha) { g.save(); g.globalAlpha = alpha; g.strokeStyle = "rgba(61,220,151,0.07)"; g.lineWidth = 1;
+  for (let x = 0; x < W; x += 60) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+  for (let y = 0; y < H; y += 60) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); } g.restore(); }
+// The trainee's own pulse: physiological, 75 at rest to about 160 under pressure.
+function hr(t) { const past = BEATS.filter((b) => b <= t); if (past.length < 2) return 75;
+  const d = past[past.length - 1] - past[past.length - 2]; return d > 1.5 ? 75 : clamp(Math.round(60 / d), 55, 175); }
+const hrColor = (t) => (hr(t) > 120 ? C.red : C.green);
+function pulseLabel(t, x, y, color, alpha = 1) { text(`HR ${hr(t)} · you`, x, y, { font: `600 34px ${MONO}`, color, align: "right", alpha }); }
+
+function sceneMonitor(t) {
+  bg(); monitorGrid(easeOut(prog(t, 0, 0.5)));
+  trace(t, 160, 600, 1600, 230);
+  text("03:12 · NIGHT DUTY", 160, 210, { font: `600 36px ${MONO}`, color: C.text, alpha: prog(t, 0.1, 0.5), ls: 1 });
+  pulseLabel(t, 1760, 210, C.green, prog(t, 0.2, 0.6));
+  text("PG-2 Paeds. IMM in 118 days.", 160, 860, { font: `600 60px ${SANS}`, color: C.text, alpha: prog(t, 0.4, 0.8), ls: -1.5 });
+  vignette(0.7); grain(t, 0.05);
+}
+
+const KIND = { note: { fill: "#F4EEE8", fg: "#1B1310", rot: 0.12 }, recall: { fill: "#161414", fg: "#F5F1EE", rot: 0.05 },
+  duty: { fill: "#1E1B1A", fg: "#D9D2CC", rot: 0.08 }, curr: { fill: "#0F1210", fg: "#3DDC97", rot: 0.04 }, time: { fill: "#2A1209", fg: "#FF7A45", rot: 0.06 } };
+const FR = (() => { const r = rng(11); return FRAGS.map(([k, s], i) => ({ k, s, i, ts: 0, frac: i === HERO_FRAG ? 0.02 : Math.pow(i / FRAGS.length, 0.85) + r() * 0.02,
+  x: 100 + r() * (W - 660), y: 110 + r() * (H - 260), vx: (r() - 0.5) * 60, vy: (r() - 0.5) * 40, rot: (r() - 0.5), s2: 0.95 + r() * 0.3 }))
+  .map((f) => (f.x + 600 > 1300 && f.y > 760 ? { ...f, y: f.y - 420 } : f))
+  .map((f) => f.i === HERO_FRAG ? { ...f, x: 260, y: 300, vx: 8, vy: 6, rot: -0.3, s2: 1.15 } : f); })();
+function fragPos(f, t, shake) {
+  const age = t - f.ts, jr = rng(Math.floor(t * 30) * 31 + f.i * 97);
+  return [f.x + f.vx * age + (jr() - 0.5) * shake, f.y + f.vy * age + (jr() - 0.5) * shake, age];
+}
+function drawFrag(f, x, y, a, sc = 1, rot = null) {
+  const kd = KIND[f.k], hero = f.i === HERO_FRAG;
+  g.save(); g.translate(x, y); g.rotate(rot === null ? f.rot * kd.rot * 2.2 : rot); g.scale(f.s2 * sc, f.s2 * sc);
+  const font = f.k === "note" ? `600 40px ${HAND}` : `600 32px ${f.k === "curr" || f.k === "time" ? MONO : SANS}`; g.font = font; const w = Math.min(640, g.measureText(f.s).width + 52);
+  if (hero) glow(w / 2, 39, w * 0.7, "rgba(255,90,31,0.35)", a);
+  card(0, 0, w, 78, { fill: hero ? "#2A1209" : kd.fill, r: f.k === "note" ? 6 : 16, alpha: a, stroke: hero ? C.ember : f.k === "time" ? "rgba(255,90,31,0.5)" : C.line });
+  if (hero) { g.save(); g.globalAlpha = a; rr(0, 0, w, 78, 16); g.strokeStyle = C.ember; g.lineWidth = 4; g.stroke(); g.restore(); }
+  text(f.s, 26, 50, { font, color: kd.fg, alpha: a }); g.restore();
+}
+function sceneChaos(t) {
+  const sc = S("chaos"), k = prog(t, sc.start, sc.end); bg();
+  for (const f of FR) f.ts = sc.start + 0.1 + f.frac * (sc.end - sc.start - 0.3);
+  glow(W / 2, H / 2, 900, `rgba(255,59,71,${0.10 + 0.16 * k})`, 1);
+  const shake = 2 + 10 * k * k;
+  for (const f of FR) { if (t < f.ts || f.i === HERO_FRAG) continue; const [x, y, age] = fragPos(f, t, shake); drawFrag(f, x, y, easeOut(age / 0.25)); }
+  { const f = FR[HERO_FRAG]; if (t >= f.ts) { const [x, y, age] = fragPos(f, t, shake * 0.5); drawFrag(f, x, y, easeOut(age / 0.25)); } }
+  trace(t, 1400, 1000, 430, 70, { span: 2.0, width: 3, color: hrColor(t) });
+  pulseLabel(t, 1830, 925, hrColor(t));
+  const words = ["Nelson. Two volumes.", "Ward round. Cases. Night duty.", "And an exam."];
+  words.forEach((s, i) => { const ts = TL.type_words[i]; const a = prog(t, ts, ts + 0.15) * (1 - prog(t, ts + 1.0, ts + 1.15));
+    if (a <= 0) return; const fa = prog(t, ts - 0.05, ts + 0.02) * (1 - prog(t, ts + 1.12, ts + 1.17));
+    g.save(); g.font = `700 84px ${SANS}`; const w = g.measureText(s).width; g.globalAlpha = fa; g.fillStyle = "rgb(11,10,10)";
+    rr(W / 2 - w / 2 - 48, H / 2 - 92, w + 96, 134, 26); g.fill(); g.restore();
+    text(s, W / 2, H / 2, { font: `700 84px ${SANS}`, align: "center", alpha: a, ls: -2 }); });
+  vignette(0.6 + 0.2 * k, "40,0,0"); grain(t, 0.07);
+}
+function scenePressure(t) {
+  const sc = S("pressure"), k = prog(t, sc.start, sc.end); bg();
+  glow(W / 2, H / 2, 900, "rgba(255,59,71,0.16)", 1);
+  const big = ["513 TOPICS", "2 × 100 MCQs", "12–18 STATIONS"];
+  const jr = rng(Math.floor(t * 30) + 3); const sx = (jr() - 0.5) * 10 * k, sy = (jr() - 0.5) * 8 * k;
+  const shown = TL.flash.filter((x) => x <= t).length;
+  TL.flash.forEach((ft, i) => { if (t < ft) return; const latest = i === shown - 1, age = t - ft;
+    if (latest) text(big[i], W / 2 + sx, H / 2 + 50 + sy, { font: `700 ${176 - 16 * easeOut(age / 0.6)}px ${SANS}`, align: "center", ls: -3 });
+    else text(big[i], 140, 170 + i * 84, { font: `700 60px ${SANS}`, color: C.muted, alpha: 0.6, ls: -1 }); });
+  { const f = FR[HERO_FRAG]; const [x, y] = fragPos(f, t, 4 * k); drawFrag(f, x, y + 520, 0.85); }
+  trace(t, 1400, 1000, 430, 70, { span: 1.6, width: 3, color: hrColor(t) });
+  pulseLabel(t, 1830, 925, hrColor(t));
+  vignette(0.85, "60,0,0"); grain(t, 0.08);
+}
+function phone(t, a) {   // the trainee's phone in a dark on-call room
+  const pw = 470, ph = 900, px = W / 2 - pw / 2, py = H / 2 - ph / 2 + 20;
+  glow(W / 2, H / 2, 700, "rgba(255,90,31,0.16)", a);
+  g.save(); g.globalAlpha = a; rr(px - 14, py - 14, pw + 28, ph + 28, 64); g.fillStyle = "#111"; g.fill(); rr(px, py, pw, ph, 50); g.fillStyle = C.ink; g.fill();
+  g.strokeStyle = "rgba(255,255,255,0.12)"; g.lineWidth = 2; g.stroke(); g.restore();
+  return { px, py, pw, ph };
+}
+function wordmark(cx, y, size, a) {
+  g.save(); g.font = `500 ${size}px ${SANS}`; const wMed = g.measureText("med").width; g.font = `italic 400 ${size * 1.06}px ${SERIF}`; const wNama = g.measureText("NAMA").width; g.restore();
+  const x0 = cx - (wMed + wNama) / 2;
+  text("med", x0, y, { font: `500 ${size}px ${SANS}`, alpha: a, ls: -size / 30 }); text("NAMA", x0 + wMed, y, { font: `italic 400 ${size * 1.06}px ${SERIF}`, color: C.ember, alpha: a });
+}
+function sceneTurn(t) {   // the ER note flies into the search bar and becomes the query; the syllabus answers with its topic
+  bg("#000");
+  const pa = easeOut(prog(t, TL.proposition, TL.proposition + 0.4));
+  text("Your IMM syllabus.", 120, 500, { font: `700 44px ${SANS}`, alpha: pa, ls: -1 });
+  text("Mapped, taught, tested.", 120, 562, { font: `600 44px ${SANS}`, color: C.text2, alpha: pa, ls: -1 });
+  // after the result lands, push in on the card so the phone's type reads
+  const z = 1 + 0.2 * easeInOut(prog(t, TL.result + 0.2, 13.1)), zx = W / 2, zy = 620;   // keeps the status bar 40 px clear
+  g.save(); g.translate(zx, zy); g.scale(z, z); g.translate(-zx, -zy);
+  const a = easeOut(prog(t, TL.phone, TL.phone + 0.35));
+  const { px, py, pw } = phone(t, a);
+  text("03:41", px + 50, py + 56, { font: `600 26px ${MONO}`, color: C.text2, alpha: a });
+  text("●●● 4G", px + pw - 50, py + 56, { font: `600 24px ${MONO}`, color: C.text2, align: "right", alpha: a });
+  wordmark(W / 2, py + 180, 76, easeOut(prog(t, TL.wordmark, TL.wordmark + 0.3)));
+  const sa = easeOut(prog(t, TL.wordmark + 0.1, TL.wordmark + 0.35));
+  const sx0 = px + 34, sy0 = py + 240;
+  g.save(); g.globalAlpha = sa; rr(sx0, sy0, pw - 68, 80, 40); g.fillStyle = C.char; g.fill(); g.strokeStyle = C.ember; g.lineWidth = 2; g.stroke(); g.restore();
+  const [f0, f1] = TL.hero_fly, hf = FR[HERO_FRAG], fk = easeInOut(prog(t, f0, f1));
+  if (t < f1) { if (t >= f0 - 0.3) { const [hx, hy] = fragPos(hf, TL.cut_to_silence - 0.01, 0);
+    drawFrag(hf, lerp(hx, sx0 + 4, fk), lerp(hy + 520, sy0 + 1, fk), easeOut(prog(t, f0 - 0.3, f0)), lerp(1, 0.8, fk), lerp(-0.07, 0, fk)); } }
+  else text("Kawasaki disease", sx0 + 34, sy0 + 54, { font: `600 36px ${SANS}`, color: C.text });
+  const ca = easeOut(prog(t, TL.result, TL.result + 0.3)), cx = px + 34, cy = py + 360, cw = pw - 68;
+  g.save(); g.globalAlpha = ca; rr(cx, cy, cw, 330, 26); g.fillStyle = C.char; g.fill(); g.strokeStyle = "rgba(255,90,31,0.5)"; g.lineWidth = 2; g.stroke(); g.restore();
+  text("IMM TOPIC · RHEUMATOLOGY", cx + 30, cy + 56, { font: `700 20px ${SANS}`, color: C.muted, alpha: ca, ls: 2 });
+  text("Kawasaki disease", cx + 30, cy + 112, { font: `700 40px ${SANS}`, alpha: ca, ls: -1 });
+  text("Fever ≥ 5 d + 4 of 5 features", cx + 30, cy + 166, { font: `500 26px ${SANS}`, color: C.text2, alpha: ca });
+  text("Nelson · cited by page", cx + 30, cy + 214, { font: `600 26px ${SANS}`, color: C.ember2, alpha: ca });
+  pill("Summary · Recall · Ask", cx + 30, cy + 286, { alpha: ca, size: 28 });
+  PULLED.forEach((fi, i) => { const f = FR[fi]; const k = easeInOut(prog(t, TL.pull + i * 0.04, TL.pull + 0.5 + i * 0.04)); if (k <= 0 || k >= 1) return;
+    const [qx, qy] = fragPos(f, TL.cut_to_silence - 0.01, 0); drawFrag(f, lerp(qx, cx + cw / 2 - 60, k), lerp(qy, cy - 10, k), 1 - k * 0.8, 1 - 0.75 * k, (1 - k) * 0.4); });
+  g.restore();
+  grain(t, 0.04);
+}
+function header(s, sub, a) { text(s, 120, 150, { font: `700 64px ${SANS}`, alpha: a, ls: -2 }); if (sub) text(sub, 120, 210, { font: `500 34px ${SANS}`, color: C.text2, alpha: a }); }
+function sceneGrid(t) {
+  const sc = S("grid"); bg(); glow(W * 0.8, -100, 900, "rgba(255,90,31,0.18)", 1);
+  text("Kawasaki disease → Rheumatology", 1800, 150, { font: `700 40px ${SANS}`, color: C.ember2, align: "right", alpha: easeOut(prog(t, sc.start + 1.0, sc.start + 1.3)) });
+  const r = rng(5), cols = 4, cw = 410, ch = 78, gx = 120, gy = 270, zoom = easeInOut(prog(t, sc.end - 0.5, sc.end));
+  SYSTEMS.forEach(([name, n], i) => { const sx = r() * W, sy = 300 + r() * (H - 300), rot = (r() - 0.5) * 0.6;
+    const k = easeInOut(prog(t, sc.start + i * 0.01, sc.start + 0.6 + i * 0.01));
+    const tx = gx + (i % cols) * (cw + 26), ty = gy + Math.floor(i / cols) * (ch + 12);
+    const hero = name === "Rheumatology", on = hero && t > sc.start + 1.0;
+    g.save(); g.translate(lerp(sx, tx, k), lerp(sy, ty, k)); g.rotate(rot * (1 - k));
+    if (on) { const z = 1 + 0.06 * easeOut(prog(t, sc.start + 1.0, sc.start + 1.3)); g.translate(cw / 2, ch / 2); g.scale(z, z); g.translate(-cw / 2, -ch / 2); }
+    const a = hero ? 1 : 1 - 0.75 * zoom;
+    card(0, 0, cw, ch, { fill: on ? "#2A1209" : C.char, stroke: on ? C.ember : C.line, r: 16, shadow: false, alpha: a });
+    g.font = `600 32px ${SANS}`; const fs = g.measureText(name).width > cw - 44 ? 28 : 32;   // long names step down a size
+    text(name, 22, 52, { font: `600 ${fs}px ${SANS}`, alpha: a });
+
+    g.restore(); });
+  header("31 systems. 513 topics.", null, prog(t, sc.start, sc.start + 0.4));
+  monitorCorner(t, prog(t, sc.start + 0.2, sc.start + 0.6)); grain(t, 0.035);
+}
+function monitorCorner(t, alpha = 1) {
+  card(1440, 920, 420, 120, { fill: "rgba(22,20,20,0.92)", alpha, shadow: false });
+  trace(t, 1460, 1012, 170, 40, { span: 2.2, width: 3, alpha, glowA: 0.4, color: hrColor(t) });
+  pulseLabel(t, 1840, 955, hrColor(t), alpha);
+}
+function coronaryDiagram(x, y, a) {      // anterior view: RCA on the viewer's left, LAD down the front to the apex, aneurysm on the proximal LAD
+  g.save(); g.globalAlpha = a; g.translate(x, y);
+  const line = (pts, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round"; g.beginPath();
+    g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 6) g.bezierCurveTo(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], pts[i + 4], pts[i + 5]); g.stroke(); };
+  const vessel = (draw) => { g.beginPath(); draw(); g.closePath(); g.fillStyle = "rgba(245,241,238,0.10)"; g.fill(); g.strokeStyle = "rgba(245,241,238,0.5)"; g.lineWidth = 3; g.stroke(); };
+  // great vessels as filled, tapering shapes: the ascending aorta arching right, the pulmonary trunk in front of it
+  const tube = (draw, w) => { g.lineCap = "butt"; g.beginPath(); draw(); g.strokeStyle = "rgba(245,241,238,0.55)"; g.lineWidth = w + 6; g.stroke();
+    g.beginPath(); draw(); g.strokeStyle = "#141212"; g.lineWidth = w; g.stroke(); };
+  tube(() => { g.moveTo(-58, -100); g.bezierCurveTo(-60, -230, 80, -250, 112, -150); }, 30);    // ascending aorta and arch
+  tube(() => { g.moveTo(14, -104); g.quadraticCurveTo(30, -160, 66, -176); }, 26);              // pulmonary trunk
+  // the heart: base up and to the viewer's left, apex down and to the viewer's right
+  g.fillStyle = "rgba(255,255,255,0.05)"; g.strokeStyle = "rgba(245,241,238,0.6)"; g.lineWidth = 4; g.beginPath();
+  g.moveTo(-120, -100); g.bezierCurveTo(-200, -60, -210, 70, -150, 140); g.bezierCurveTo(-80, 200, 60, 230, 190, 210);
+  g.bezierCurveTo(200, 120, 190, 10, 140, -70); g.bezierCurveTo(90, -120, -40, -130, -120, -100); g.closePath(); g.fill(); g.stroke();
+  // RCA: aortic root, down the right AV groove, round the acute margin
+  line([-60, -95, -120, -80, -175, -10, -165, 80], 6, C.ember);
+  line([-165, 80, -155, 140, -90, 180, -20, 190], 5, C.ember);
+  // left main, then the LAD down the anterior interventricular groove and the circumflex along the left AV groove
+  line([-10, -98, 10, -90, 30, -80, 45, -70], 6, C.ember);
+  line([45, -70, 60, -10, 110, 100, 180, 200], 6, C.ember);
+  line([45, -70, 90, -80, 140, -60, 165, -20], 5, "rgba(255,122,69,0.7)");
+  // the aneurysm on the proximal LAD
+  g.fillStyle = C.ember; g.beginPath(); g.ellipse(58, -22, 17, 28, -0.35, 0, 7); g.fill();
+  glow(58, -22, 70, "rgba(255,90,31,0.6)", 1);
+  const lab = (s, lx, ly, al = "left") => text(s, lx, ly, { font: `600 24px ${SANS}`, color: C.text2, align: al });
+  lab("RCA", -214, 130, "right"); lab("LAD", 222, 182); lab("LCx", 182, -34);
+  // the label sits clear of the vessels and inside the frame, joined by a leader line
+  g.strokeStyle = C.ember2; g.lineWidth = 2; g.beginPath(); g.moveTo(78, -8); g.lineTo(250, -8); g.stroke();
+  text("aneurysm", 262, -14, { font: `700 30px ${SANS}`, color: C.ember2 });
+  text("proximal LAD", 262, 20, { font: `500 24px ${SANS}`, color: C.text2 });
+  g.restore();
+}
+function sceneShifa(t) {   // Socratic: your differential, then what can't wait; you answer, she confirms
+  const sc = S("shifa"); bg(); glow(W * 0.8, -100, 900, "rgba(255,90,31,0.18)", 1);
+  const st = TL.shifa_steps, a = easeOut(prog(t, sc.start, sc.start + 0.4));
+  header("Dr. Shifa · your AI tutor", null, a);
+  const bubble = (y, me, label, msg, at, big = false) => { const k = easeOut(prog(t, at, at + 0.3)); if (k <= 0) return;
+    const font = `${big ? 700 : 600} ${big ? 44 : 38}px ${SANS}`;
+    g.save(); g.font = font; const w = Math.min(1060, Math.max(g.measureText(msg).width, 160) + 80); g.restore();
+    const x = me ? 1180 - w : 120, dy = (1 - k) * 20;
+    card(x, y + dy, w, 100, { fill: me ? "rgba(255,90,31,0.14)" : C.char, stroke: me ? "rgba(255,90,31,0.5)" : C.line, alpha: k, shadow: false });
+    text(label, x + 40, y + 36 + dy, { font: `700 20px ${SANS}`, color: me ? C.ember2 : C.muted, alpha: k, ls: 2 });
+    text(msg, x + 40, y + 82 + dy, { font, alpha: k, ls: big ? -1 : 0 }); };
+  bubble(230, true, "YOU", "Fever day 6, red eyes, cracked lips.", st[0]);
+  bubble(370, false, "DR. SHIFA", "Day 6. What can't wait?", st[1], true);
+  bubble(510, true, "YOU", "IVIG?", st[2], true);
+  const k = easeOut(prog(t, st[3], st[3] + 0.35)), cy = 670 + (1 - k) * 30;
+  card(120, cy, 1060, 250, { fill: "#2A1209", stroke: C.ember, alpha: k, shadow: false });
+  text("Yes, before day 10.", 160, cy + 76, { font: `800 56px ${SANS}`, color: C.ember, alpha: k, ls: -1.5 });
+  text("IVIG 2 g/kg · aspirin · echo now, at 2 and 6 wk", 160, cy + 140, { font: `600 36px ${SANS}`, alpha: k });
+  pill("Nelson · Kawasaki disease", 160, cy + 208, { alpha: k, size: 24 });
+  coronaryDiagram(1480, 640, easeOut(prog(t, st[4], st[4] + 0.4)));
+  grain(t, 0.035);
+}
+function sceneExam(t) {   // a TOACS station in four marks; the miss is the point
+  const sc = S("exam"); bg(); glow(W * 0.2, H * 1.1, 900, "rgba(255,90,31,0.14)", 1);
+  const a = easeOut(prog(t, sc.start, sc.start + 0.4));
+  header("TOACS · Counsel the mother", null, a);
+  card(120, 230, 760, 560, { alpha: a });
+  text("YOU", 170, 310, { font: `700 24px ${SANS}`, color: C.ember2, alpha: a, ls: 3 });
+  const ua = easeOut(prog(t, sc.start + 0.2, sc.start + 0.6));
+  text("“Aap ko ab tak", 170, 410, { font: `italic 400 60px ${SERIF}`, color: C.text, alpha: ua });
+  text("kya bataya gaya hai?”", 170, 486, { font: `italic 400 60px ${SERIF}`, color: C.text, alpha: ua });
+  card(940, 230, 860, 560, { alpha: a });
+  const crit = ["Asks what she knows", "Plain words", "Why the echo", "Invites questions"];
+  crit.forEach((c, i) => { const ti = TL.ticks[TL.tick_order.indexOf(i)], done = t >= ti, miss = i === TL.missed;
+    g.save(); g.globalAlpha = a; rr(990, 290 + i * 120, 64, 64, 16); g.fillStyle = done ? (miss ? C.red : C.green) : "rgba(255,255,255,0.06)"; g.fill(); g.restore();
+    if (done) text(miss ? "✕" : "✓", 1022, 335 + i * 120, { font: `800 40px ${SANS}`, color: "#0B0A0A", align: "center", alpha: easeOut(prog(t, ti, ti + 0.15)) });
+    text(c, 1090, 337 + i * 120, { font: `600 46px ${SANS}`, color: done && miss ? C.red : done ? C.text : C.text2, alpha: a, ls: -1 }); });
+  const ca = easeOut(prog(t, TL.card, TL.card + 0.35)), cy = 830 + (1 - ca) * 40;
+  card(120, cy, 1680, 200, { fill: C.paper, stroke: "transparent", alpha: ca });
+  text("You said: “Dil ka ek test hoga.”", 170, cy + 68, { font: `600 38px ${SANS}`, color: "#3F3631", alpha: ca });
+  text("Missed: why the echo matters. Back in 3 days.", 170, cy + 148, { font: `800 56px ${SANS}`, color: "#140E0B", alpha: ca, ls: -1.5 });
+  grain(t, 0.035);
+}
+function sceneEnd(t) {
+  const sc = S("end"); bg("#000");
+  glow(W / 2, H / 2 - 30, 700, "rgba(255,90,31,0.22)", 1);
+  wordmark(W / 2, 470, 140, easeOut(prog(t, sc.start, sc.start + 0.25)));
+  text("Everything, in order.", W / 2, 610, { font: `600 64px ${SANS}`, align: "center", alpha: easeOut(prog(t, sc.start + 0.6, sc.start + 1.0)), ls: -1.5 });
+  text("FCPS Paediatrics · early access", W / 2, 710, { font: `500 38px ${SANS}`, color: C.text2, align: "center", alpha: easeOut(prog(t, sc.start + 1.2, sc.start + 1.6)) });
+  const ua = easeOut(prog(t, sc.start + 1.6, sc.start + 2.0));
+  text("Request an invite", W / 2, 800, { font: `600 40px ${SANS}`, align: "center", alpha: ua });
+  text("mednama.rekorex.online", W / 2, 866, { font: `600 44px ${MONO}`, color: C.ember2, align: "center", alpha: ua });
+  grain(t, 0.03);
+}
+const DRAW = { monitor: sceneMonitor, chaos: sceneChaos, pressure: scenePressure, silence: () => bg("#000"), turn: sceneTurn, grid: sceneGrid,
+  shifa: sceneShifa, exam: sceneExam, end: sceneEnd };
+
+window.renderAt = (t) => {
+  if (!TL) throw new Error("timeline not set");
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.letterSpacing = "0px";
+  for (const f of FR) f.ts = S("chaos").start + 0.1 + f.frac * (S("chaos").end - S("chaos").start - 0.3);
+  const sc = sceneAt(t); DRAW[sc.id](t);
+  // a short fade through black at the soft cuts (not into or out of the silence, not at the very start)
+  for (const s of TL.scenes) { if (s.start === 0 || ["silence", "turn", "grid"].includes(s.id)) continue; const d = Math.abs(t - s.start);
+    if (d < 0.1) { g.fillStyle = `rgba(0,0,0,${0.8 * (1 - d / 0.1)})`; g.fillRect(0, 0, W, H); } }
+  const fo = prog(t, TL.fade_out[0], TL.fade_out[1]); if (fo > 0) { g.fillStyle = `rgba(0,0,0,${easeInOut(fo)})`; g.fillRect(0, 0, W, H); }
+  return true;
+};
+
+window.ready = async () => { await document.fonts.ready; await new Promise((r) => setTimeout(r, 300)); return true; };
+</script>
+</body>
+</html>

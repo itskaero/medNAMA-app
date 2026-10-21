@@ -1,0 +1,44 @@
+name: Request an invite
+description: Ask for early access to medNAMA.
+title: "Invite request: "
+labels: ["invite"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in medNAMA. **This issue is public**: please don't post your phone number, email address or any password. We'll reply here on GitHub.
+  - type: dropdown
+    id: stage
+    attributes:
+      label: What are you preparing for?
+      options:
+        - FCPS Paediatrics, IMM
+        - FCPS Paediatrics, FCPS-II
+        - FCPS Part 1
+        - PGET
+        - MBBS
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: institution
+    attributes:
+      label: Hospital or institution (optional)
+      placeholder: e.g. Children's Hospital, Lahore
+  - type: input
+    id: year
+    attributes:
+      label: Training year (optional)
+      placeholder: e.g. Year 2
+  - type: textarea
+    id: why
+    attributes:
+      label: What would you most like medNAMA to help with?
+      placeholder: e.g. remembering Nelson, TOACS practice, past papers…
+  - type: checkboxes
+    id: understand
+    attributes:
+      label: Before you send
+      options:
+        - label: I understand medNAMA is an early-access study tool, not a clinical decision system, and that it may sometimes be offline.
+          required: true

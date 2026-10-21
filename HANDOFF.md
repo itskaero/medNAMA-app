@@ -212,6 +212,20 @@ The app had grown to ~25 screens. The user chose to keep everything but focus th
 
 ---
 
+## 12. PaedNAMA: a separate Paediatrics app (planned 2026-10-21)
+
+**What it is:** a sister app for CPSP Paediatrics IMM and FCPS-II, built in `apps/paednama/`. It imports medNAMA's backend as a library, uses the same database and accounts, keeps its own `paeds_*` tables, and **changes nothing in medNAMA** until it's merged later.
+
+- **Full plan:** `docs/PAEDS_APP_PLAN.md`
+- **Exam facts:** from the CPSP 2026 Paediatrics curriculum, `pdfs/paeds/prospectus.pdf`
+- **Books:** all 12 Paediatrics books in `pdfs/paeds/` were ingested on the PC on 2026-10-21 (book ids 99–110, plus Nelson 22 at ids 88 and 89). They are **not yet copied to the NAS**.
+- **How the ingestion was run:**
+  - Book by book, without `HF_HUB_OFFLINE`: Docling downloads its layout models the first time.
+  - Never alongside the PaedNAMA server or a Next dev server: on 16 GB, out-of-memory kills the workers ("process pool terminated abruptly").
+  - Essential Clinical Skills crashed Docling on one page range at 32-page slices. It went through with `--slice-size 4`.
+
+---
+
 ## 8. Binding constraints carried forward (from `revision.md`)
 
 - Q1–Q30 are binding; clinical accuracy and assessment integrity are central.

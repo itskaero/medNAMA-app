@@ -1,0 +1,142 @@
+<!doctype html>
+<!-- Generates the painted landscapes the site uses (hero.jpg, closing.jpg). Deterministic: paint.html?scene=hero
+     A flat scene (sky, layered ridges, river of light, pines) is drawn first, then repainted with thousands of short
+     brush strokes that sample its colours, which gives the oil-sketch texture. Rendered by tools/paint.js. -->
+<meta charset="utf-8">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<canvas id="c"></canvas>
+<script>
+const W = 2400, H = 1400;
+const q = new URLSearchParams(location.search);
+const SCENE = q.get("scene") || "hero";
+const P = {
+  hero: { seed: 7, sky: ["#fbe3b4", "#f2b878", "#d7895a", "#8a5440"], sun: [1700, 640, "#fff3d6"], haze: "#f2c592",
+          ridges: ["#c98f6a", "#a2704f", "#71533a", "#4b3a26", "#2a2117"], river: "#ffe6b8", pine: "#1d1a12", ground: "#6c5a2c" },
+  closing: { seed: 21, sky: ["#2c3550", "#7a5c6a", "#e08f62", "#f6c27f"], sun: [700, 900, "#ffd59a"], haze: "#e8a274",
+          ridges: ["#8d6474", "#6b4c5f", "#4a3647", "#2f2433", "#1a141d"], river: "#ffc98a", pine: "#120e14", ground: "#3a2a2c", flip: true },
+}[SCENE];
+
+let s = P.seed >>> 0;
+const rnd = () => { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const c = document.getElementById("c"); c.width = W; c.height = H;
+const g = c.getContext("2d");
+
+// ---- base scene ---------------------------------------------------------------------------------
+const base = document.createElement("canvas"); base.width = W; base.height = H;
+const b = base.getContext("2d");
+const sky = P.flip ? b.createLinearGradient(0, 0, 0, H * 0.75) : b.createLinearGradient(0, H * 0.75, 0, 0);
+P.sky.forEach((col, i) => sky.addColorStop(i / (P.sky.length - 1), col));
+b.fillStyle = sky; b.fillRect(0, 0, W, H);
+const [sx, sy, sc] = P.sun;
+let sun = b.createRadialGradient(sx, sy, 0, sx, sy, 900);
+sun.addColorStop(0, sc); sun.addColorStop(0.08, sc + "cc"); sun.addColorStop(0.35, P.haze + "55"); sun.addColorStop(1, P.haze + "00");
+b.fillStyle = sun; b.fillRect(0, 0, W, H);
+
+function noise1(x, f, o) { let v = 0, a = 1, fr = f; for (let k = 0; k < 5; k++) { v += a * Math.sin(x * fr + o * (k + 1) * 1.7 + k * 2.1); a *= 0.5; fr *= 2.03; } return v * 0.55; }
+function hex(h) { return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function mix(a, c, t) { const A = hex(a), C = hex(c); return `rgb(${A.map((v, i) => Math.round(v + (C[i] - v) * t)).join(",")})`; }
+
+// clouds: long soft bands lit from the sun side
+for (let i = 0; i < 26; i++) {
+  const y = 120 + rnd() * 520, x = rnd() * W, w = 260 + rnd() * 700, h = 18 + rnd() * 40;
+  const lit = Math.max(0, 1 - Math.hypot(x - sx, y - sy) / 1500);
+  b.fillStyle = mix(P.sky[1], "#fff4dc", 0.25 + lit * 0.6); b.globalAlpha = 0.18 + lit * 0.35;
+  b.beginPath(); b.ellipse(x, y, w, h, 0, 0, Math.PI * 2); b.fill();
+}
+b.globalAlpha = 1;
+
+// ridges: a valley that opens towards the sun, flanks rising at both sides
+function ridgeY(x, y0, amp, f, o, open) {
+  const side = Math.abs(x - W * 0.5) / (W * 0.5);
+  return y0 - amp * (open + (1 - open) * Math.pow(side, 1.3)) - noise1(x, f, o) * amp * 0.45;
+}
+function ridge(y0, amp, col, f, o, open, k) {
+  const top = y0 - amp * 1.3;
+  b.beginPath(); b.moveTo(0, H);
+  for (let x = 0; x <= W; x += 4) b.lineTo(x, ridgeY(x, y0, amp, f, o, open));
+  b.lineTo(W, H); b.closePath();
+  const gr = b.createLinearGradient(0, top, 0, y0 + 160);
+  gr.addColorStop(0, mix(col, P.haze, 0.45 - k * 0.08)); gr.addColorStop(1, mix(col, "#000000", 0.18));
+  b.fillStyle = gr; b.fill();
+  // sunlit rim along the crest
+  b.save(); b.clip();
+  b.lineWidth = 10 - k * 1.5; b.strokeStyle = mix(col, P.sun[2], 0.55); b.globalAlpha = 0.55;
+  b.beginPath(); for (let x = 0; x <= W; x += 4) { const yy = ridgeY(x, y0, amp, f, o, open) + 3; x ? b.lineTo(x, yy) : b.moveTo(x, yy); } b.stroke();
+  b.restore(); b.globalAlpha = 1;
+  // mist pooling in the valley below the crest
+  const hz = b.createLinearGradient(0, y0 - 40, 0, y0 + 120); hz.addColorStop(0, P.haze + "00"); hz.addColorStop(0.6, P.haze + "40"); hz.addColorStop(1, P.haze + "00");
+  b.fillStyle = hz; b.fillRect(0, y0 - 40, W, 160);
+}
+ridge(700, 330, P.ridges[0], 0.0019, 1.0, 0.25, 0);
+ridge(800, 300, P.ridges[1], 0.0027, 2.4, 0.12, 1);
+ridge(905, 260, P.ridges[2], 0.0039, 3.9, 0.05, 2);
+ridge(1010, 230, P.ridges[3], 0.0055, 5.2, 0.0, 3);
+
+// river of light: narrow in the distance, widening towards us, with glints
+for (let y = 980; y < H; y += 2) {
+  const t = (y - 980) / (H - 980);
+  const cx = W * 0.5 + Math.sin(t * 4.4 + 0.3) * 120 * t + (sx - W * 0.5) * (1 - t) * 0.12;
+  const w = 10 + t * t * 330;
+  const gr = b.createLinearGradient(cx - w, 0, cx + w, 0);
+  gr.addColorStop(0, P.river + "00"); gr.addColorStop(0.2, P.river + "aa"); gr.addColorStop(0.5, P.river); gr.addColorStop(0.8, P.river + "aa"); gr.addColorStop(1, P.river + "00");
+  b.fillStyle = gr; b.globalAlpha = 0.9 - t * 0.35; b.fillRect(cx - w, y, w * 2, 2);
+}
+b.globalAlpha = 1;
+for (let i = 0; i < 260; i++) { const t = rnd(), y = 990 + t * (H - 990), cx = W * 0.5 + Math.sin(t * 4.4 + 0.3) * 120 * t, w = 10 + t * t * 300;
+  b.fillStyle = "#fff8ea"; b.globalAlpha = 0.5 * rnd(); b.fillRect(cx + (rnd() - 0.5) * w * 1.4, y, 6 + rnd() * 30 * t, 2); }
+b.globalAlpha = 1;
+
+// foreground banks
+function bank(fromX, toX, y0, o) {
+  b.beginPath(); b.moveTo(fromX, H);
+  const n = 200; for (let i = 0; i <= n; i++) { const x = fromX + (toX - fromX) * i / n, e = i / n; b.lineTo(x, y0 + noise1(x, 0.008, o) * 50 + e * e * 160); }
+  b.lineTo(toX, H); b.closePath();
+  const gr = b.createLinearGradient(0, y0 - 40, 0, H); gr.addColorStop(0, mix(P.ground, P.haze, 0.35)); gr.addColorStop(1, mix(P.ground, "#000000", 0.35));
+  b.fillStyle = gr; b.fill();
+}
+bank(0, W * 0.43, 1140, 7);
+bank(W, W * 0.58, 1120, 9);
+
+// pines: small on the far slopes, large in the foreground; lit edge on the sun side
+function pine(x, y, h, col, lit) {
+  const tiers = 8;
+  const path = () => { b.beginPath(); b.moveTo(x, y - h);
+    for (let k = 1; k <= tiers; k++) { const yy = y - h + (h * k) / tiers, ww = (h * 0.19) * (k / tiers) + h * 0.025; b.lineTo(x + ww, yy); b.lineTo(x + ww * 0.42, yy - h * 0.025); }
+    for (let k = tiers; k >= 1; k--) { const yy = y - h + (h * k) / tiers, ww = (h * 0.19) * (k / tiers) + h * 0.025; b.lineTo(x - ww * 0.42, yy - h * 0.025); b.lineTo(x - ww, yy); }
+    b.closePath(); };
+  path(); b.fillStyle = col; b.fill();
+  if (lit) { b.save(); path(); b.clip(); b.fillStyle = lit; b.globalAlpha = 0.35; b.fillRect(x + (sx > x ? 0 : -h), y - h, h * 0.25, h); b.restore(); b.globalAlpha = 1; }
+}
+for (let i = 0; i < 220; i++) { const x = rnd() * W; if (Math.abs(x - W / 2) < 200) continue; const y = ridgeY(x, 1010, 230, 0.0055, 5.2, 0) + 30 + rnd() * 120; pine(x, y, 26 + rnd() * 40, mix(P.ridges[3], "#000000", 0.25)); }
+for (let i = 0; i < 60; i++) { const left = i % 2 === 0; const x = left ? rnd() * W * 0.38 : W - rnd() * W * 0.36; const far = Math.abs(x - W / 2) / (W / 2);
+  pine(x, 1180 + rnd() * 240, 90 + far * far * 420 * (0.6 + rnd() * 0.6), P.pine, mix(P.pine, P.sun[2], 0.4)); }
+
+// ---- repaint with brush strokes ----------------------------------------------------------------------
+const px = b.getImageData(0, 0, W, H).data;
+const at = (x, y) => { x = Math.max(0, Math.min(W - 1, x | 0)); y = Math.max(0, Math.min(H - 1, y | 0)); const i = (y * W + x) * 4; return [px[i], px[i + 1], px[i + 2]]; };
+g.drawImage(base, 0, 0);
+g.lineCap = "round";
+function strokes(n, len, wid, jitter, alpha) {
+  for (let i = 0; i < n; i++) {
+    const x = rnd() * W, y = rnd() * H, [r, gg, bb] = at(x, y);
+    const j = (rnd() - 0.5) * jitter;
+    g.strokeStyle = `rgba(${Math.min(255, r + j)},${Math.min(255, gg + j)},${Math.min(255, bb + j * 0.7)},${alpha})`;
+    const a = (y < 760 ? 0 : 0.25) * (rnd() - 0.5) + (rnd() - 0.5) * 0.5;   // sky strokes lie flat, land strokes tilt
+    const l = len * (0.5 + rnd()), w = wid * (0.5 + rnd());
+    g.lineWidth = w; g.beginPath(); g.moveTo(x - Math.cos(a) * l / 2, y - Math.sin(a) * l / 2);
+    g.quadraticCurveTo(x, y + (rnd() - 0.5) * w, x + Math.cos(a) * l / 2, y + Math.sin(a) * l / 2); g.stroke();
+  }
+}
+strokes(22000, 44, 12, 18, 0.45);
+strokes(70000, 18, 5, 24, 0.55);
+strokes(90000, 7, 2.2, 30, 0.5);
+
+// varnish: warm vignette and fine grain
+const v = g.createRadialGradient(W / 2, H * 0.45, H * 0.3, W / 2, H * 0.5, H * 1.05);
+v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(30,14,6,0.45)");
+g.fillStyle = v; g.fillRect(0, 0, W, H);
+const img = g.getImageData(0, 0, W, H), d = img.data;
+for (let i = 0; i < d.length; i += 4) { const n = (rnd() - 0.5) * 14; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+g.putImageData(img, 0, 0);
+window.DONE = true;
+</script>
