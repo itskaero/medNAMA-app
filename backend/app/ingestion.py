@@ -376,7 +376,7 @@ def _process_slice_worker(args: dict) -> dict:
                     # shows captioned figures); synthetic label otherwise.
                     "figure_label": (f"Figure {label_match.group(1).replace('-', '.')}" if label_match
                                      else f"Figure {page_num or 'N/A'}-{fig_idx}"),
-                    "caption": caption_text[:2000] or None,
+                    "caption": caption_text.replace("\x00", "")[:2000] or None,   # Postgres text rejects NUL
                     "caption_source": "printed" if caption_text else None,
                     "is_decorative": False,
                     "width": width,
@@ -405,7 +405,7 @@ def _process_slice_worker(args: dict) -> dict:
                                 break
                 if page_num and page_num - 1 in skip:
                     continue
-                clean_text = strip_watermarks(dc.text)
+                clean_text = strip_watermarks(dc.text).replace("\x00", "")   # some PDFs carry NUL bytes; Postgres text rejects them
                 if not clean_text:
                     continue
 
@@ -414,7 +414,7 @@ def _process_slice_worker(args: dict) -> dict:
                 if hasattr(dc, "meta") and dc.meta:
                     headings = getattr(dc.meta, "headings", None)
                     if headings:
-                        headings_list = list(headings)
+                        headings_list = [h.replace("\x00", "") for h in headings]
                         chapter = " > ".join(headings_list)
                 # The bookmarks name the chapter exactly; Docling's nearest heading adds the section.
                 outline = chapters.get(str(page_num)) if page_num else None

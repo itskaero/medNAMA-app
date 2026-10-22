@@ -6,6 +6,7 @@ dependencies as they are.
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from typing import Any
 
@@ -33,7 +34,11 @@ ROLES = {
     "critical": "Emergency and intensive care",
     "radiology": "Images and radiology",
     "mcq": "MCQ critiques (used for retrieval, never copied as questions)",
+    "guideline": "Guidelines and recent advances (society, WHO and national)",
 }
+# Files from the guidelines library (pdfs/paeds/guidelines): nothing in the books table tells a guideline from a
+# textbook, so the library's file names decide. Regenerate the list when the library changes.
+GUIDELINE_FILES = frozenset(json.loads((settings.APP_DIR / "data" / "guideline_files.json").read_text(encoding="utf-8"))["files"])
 DEFAULT_ROLES = [
     ("nelson essentials", "spine"), ("nelson", "reference"),
     ("cloherty", "neonatal"), ("neonatal resuscitation", "neonatal"),
@@ -46,6 +51,8 @@ TITLE_HINTS = [k for k, _ in DEFAULT_ROLES] + ["pediatric", "paediatric"]
 
 
 def default_role(title: str, filename: str) -> str | None:
+    if filename in GUIDELINE_FILES:
+        return "guideline"
     hay = f"{title} {filename}".lower()
     return next((role for frag, role in DEFAULT_ROLES if frag in hay), None)
 
@@ -126,7 +133,7 @@ def put_profile(req: ProfileReq, db: Session = Depends(get_db), user: User = Dep
 def paeds_books(db: Session) -> list[dict[str, Any]]:
     """Library books that are Paediatrics (by subject, by title, or because an admin gave them a role)."""
     roles = {r.book_id: r for r in db.query(PaedsBookRole).all()}
-    q = db.query(Book).filter(or_(Book.subject == "Paediatrics", Book.id.in_(list(roles) or [-1]),
+    q = db.query(Book).filter(or_(Book.subject == "Paediatrics", Book.id.in_(list(roles) or [-1]), Book.filename.in_(GUIDELINE_FILES),
                                   *[Book.title.ilike(f"%{h}%") for h in TITLE_HINTS],
                                   *[Book.filename.ilike(f"%{h}%") for h in TITLE_HINTS]))
     out = []

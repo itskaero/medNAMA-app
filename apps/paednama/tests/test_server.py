@@ -106,6 +106,8 @@ def test_book_roles(client, users):
     assert default_role("Nelson Textbook of Pediatrics", "nelson-ed22-vol1.pdf") == "reference"
     assert default_role("Cloherty and Stark's Manual of Neonatal Care", "") == "neonatal"
     assert default_role("Davidson's Principles of Medicine", "davidson-medicine.pdf") is None
+    # a file from the guidelines library is a guideline, whatever its title says
+    assert default_role("Paediatric Protocols 4e", "Ch-008-Enteric-Fever.pdf") == "guideline"
     _, hs = users["student"]
     _, ha = users["admin"]
     books = client.get("/api/paeds/books", headers=hs).json()["books"]
