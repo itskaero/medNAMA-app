@@ -112,54 +112,129 @@ def keep_valid_citations(md: str, cites: list[dict]) -> tuple[str, list[dict]]:
 
 # ─── topic summaries ─────────────────────────────────────────────────────────────────────────────
 
-SHEET_VERSION = 2
-SHEET_PROMPT = """You write a topic summary for a Paediatrics trainee preparing for CPSP {exam}: the theory MCQs and the
-clinical exam (TOACS stations with examiner questions{long_case}).
+SHEET_VERSION = 3
+SHEET_PROMPT = """You write the PaedNAMA revision note for one topic, for a Paediatrics trainee preparing for CPSP {exam}
+(theory MCQs and the clinical exam: TOACS stations with examiner questions{long_case}).
 Topic: {topic}  (system: {system})
 {subtopics}
-Use ONLY the numbered passages below{lens_note}. Cite every point inline as [n]. Where the passages do not cover a
-section, write "Not covered in these books." under it: never fill gaps from memory.
+Write it like a section of a good paediatrics textbook, condensed: clear explanatory prose that a trainee can read
+straight through, not a list of fragments. Use ONLY the numbered passages below{lens_note}; cite every fact inline as
+[n]. Never fill gaps from memory: if the passages do not cover a section, leave that section out.
 
-Length follows the topic: a narrow topic gets a short summary, a big one a longer one. Dense bullets, no padding.
-Sections, in Markdown:
-### Overview
-two lines: what it is and why it matters.
-### High-yield points
-the facts examiners ask: numbers, cut-offs, ages, classic associations, first-line choices.
-### Clinical features and examination
-what to look for and how to elicit it at the bedside; the signs that clinch the diagnosis.
-### Diagnosis and investigations
-in the order you would do them, with how to read the results.
-### Differential diagnosis
-a table: | Condition | Points for it | How to tell it apart |, for the conditions it is most confused with.
-### Management
-step by step, with doses and thresholds where the passages give them.
-### Red flags and complications
-### Exam angle
-MCQ traps, and the questions an examiner asks at a station or viva on this topic.
-{differ}
+Form:
+- Start with one short paragraph (no heading): what the condition is and why it matters, with its key number.
+- Then these sections as "### " headings, in this order, skipping any the passages do not support:
+  Epidemiology and aetiology · Pathophysiology (only what explains the clinical picture) · Clinical features ·
+  Examination · Investigations · Diagnosis · Differential diagnosis · Management · Complications and prognosis
+- Paragraphs of two to four sentences. Bullets only for true lists (criteria, features, steps, drugs with doses).
+  Bold the terms an examiner expects to hear. Give numbers exactly: doses, cut-offs, ages, durations.
+- Differential diagnosis as a table: | Condition | Points for it | How to tell it apart |
+- Management in the order you would act, with doses and thresholds where the passages give them. Where a guideline
+  passage (IAP, NICE, WHO, AAP, ESPGHAN...) gives a current recommendation, include it and name the guideline.
+- Put up to three callouts where they matter, each as its own blockquote line starting with one of these labels:
+  > **Exam focus:** what MCQs and examiners test here, or a classic trap.
+  > **Clinical pearl:** a practical point from the passages.
+  > **Red flag:** what must not be missed and what to do.
+{differ}- Length follows the topic: about 500 words for a narrow topic, up to about 1,400 for a large one. No padding.
+
 Passages:
 {passages}"""
 
-DIFFER = "### Where the books differ\nOnly if two passages from different books disagree on a fact; else omit this section.\n"
+DIFFER = "- Finish with \"### Where the books differ\" only if two passages from different books disagree on a fact.\n"
+
+
+_REF = re.compile(r"\bet al\b|\bdoi\b|\b(?:19|20)\d{2}\s*[;:]\s*\d|\b(?:19|20)\d{2}\)\.|\bJ\s?[A-Z][a-z]+\b|Circulation\b|Pediatrics\s+\d", re.I)
+
+
+def is_reference_list(text: str) -> bool:
+    """A chapter's bibliography ("Newburger J, et al. ... 2017;135:e927"): it matches searches by title words but
+    teaches nothing, and took the treatment slots. Three or more citation marks in a passage means a list."""
+    return len(_REF.findall(text[:1500])) >= 3
+
+
+def is_low_value(text: str, min_words: int = 25) -> bool:
+    """A bibliography, or a scrap with little to read: a heading list, a table border, a row of doses."""
+    body = text.split("\n", 1)[-1] if text.startswith("Textbook:") else text
+    return is_reference_list(body) or len(re.findall(r"[A-Za-z]{3,}", body)) < min_words
+
+
+QUERY_PROMPT = """Paediatrics syllabus topic: "{topic}" (system: {system}){subtopics}
+Write the four search phrases a textbook index would match for this topic, in modern textbook wording (for example
+"jaundice neonatorum" -> "neonatal hyperbilirubinemia"): 1) the condition overview and causes, 2) its clinical features
+and examination, 3) its investigations and diagnosis, 4) its treatment and drug doses. Each 3-8 words.
+Answer as JSON: {{"queries": ["...", "...", "...", "..."]}}"""
+
+
+def search_phrases(system: dict, topic: dict) -> list[str]:
+    """Index-style search phrases for a topic, so archaic or broad curriculum wording still finds the right chapters.
+    One small AI call; the fixed phrases are the fallback."""
+    import json
+
+    try:
+        raw = _llm([{"role": "user", "content": QUERY_PROMPT.format(
+            topic=topic["name"], system=system["system"].title(),
+            subtopics=f"; sub-topics: {'; '.join(topic['subtopics'][:6])}" if topic.get("subtopics") else "")}],
+            json_mode=True, role="fast", label="paeds-sheet-queries", max_tokens=200)
+        qs = [q.strip() for q in json.loads(raw).get("queries", []) if isinstance(q, str) and q.strip()]
+        return qs[:4] if len(qs) >= 3 else []
+    except Exception as e:
+        logger.info("Search phrases fell back for %s: %s", topic["name"], e)
+        return []
+
+
+def sheet_passages(db: Session, system: dict, topic: dict, ids: list[int], cap: int = 14) -> list[Any]:
+    """Passages for a whole note: one search for the topic, then one each for its clinical picture, its work-up and its
+    treatment (a single search returns mostly the opening pages, so Management came out empty), merged in that order.
+    Generic titles ("Principles of dermatologic therapy") fall under search's relevance floor, so the name is also
+    tried plainly."""
+    name = topic["name"]
+    plain = re.sub(r"^\s*(principles|principals)\s+of\s+|\bpaediatric\b", "", name, flags=re.I).strip()
+    from app.models import Book
+
+    guidelines = {i for (i,) in db.query(Book.id).filter(Book.id.in_(ids), Book.filename.in_(settings.GUIDELINE_FILES),
+                                                          ~Book.title.ilike("%aiims neonatology%"))}
+    textbooks = [i for i in ids if i not in guidelines] or ids
+    fixed = [topic_query(system, topic), f"{name} clinical features examination findings",
+             f"{name} investigations diagnosis criteria", f"{name} treatment of choice dose mg/kg"]
+    queries = search_phrases(system, topic) or fixed
+    seen, out = set(), []
+
+    def take(cs: list[Any], n: int, min_words: int = 25) -> None:
+        for c in cs:
+            key = c.id if c.id is not None else (c.book_id, c.page_number, c.content[:80])
+            if n and key not in seen and not is_low_value(c.content, min_words):
+                seen.add(key)
+                out.append(c)
+                n -= 1
+
+    # The textbooks carry each section; 272 short guidelines would otherwise crowd them out of every search.
+    for i, q in enumerate(queries):
+        take(retrieve(db, q, textbooks, limit=8 if i == 0 else 6), 4 if i == 0 else 3)
+    if len(out) < 4:                             # broad titles fall under search's relevance floor: try plainly
+        take(retrieve(db, f"{plain} in children", textbooks, limit=8), 6)
+    out = out[:cap - 3]
+    # Then current guidance on the topic, cited alongside.
+    if guidelines and len(guidelines) < len(ids):          # guideline passages are short: a lower bar
+        take(retrieve(db, plain, sorted(guidelines), limit=6), 2, min_words=12)
+        take(retrieve(db, queries[-1], sorted(guidelines), limit=6), 2, min_words=12)
+    return out
 
 
 def get_sheet(db: Session, stage: str, topic_id: str, lens: str, paeds_book_ids: list[int], titles: dict[int, str],
-              *, write: bool = True) -> dict[str, Any]:
+              *, write: bool = True, upgrade: bool = False) -> dict[str, Any]:
+    """A topic's note, written once and kept. A note from an older prompt is still served as it is; it is rewritten
+    only when `upgrade` is set (the batch, scripts/prewrite_sheets.py), so opening a topic never waits on a rewrite."""
     found = registry.find_topic(stage, topic_id)
     if not found:
         raise KeyError(topic_id)
     system, topic = found
     hit = db.query(PaedsSheet).filter_by(stage=stage, topic_id=topic_id, lens=lens).first()
-    if hit and (hit.version or 1) >= SHEET_VERSION:
+    if hit and ((hit.version or 1) >= SHEET_VERSION or not upgrade):
         return {"markdown": hit.markdown, "citations": hit.citations, "lens": lens, "cached": True}
     if not write:
         return {"markdown": "", "citations": [], "lens": lens, "missing": True}
     ids = paeds_book_ids if lens == "all" else [int(lens)]
-    chunks = retrieve(db, topic_query(system, topic), ids, limit=10 if lens == "all" else 7)
-    if not chunks:      # generic titles ("Principles of dermatologic therapy") fall under search's relevance floor:
-        plain = re.sub(r"^\s*(principles|principals)\s+of\s+|\bpaediatric\b", "", topic["name"], flags=re.I).strip()
-        chunks = retrieve(db, f"{plain} in children", ids, limit=10 if lens == "all" else 7)
+    chunks = sheet_passages(db, system, topic, ids, cap=14 if lens == "all" else 9)
     if not chunks:
         raise StudyUnavailable("These books have no passages on this topic." if lens == "all" else
                                f"{titles.get(int(lens), 'This book')} has no passages on this topic.")
@@ -174,6 +249,8 @@ def get_sheet(db: Session, stage: str, topic_id: str, lens: str, paeds_book_ids:
         md = _llm([{"role": "user", "content": prompt}], label="paeds-sheet", max_tokens=3500)
     except Exception as e:
         logger.warning("Sheet generation failed for %s/%s: %s", topic_id, lens, e)
+        if hit:          # an older note beats an error: keep serving it until the rewrite succeeds
+            return {"markdown": hit.markdown, "citations": hit.citations, "lens": lens, "cached": True, "stale": True}
         raise StudyUnavailable("The AI model did not answer. Try again in a moment.")
     md, cites = keep_valid_citations(md.strip(), cites)
     try:

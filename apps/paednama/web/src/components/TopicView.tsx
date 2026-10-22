@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, BookOpenCheck, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, BookOpenCheck, ListChecks, Loader2, MessageCircleHeart } from "lucide-react";
 import { api } from "~/lib/api";
 import { renderSheet, type Citation } from "~/lib/md";
 import type { StageId, Topic } from "~/lib/types";
@@ -28,6 +28,14 @@ export default function TopicView({ stage, topicId, onBack }: { stage: StageId; 
   const [sheet, setSheet] = useState<{ markdown: string; citations: Citation[] } | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
+  const [theme, setTheme] = useState<"paper" | "night">("paper");
+  useEffect(() => {
+    try { if (localStorage.getItem("pn-page-theme") === "night") setTheme("night"); } catch { /* private mode */ }
+  }, []);
+  const pickTheme = (t: "paper" | "night") => {
+    setTheme(t);
+    try { localStorage.setItem("pn-page-theme", t); } catch { /* private mode */ }
+  };
 
   const loadInfo = useCallback(() => {
     api<TopicInfo>(`/api/paeds/topic?stage=${stage}&topic_id=${encodeURIComponent(topicId)}`).then(setInfo).catch((e) => setError(e.message));
@@ -51,55 +59,80 @@ export default function TopicView({ stage, topicId, onBack }: { stage: StageId; 
   if (!info) return <div className="page page-default"><p className="page-state"><Loader2 size={16} className="animate-spin" /> Loading…</p></div>;
   const lensReady = info.lenses.find((l) => l.id === lens)?.ready;
 
+  const lensLabel = info.lenses.find((l) => l.id === lens)?.label ?? "All books";
+  const TABS: [typeof tab, string, string, React.ReactNode][] = [
+    ["sheet", "Notes", "Notes", <BookOpen key="n" size={15} />],
+    ["read", `Read & recall${info.reading?.done ? " ✓" : ""}`, "Recall", <BookOpenCheck key="r" size={15} />],
+    ["practise", "Practise MCQs", "MCQs", <ListChecks key="p" size={15} />],
+    ["ask", "Ask Dr. Shifa", "Ask", <MessageCircleHeart key="a" size={15} />],
+  ];
+
   return (
-    <div className="page page-default">
-      <header className="page-head">
-        <div>
-          <button type="button" className="pn-link" onClick={onBack}><ArrowLeft size={13} style={{ verticalAlign: -2 }} /> Syllabus</button>
-          <div className="pn-kicker" style={{ marginTop: 10 }}>{title(info.system)} · curriculum p.{info.topic.page ?? info.system_page}</div>
-          <h1 className="page-title">{info.topic.name}</h1>
-          {info.topic.subtopics.length ? (
-            <div className="pn-topic" style={{ paddingLeft: 0 }}><div className="subs">{info.topic.subtopics.map((s) => <span key={s}>{s}</span>)}</div></div>
-          ) : null}
-        </div>
-        <div className="segmented" role="tablist" aria-label="Study mode">
-          <button type="button" role="tab" aria-selected={tab === "sheet"} className={`segmented-item ${tab === "sheet" ? "active" : ""}`} onClick={() => setTab("sheet")}>Summary</button>
-          <button type="button" role="tab" aria-selected={tab === "read"} className={`segmented-item ${tab === "read" ? "active" : ""}`} onClick={() => setTab("read")}>
-            Read &amp; recall{info.reading?.done ? " ✓" : ""}</button>
-          <button type="button" role="tab" aria-selected={tab === "practise"} className={`segmented-item ${tab === "practise" ? "active" : ""}`} onClick={() => setTab("practise")}>Practise MCQs</button>
-          <button type="button" role="tab" aria-selected={tab === "ask"} className={`segmented-item ${tab === "ask" ? "active" : ""}`} onClick={() => setTab("ask")}>Ask Dr. Shifa</button>
-        </div>
-      </header>
+    <div className="page page-default pn-topicpage">
+      <nav className="pn-crumbs" aria-label="Where you are">
+        <button type="button" onClick={onBack}><ArrowLeft size={14} /> Syllabus</button>
+        <span aria-hidden>/</span>
+        <span>{title(info.system)}</span>
+      </nav>
+      <h1 className="page-title pn-topic-title">{info.topic.name}</h1>
+      {info.topic.subtopics.length ? (
+        <div className="pn-topic" style={{ paddingLeft: 0 }}><div className="subs">{info.topic.subtopics.map((s) => <span key={s}>{s}</span>)}</div></div>
+      ) : null}
+
+      <div className="pn-tabs" role="tablist" aria-label="Study this topic">
+        {TABS.map(([id, label, short, icon]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} aria-label={label} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
+            {icon}<span className="pn-tab-long">{label}</span><span className="pn-tab-short">{short}</span>
+          </button>
+        ))}
+      </div>
 
       {tab === "sheet" ? (
         <>
-          <div className="pn-row" role="radiogroup" aria-label="Which books">
-            {info.lenses.map((l) => (
-              <button key={l.id} type="button" role="radio" aria-checked={lens === l.id} title={l.role ? `${l.label} · ${l.role}` : l.label}
-                className={`practice-chip ${lens === l.id ? "active" : ""}`} onClick={() => setLens(l.id)}>
-                {l.id === "all" ? <BookOpenCheck size={13} /> : null}{l.label}
-              </button>
-            ))}
+          <div className="pn-reader-bar">
+            <label className="pn-select">
+              <span>Source</span>
+              <select value={lens} onChange={(e) => setLens(e.target.value)} aria-label="Which books the notes come from">
+                {info.lenses.map((l) => <option key={l.id} value={l.id}>{l.id === "all" ? "All books and guidelines" : l.label}</option>)}
+              </select>
+            </label>
+            <div className="pn-theme" role="radiogroup" aria-label="Page colour">
+              {(["paper", "night"] as const).map((t) => (
+                <button key={t} type="button" role="radio" aria-checked={theme === t} className={theme === t ? "active" : ""} onClick={() => pickTheme(t)}>
+                  {t === "paper" ? "Paper" : "Night"}
+                </button>
+              ))}
+            </div>
           </div>
-          <section className="pn-panel">
+          <article className={`pn-page ${theme === "night" ? "night" : ""}`}>
+            <header className="pn-page-run"><span>Paed<b>NAMA</b> · Revision notes</span><span>{title(info.system)}</span></header>
+            <div className="pn-page-head">
+              <div className="pn-page-kicker">{stage === "imm" ? "IMM" : "FCPS-II"} · CPSP curriculum p.{info.topic.page ?? info.system_page}
+                {lens !== "all" ? ` · from ${lensLabel}` : ""}</div>
+              <h2>{info.topic.name}</h2>
+            </div>
             {writing ? (
               <p className="pn-wait"><Loader2 size={16} className="animate-spin" />
-                {lensReady ? "Loading…" : "Writing this summary from the books. The first time takes up to a minute; after that it opens at once."}</p>
+                {lensReady ? "Opening the notes…" : "Writing these notes from the books. The first time takes up to a minute; after that they open at once."}</p>
             ) : sheetError ? (
-              <p className="tile-text">{sheetError}</p>
+              <p className="pn-page-note">{sheetError}</p>
             ) : sheet ? (
               <>
-                <div className="pn-sheet" dangerouslySetInnerHTML={{ __html: renderSheet(sheet.markdown, sheet.citations) }} />
+                <div className="pn-page-body" dangerouslySetInnerHTML={{ __html: renderSheet(sheet.markdown, sheet.citations) }} />
                 {sheet.citations.length ? (
-                  <ol className="pn-cites">
-                    {sheet.citations.map((c) => (
-                      <li key={c.n} value={c.n}><b>{c.book_title}</b>{c.chapter ? ` · ${c.chapter}` : ""}{c.page ? ` · p.${c.page}` : ""}</li>
-                    ))}
-                  </ol>
+                  <footer className="pn-page-sources">
+                    <h3>Sources</h3>
+                    <ol>
+                      {sheet.citations.map((c) => (
+                        <li key={c.n} value={c.n}><i>{c.book_title}</i>{c.chapter ? `, ${c.chapter.split(" > ").slice(-1)[0]}` : ""}{c.page ? `, p. ${c.page}` : ""}</li>
+                      ))}
+                    </ol>
+                  </footer>
                 ) : null}
+                <p className="pn-page-colophon">Written for PaedNAMA from your Paediatrics library. Every fact is cited to its book and page; check a source before you rely on it.</p>
               </>
             ) : null}
-          </section>
+          </article>
         </>
       ) : tab === "read" ? (
         <ReadLoop stage={stage} topicId={topicId} onFinished={loadInfo} />

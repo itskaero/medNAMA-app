@@ -27,20 +27,29 @@ MODES = ("explain", "tutor", "reasoning")
 HISTORY_TURNS = 10
 
 REASONING_PROMPT = """You are Dr. Shifa, a paediatrics consultant coaching a trainee for CPSP {exam} in clinical reasoning,
-the way a good TOACS examiner does. Work only from the numbered textbook and guideline passages; cite them inline as
-[n]. If the passages do not support a point, say so rather than inventing it.
+the way a good TOACS examiner does. Work only from the numbered passages; cite them inline as [n]. If the passages do
+not support a point, say so rather than inventing it.
+
+The passages marked WORKED CASE come from case-based books (Case Files Pediatrics, decision-making texts). Coach in
+their method, step by step:
+  1. Summary: restate the case as a one-line problem representation (age, tempo, the key positives and negatives).
+  2. Most likely diagnosis, with the findings that point to it.
+  3. Must-not-miss diagnoses, and the one finding or test that rules each in or out.
+  4. Next step: the single next investigation or action, and why it comes first.
+  5. Key concepts: the facts an examiner will test (criteria, cut-offs, first-line treatment and doses).
 
 How you coach:
-- When the trainee describes a child and has NOT yet given a differential, do not give yours. Ask for their top
-  three diagnoses and the one diagnosis they must not miss, plus the key question or sign they would check first.
-  You may ask one clarifying question about the history or examination.
-- When the trainee gives a differential: say plainly what is right and what is not; give your ranked differential
-  as a table | Diagnosis | For | Against | with citations; name the must-not-miss diagnoses and why; list the next
-  investigations in order with what each would show; finish with ONE probing question (what would change your mind,
-  what is the first management step, what a red flag would mean).
+- When the trainee describes a child and has NOT yet reasoned it through, do not give your answer. Ask them for
+  step 1 and step 2 (their summary and their top three diagnoses with the must-not-miss), plus one clarifying
+  question about the history or examination if a key detail is missing.
+- When they reason: say plainly what is right and what is not, step by step. Give your ranked differential as a
+  table | Diagnosis | For | Against | with citations; then the must-not-miss and the next step; then ONE probing
+  question (what would change your mind, what the first management step is, what a red flag would mean).
+- When asked for a case on a topic: write a short, realistic Pakistani ward or ER case (age, complaint, key findings,
+  vitals) built from the passages, and ask for steps 1 and 2.
 - When asked a direct question, answer it concisely with citations, then ask one question that tests reasoning.
-- Pakistan context matters where the passages give it (local disease patterns, WHO/IMNCI protocols).
-Keep each reply under 250 words except the ranked differential. Markdown.{topic}
+- Pakistan context matters where the passages give it (local disease patterns, WHO/IMNCI and national protocols).
+Keep each reply under 280 words except the ranked differential. Markdown.{topic}
 
 Passages:
 {passages}"""
@@ -65,6 +74,37 @@ def _level(stage: str) -> str:
     return exam_levels.FCPS_2     # Paediatrics IMM and FCPS-II are both clinical: management, drug choice, complications
 
 
+def reasoning_passages(db: Session, query: str, ids: list[int]) -> tuple[list[Any], set[int]]:
+    """Passages for a reasoning turn, in three layers: worked cases from the case-based books (Case Files, decision
+    making), the textbooks for the facts, then a couple of guideline passages for current recommendations. A plain
+    search over all 287 books lets the short guidelines crowd out both. Returns the passages and the numbers (1-based)
+    of the worked-case ones."""
+    from .routes import _ready_books
+
+    books = [b for b in _ready_books(db) if b["id"] in set(ids)]
+    reasoning = [b["id"] for b in books if b["role"] == "reasoning"]
+    guidelines = [b["id"] for b in books if b["role"] == "guideline"]
+    textbooks = [b["id"] for b in books if b["role"] not in ("reasoning", "guideline", "mcq")]
+    out: list[Any] = []
+    seen: set = set()
+
+    def take(cs: list[Any], n: int, min_words: int = 25) -> None:
+        for c in cs:
+            key = c.id if c.id is not None else (c.book_id, c.page_number, c.content[:80])
+            if n and key not in seen and not study.is_low_value(c.content, min_words):
+                seen.add(key)
+                out.append(c)
+                n -= 1
+
+    if reasoning:
+        take(study.retrieve(db, query, reasoning, limit=6), 3)
+    worked = set(range(1, len(out) + 1))
+    take(study.retrieve(db, query, textbooks or ids, limit=8), 5)
+    if guidelines:
+        take(study.retrieve(db, query, guidelines, limit=5), 2, min_words=12)
+    return out, worked
+
+
 def _reasoning_turn(db: Session, chat: PaedsChat, text: str, history: list[dict], ids: list[int]) -> dict[str, Any]:
     topic_line = ""
     query = text
@@ -75,11 +115,14 @@ def _reasoning_turn(db: Session, chat: PaedsChat, text: str, history: list[dict]
             query = f"{found[1]['name']} {text}"
     # Search on the whole case so far, not only the last line ("what next?" alone finds nothing).
     case_so_far = " ".join(m["content"] for m in history if m["role"] == "user")[-600:]
-    chunks = study.retrieve(db, f"{case_so_far} {query}"[-700:], ids, limit=8)
+    chunks, worked = reasoning_passages(db, f"{case_so_far} {query}"[-700:], ids)
     if not chunks:
         return {"content": "The Paediatrics books and guidelines have no passages on this. Describe the child "
                            "differently, or ask about a specific condition.", "citations": [], "grounding": "none"}
     passages, cites = study.numbered(chunks, cap=1200)
+    for c in cites:                        # mark the case-based passages so she coaches in their method
+        if c["n"] in worked:
+            passages = passages.replace(f"[{c['n']}] {c['book_title']}", f"[{c['n']}] WORKED CASE · {c['book_title']}", 1)
     system = REASONING_PROMPT.format(exam="IMM" if chat.stage == "imm" else "FCPS-II", topic=topic_line,
                                      passages=passages)
     try:

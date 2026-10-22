@@ -36,9 +36,7 @@ ROLES = {
     "mcq": "MCQ critiques (used for retrieval, never copied as questions)",
     "guideline": "Guidelines and recent advances (society, WHO and national)",
 }
-# Files from the guidelines library (pdfs/paeds/guidelines): nothing in the books table tells a guideline from a
-# textbook, so the library's file names decide. Regenerate the list when the library changes.
-GUIDELINE_FILES = frozenset(json.loads((settings.APP_DIR / "data" / "guideline_files.json").read_text(encoding="utf-8"))["files"])
+GUIDELINE_FILES = settings.GUIDELINE_FILES
 DEFAULT_ROLES = [
     ("nelson essentials", "spine"), ("nelson", "reference"),
     ("cloherty", "neonatal"), ("neonatal resuscitation", "neonatal"),
@@ -50,7 +48,15 @@ DEFAULT_ROLES = [
 TITLE_HINTS = [k for k, _ in DEFAULT_ROLES] + ["pediatric", "paediatric"]
 
 
+# Textbooks whose PDFs sit in the guidelines library: their own role, not "guideline".
+LIBRARY_TEXTBOOKS = [("aiims neonatology", "neonatal")]
+
+
 def default_role(title: str, filename: str) -> str | None:
+    lowered = f"{title} {filename}".lower()
+    hit = next((role for frag, role in LIBRARY_TEXTBOOKS if frag in lowered), None)
+    if hit:
+        return hit
     if filename in GUIDELINE_FILES:
         return "guideline"
     hay = f"{title} {filename}".lower()
@@ -65,12 +71,30 @@ def exams(user: User = Depends(require_student_or_admin)):
 
 
 @router.get("/syllabus")
-def syllabus(stage: str = Query("imm"), user: User = Depends(require_student_or_admin)):
+def syllabus(stage: str = Query("imm"), db: Session = Depends(get_db), user: User = Depends(require_student_or_admin)):
     st = registry.stage(stage)
     if not st:
         raise HTTPException(404, "Unknown stage")
     return {"stage": stage, "title": st["title"], "systems": st["syllabus"],
-            "mini_cex": st["mini_cex"], "dops": st["dops"]}
+            "mini_cex": st["mini_cex"], "dops": st["dops"], "progress": topic_progress(db, user.id, stage)}
+
+
+def topic_progress(db: Session, user_id: int, stage: str) -> dict[str, dict[str, Any]]:
+    """Per topic, for this learner: reading loop finished, and served MCQs answered / filed."""
+    from sqlalchemy import text
+
+    out: dict[str, dict[str, Any]] = {}
+    for (tid,) in db.query(study.PaedsReading.topic_id).filter(
+            study.PaedsReading.user_id == user_id, study.PaedsReading.stage == stage,
+            study.PaedsReading.finished_at.isnot(None)):
+        out.setdefault(tid, {})["read"] = True
+    for r in db.execute(text(
+            "SELECT t.topic_id, count(*) AS total, count(a.mcq_id) AS answered FROM paeds_topic_mcqs t "
+            "JOIN mcqs m ON m.id = t.mcq_id AND m.status = 'ready' "
+            "LEFT JOIN (SELECT DISTINCT mcq_id FROM answer_events WHERE user_id = :u) a ON a.mcq_id = t.mcq_id "
+            "WHERE t.stage = :s GROUP BY t.topic_id"), {"u": user_id, "s": stage}):
+        out.setdefault(r.topic_id, {}).update(mcqs=r.total, answered=r.answered)
+    return out
 
 
 @router.get("/topics/search")

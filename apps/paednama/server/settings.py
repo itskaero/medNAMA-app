@@ -12,6 +12,7 @@ Database, LLM keys and models come from the repo root .env, exactly as for medNA
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -29,3 +30,7 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
+
+# Files from the guidelines library (pdfs/paeds/guidelines): nothing in the books table tells a guideline from a
+# textbook, so the library's file names decide. Regenerate data/guideline_files.json when the library changes.
+GUIDELINE_FILES = frozenset(json.loads((APP_DIR / "data" / "guideline_files.json").read_text(encoding="utf-8"))["files"])

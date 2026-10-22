@@ -37,7 +37,7 @@ def todo(stage: str) -> list[str]:
 def write_one(stage: str, topic_id: str, ids: list[int], titles: dict[int, str]) -> str:
     db = SessionLocal()
     try:
-        study.get_sheet(db, stage, topic_id, "all", ids, titles)
+        study.get_sheet(db, stage, topic_id, "all", ids, titles, upgrade=True)
         return "ok"
     except study.StudyUnavailable as e:
         return f"skipped: {e}"

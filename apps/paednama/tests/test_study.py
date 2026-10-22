@@ -18,8 +18,11 @@ TOPIC = next(t for s in registry.stage(STAGE)["syllabus"] if s["system"] == "NEO
              for t in s["topics"] if t["name"] == "Jaundice neonatorum")["id"]
 
 PASSAGE_A = ("Jaundice appearing in the first 24 hours of life is always pathological. Phototherapy is started "
-             "according to hour-specific bilirubin nomograms.")
-PASSAGE_B = "Exchange transfusion is indicated when bilirubin rises despite intensive phototherapy."
+             "according to hour-specific bilirubin nomograms. The causes include haemolysis from blood group "
+             "incompatibility, red cell membrane defects and enzyme deficiencies, which need prompt evaluation.")
+PASSAGE_B = ("Exchange transfusion is indicated when bilirubin rises despite intensive phototherapy. It removes "
+             "bilirubin and antibody-coated red cells, and is reserved for infants at risk of acute bilirubin "
+             "encephalopathy, whose early signs include lethargy, hypotonia and poor feeding.")
 
 
 def fake_chunks(book_ids, n=2):
@@ -35,6 +38,9 @@ class FakeLLM:
 
     def __call__(self, messages, json_mode=False, role="chat", label=""):
         self.calls.append(label)
+        if label == "paeds-sheet-queries":
+            return json.dumps({"queries": ["neonatal jaundice causes", "jaundice examination", "bilirubin tests",
+                                           "phototherapy exchange transfusion"]})
         if label == "paeds-sheet":
             return "### In one line\nEarly jaundice is pathological [1]. Exchange if rising [2]. Made up [7]."
         if label == "paeds-pack":
@@ -163,13 +169,20 @@ def test_out_of_range_and_auth(client, env):
     assert client.get(f"/api/paeds/topic?stage={STAGE}&topic_id=nope", headers=env.h).status_code == 404
 
 
-def test_old_summaries_are_rewritten_with_the_new_prompt(client, env):
+def test_old_notes_are_served_and_upgraded_only_by_the_batch(client, env):
     from apps.paednama.server.models import PaedsSheet
 
     env.db.add(PaedsSheet(stage=STAGE, topic_id=TOPIC, lens="all", markdown="old one-pager", citations=[], version=1))
     env.db.commit()
     body = client.get(f"/api/paeds/topic/sheet?stage={STAGE}&topic_id={TOPIC}", headers=env.h).json()
-    assert body["markdown"] != "old one-pager" and not body["cached"]
+    assert body["markdown"] == "old one-pager" and body["cached"], "opening a topic never waits on a rewrite"
+    assert "paeds-sheet" not in env.llm.calls
+    # the batch (scripts/prewrite_sheets.py) upgrades it
+    from apps.paednama.server.routes import _ready_books
+
+    books = _ready_books(env.db)
+    out = study.get_sheet(env.db, STAGE, TOPIC, "all", [b["id"] for b in books], {b["id"]: b["title"] for b in books},
+                          upgrade=True)
+    assert out["markdown"] != "old one-pager"
     env.db.expire_all()
-    row = env.db.query(PaedsSheet).filter_by(stage=STAGE, topic_id=TOPIC, lens="all").one()
-    assert row.version == study.SHEET_VERSION
+    assert env.db.query(PaedsSheet).filter_by(stage=STAGE, topic_id=TOPIC, lens="all").one().version == study.SHEET_VERSION

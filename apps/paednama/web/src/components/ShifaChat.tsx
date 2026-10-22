@@ -20,6 +20,14 @@ const MODES: { id: Mode; label: string; hint: string; placeholder: string }[] = 
     placeholder: "“A 2-year-old with fever for 6 days, red eyes and a rash…”" },
 ];
 
+const STARTERS: Record<Mode, string[]> = {
+  explain: ["How do I manage severe dehydration in a 1-year-old with diarrhoea?", "IVIG and aspirin doses in Kawasaki disease, and when to repeat IVIG",
+    "Phototherapy thresholds in a term baby on day 3"],
+  tutor: ["Teach me the approach to a floppy infant", "Quiz me on the EPI vaccination schedule", "Teach me DKA management step by step"],
+  reasoning: ["A 3-year-old with fever for 7 days, red eyes, cracked lips and a rash", "A 6-week-old with jaundice and pale stools",
+    "A 9-month-old with poor feeding, sweating on feeds and a murmur"],
+};
+
 /** Dr. Shifa (شفا): the tutor. Used on its own screen, and inside a topic (topicId) where it starts from that topic. */
 export default function ShifaChat({ stage, topicId, topicName, compact = false }: {
   stage: StageId; topicId?: string; topicName?: string; compact?: boolean;
@@ -49,9 +57,9 @@ export default function ShifaChat({ stage, topicId, topicName, compact = false }
     if (id === chatId) fresh();
     loadChats();
   };
-  const send = async (e?: React.FormEvent) => {
+  const send = async (e?: React.FormEvent, say?: string) => {
     e?.preventDefault();
-    const q = text.trim();
+    const q = (say ?? text).trim();
     if (!q || busy) return;
     setBusy(true);
     setText("");
@@ -72,9 +80,9 @@ export default function ShifaChat({ stage, topicId, topicName, compact = false }
     }
   };
   const current = MODES.find((m) => m.id === mode)!;
-  const starter = topicName && !msgs.length
-    ? (mode === "tutor" ? `Teach me ${topicName}, one question at a time.` : mode === "reasoning" ? `Give me a case on ${topicName} and test my reasoning.` : `Summarise the key exam points on ${topicName}.`)
-    : null;
+  const starters = msgs.length ? [] : topicName
+    ? [mode === "tutor" ? `Teach me ${topicName}, one question at a time.` : mode === "reasoning" ? `Give me a case on ${topicName} and test my reasoning.` : `Summarise the key exam points on ${topicName}.`]
+    : STARTERS[mode];
 
   return (
     <div className={`pn-shifa ${compact ? "compact" : ""}`}>
@@ -114,7 +122,12 @@ export default function ShifaChat({ stage, topicId, topicName, compact = false }
             <div className="pn-shifa-hello">
               <b>Dr. Shifa</b>
               <span>I answer from your Paediatrics textbooks and guidelines, and cite the book and page for every point.</span>
-              {starter ? <button type="button" className="practice-chip" onClick={() => setText(starter)}>{starter}</button> : null}
+              {starters.length ? (
+                <div className="pn-starters">
+                  <small>Try one:</small>
+                  {starters.map((s) => <button key={s} type="button" className="pn-starter" onClick={() => send(undefined, s)}>{s}</button>)}
+                </div>
+              ) : null}
             </div>
           ) : null}
           {msgs.map((m) => m.role === "user" ? (

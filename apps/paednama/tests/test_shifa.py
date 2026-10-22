@@ -9,6 +9,11 @@ import pytest
 from apps.paednama.server import settings, shifa, study  # noqa: F401
 
 
+FEVER = ("Fever without a focus in infants younger than three months needs a full sepsis evaluation, because "
+         "serious bacterial infection is common and the signs are subtle. Urinary tract infection is the most "
+         "frequent cause; meningitis and bacteraemia must not be missed.")
+
+
 @pytest.fixture()
 def env(monkeypatch):
     from app.auth import create_access_token
@@ -30,7 +35,7 @@ def env(monkeypatch):
     monkeypatch.setattr("app.generation.generate_answer", fake_generate)
     monkeypatch.setattr(study, "LLM", fake_llm)
     monkeypatch.setattr(study, "retrieve", lambda db, q, ids, limit=8: [SimpleNamespace(
-        id=1, book_id=ids[0], book=book, chapter="Fever", page_number=44, content="Fever without a focus in infants...")])
+        id=1, book_id=ids[0], book=book, chapter="Fever", page_number=44, content=FEVER)])
 
     db = SessionLocal()
     users = [User(username=f"shifa_t_{uuid.uuid4().hex[:6]}", password_hash="x", role="student") for _ in range(2)]
@@ -75,7 +80,7 @@ def test_reasoning_coach_cites_only_real_passages(client, env):
     msg = r["message"]
     assert "[9]" not in msg["content"] and [c["n"] for c in msg["citations"]] == [1]
     system = env.calls.llm[-1]["messages"][0]["content"]
-    assert "Dr. Shifa" in system and "do not give yours" in system
+    assert "Dr. Shifa" in system and "do not give your answer" in system
 
 
 def test_chats_are_private_and_deletable(client, env):
