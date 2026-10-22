@@ -37,7 +37,14 @@ DIFFICULTY_TEXT = {
 }
 
 
+PAEDS_FAMILY = "CPSP-PAEDS"     # tos_json.PAEDS_FAMILY: the CPSP Paediatrics curriculum (IMM theory)
+# Books that hold other people's MCQs (AAP PREP): retrieval may cite them in the app, but no question is written from them.
+NOT_A_SOURCE = "%prep%"
+
+
 def programme_for(doc: SeedTosDocument) -> str:
+    if doc.family == PAEDS_FAMILY:
+        return exam_levels.FCPS_2
     return exam_levels.PGET if doc.family == "PGET" else exam_levels.FCPS_1
 
 
@@ -91,6 +98,16 @@ def subject_family(line: dict[str, str]) -> str | None:
     return None
 
 
+def books_for(db, doc: SeedTosDocument, line: dict[str, str]) -> tuple[list[int], list[int] | None]:
+    """(the unit's own books, the scope a top-up may use; None = the whole library). A Paediatrics curriculum unit is
+    always written from the Paediatrics books: its system names ("Cardiovascular", "Haematology") would otherwise
+    route to Medicine or Pathology. Neither list includes an MCQ book."""
+    if doc.family != PAEDS_FAMILY:
+        return primary_books(db, subject_family(line)), None
+    ready = db.query(Book.id, Book.subject).filter(Book.status == "ready", ~Book.title.ilike(NOT_A_SOURCE)).order_by(Book.id).all()
+    return [i for i, subj in ready if subj == "Paediatrics"], [i for i, _ in ready]
+
+
 def primary_books(db, family: str | None) -> list[int]:
     if not family:
         return []
@@ -110,13 +127,13 @@ def _search(db, query: str, *, limit: int, programme: str, book_ids: list[int] |
 
 
 def subject_first(db, query: str, *, limit: int, programme: str, primary: list[int],
-                  exclude: set[int] | None = None, enough: int = 2) -> list:
+                  exclude: set[int] | None = None, enough: int = 2, library: list[int] | None = None) -> list:
     """Passages from the unit's own subject books first; the rest of the library only tops up when those books
     return fewer than `enough` passages (retrieval's score floor means a short list is a real gap)."""
     found = _search(db, query, limit=limit, programme=programme, book_ids=primary, exclude=exclude) if primary else []
     if len(found) < enough:
         have = {c.id for c in found}
-        for c in _search(db, query, limit=limit, programme=programme, exclude=exclude):
+        for c in _search(db, query, limit=limit, programme=programme, book_ids=library, exclude=exclude):
             if c.id not in have and len(found) < limit:
                 found.append(c)
     return found
@@ -155,9 +172,11 @@ Return JSON only:
   "source_chunk": 1}}]}}"""
 
 
-def _context(db, query: str, programme: str, exclude: set[int], primary: list[int] | None = None) -> list:
+def _context(db, query: str, programme: str, exclude: set[int], primary: list[int] | None = None,
+             library: list[int] | None = None) -> list:
     """Passages for one MCQ batch: the unit's own subject books first, the library only to top up."""
-    return subject_first(db, query, limit=6, programme=programme, primary=primary or [], exclude=exclude, enough=4)
+    return subject_first(db, query, limit=6, programme=programme, primary=primary or [], exclude=exclude, enough=4,
+                         library=library)
 
 
 def _unit_history(db, unit_id: int) -> tuple[list[str], set[int]]:
@@ -205,10 +224,10 @@ def run_mcq_batch(db, batch: SeedBatch, job: SeedJob, stage: Callable[[str, dict
 
     stage("retrieving", {"query": query[:200]})
     history, used = _unit_history(db, unit.id)
-    primary = primary_books(db, subject_family(line))
-    context = _context(db, query[:500], programme, used if len(used) < 300 else set(), primary)
+    primary, library = books_for(db, doc, line)
+    context = _context(db, query[:500], programme, used if len(used) < 300 else set(), primary, library)
     if not context:
-        context = _context(db, query[:500], programme, set(), primary)
+        context = _context(db, query[:500], programme, set(), primary, library)
     if not context:
         raise PermanentError("Insufficient relevant evidence: retrieval found no textbook passages for this unit.")
     blocks, total = [], 0
@@ -452,13 +471,13 @@ def run_note_batch(db, batch: SeedBatch, job: SeedJob, stage: Callable[[str, dic
     query = f"{topic}: {leaf.name}" if topic and topic != leaf.name else leaf.name
     if line.get("subject") and line["subject"] not in query:
         query = f"{line['subject']} {query}"
-    family = subject_family(line)
-    primary = primary_books(db, family)
+    family = "Paediatrics" if doc.family == PAEDS_FAMILY else subject_family(line)
+    primary, library = books_for(db, doc, line)
     titles = {b.id: b.title for b in db.query(Book).filter(Book.status == "ready")}
 
     stage("retrieving", {"query": query[:200], "books": family or "whole library"})
     probe = f"{query} ({leaf.detail})" if leaf.detail else query
-    found = subject_first(db, probe, limit=8, programme=programme, primary=primary, enough=3)
+    found = subject_first(db, probe, limit=8, programme=programme, primary=primary, enough=3, library=library)
     if not found:
         return {"failed": "Insufficient relevant evidence: no textbook passages found."}
 
@@ -473,7 +492,7 @@ def run_note_batch(db, batch: SeedBatch, job: SeedJob, stage: Callable[[str, dic
     if primary:
         for sec in outline["sections"]:
             q = f"{query}: {sec['heading']}" + (f" ({sec['focus']})" if sec["focus"] else "")
-            hits = subject_first(db, q, limit=4, programme=programme, primary=primary, enough=2)
+            hits = subject_first(db, q, limit=4, programme=programme, primary=primary, enough=2, library=library)
             for c in hits:
                 if c.book_id not in primary and (c.book_id in supplements or len(book_ids) < 4):
                     if c.book_id not in book_ids:

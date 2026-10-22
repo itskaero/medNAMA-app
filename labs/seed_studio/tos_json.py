@@ -32,6 +32,9 @@ logger = logging.getLogger("seed_studio.tos_json")
 PGET_FILE = settings.DATA / "pget_tos.json"
 FCPS_FILE = settings.DATA / "fcps_part1_tos.json"
 MBBS_FILE = settings.DATA / "mbbs_tos.json"
+# The CPSP 2026 Paediatrics curriculum, as PaedNAMA's registry (apps/paednama/data). Only IMM has theory MCQs.
+PAEDS_FILE = settings.REPO / "apps" / "paednama" / "data" / "cpsp_paeds.json"
+PAEDS_FAMILY = "CPSP-PAEDS"
 MAX_NAME = 1200   # the heading is split from its items before it becomes a node name
 
 
@@ -166,6 +169,23 @@ def mbbs_rows(data: dict) -> list[tuple[None, dict]]:
     return rows
 
 
+def paeds_rows(data: dict) -> list[tuple[None, dict]]:
+    """IMM theory: system -> topic -> sub-topic. The curriculum prints no MCQ count per topic, so targets are internal."""
+    rows: list[tuple[None, dict]] = []
+    base = {"paper": "IMM theory", "specialty": "Paediatrics"}
+    for system in data["stages"]["imm"]["syllabus"]:
+        subject = _name(system["system"].title())
+        rows.append((None, {**base, "subject": subject}))
+        for topic in system["topics"]:
+            rows.append((None, {**base, "subject": subject, "topic": _name(topic["name"])}))
+            for st in topic.get("subtopics") or []:
+                if _name(st):
+                    head, detail = split_heading(_name(st))
+                    rows.append((None, {**base, "subject": subject, "topic": _name(topic["name"]), "subtopic": head,
+                                        "detail": detail}))
+    return rows
+
+
 def _by_word(docs: dict, name: str):
     """"Otorhinolaryngology (E.N.T)" vs "ENT (Otorhinolaryngology)": match on a shared distinctive word."""
     words = {w for w in _key(name).split() if len(w) >= 6}
@@ -239,5 +259,20 @@ def import_all(actor: str = "system", force: bool = False) -> dict[str, Any]:
             else:
                 data = json.loads(MBBS_FILE.read_text(encoding="utf-8"))
                 n = _apply(db, doc, mbbs_rows(data), MBBS_FILE.name, actor)
+                out["imported"].append({"document": doc.title, "nodes": n})
+        if PAEDS_FILE.exists():
+            mtime = datetime.utcfromtimestamp(os.path.getmtime(PAEDS_FILE))
+            doc = db.query(SeedTosDocument).filter(SeedTosDocument.family == PAEDS_FAMILY).order_by(SeedTosDocument.id).first()
+            if doc is None:
+                doc = SeedTosDocument(family=PAEDS_FAMILY, title="CPSP Paediatrics curriculum 2026 (IMM theory)",
+                                      source_path="pdfs/paeds/prospectus.pdf", version="2026", has_counts=False,
+                                      multiplier=1.0, base_per_topic=8, parse_status="not_parsed")
+                db.add(doc)
+                db.flush()
+            if not force and (doc.parse_method or "").startswith("curated") and doc.parsed_at and doc.parsed_at >= mtime:
+                out["skipped"].append(doc.title)
+            else:
+                data = json.loads(PAEDS_FILE.read_text(encoding="utf-8"))
+                n = _apply(db, doc, paeds_rows(data), PAEDS_FILE.name, actor)
                 out["imported"].append({"document": doc.title, "nodes": n})
     return out

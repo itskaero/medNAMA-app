@@ -7,6 +7,7 @@ import { renderSheet, type Citation } from "~/lib/md";
 import type { StageId, Topic } from "~/lib/types";
 import ReadLoop from "~/components/ReadLoop";
 import ShifaChat from "~/components/ShifaChat";
+import PracticePanel from "~/components/PracticePanel";
 
 interface Lens { id: string; label: string; role?: string; ready: boolean }
 interface TopicInfo {
@@ -22,7 +23,7 @@ const title = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 export default function TopicView({ stage, topicId, onBack }: { stage: StageId; topicId: string; onBack: () => void }) {
   const [info, setInfo] = useState<TopicInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"sheet" | "read" | "ask">("sheet");
+  const [tab, setTab] = useState<"sheet" | "read" | "practise" | "ask">("sheet");
   const [lens, setLens] = useState("all");
   const [sheet, setSheet] = useState<{ markdown: string; citations: Citation[] } | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
@@ -65,6 +66,7 @@ export default function TopicView({ stage, topicId, onBack }: { stage: StageId; 
           <button type="button" role="tab" aria-selected={tab === "sheet"} className={`segmented-item ${tab === "sheet" ? "active" : ""}`} onClick={() => setTab("sheet")}>Summary</button>
           <button type="button" role="tab" aria-selected={tab === "read"} className={`segmented-item ${tab === "read" ? "active" : ""}`} onClick={() => setTab("read")}>
             Read &amp; recall{info.reading?.done ? " ✓" : ""}</button>
+          <button type="button" role="tab" aria-selected={tab === "practise"} className={`segmented-item ${tab === "practise" ? "active" : ""}`} onClick={() => setTab("practise")}>Practise MCQs</button>
           <button type="button" role="tab" aria-selected={tab === "ask"} className={`segmented-item ${tab === "ask" ? "active" : ""}`} onClick={() => setTab("ask")}>Ask Dr. Shifa</button>
         </div>
       </header>
@@ -101,6 +103,8 @@ export default function TopicView({ stage, topicId, onBack }: { stage: StageId; 
         </>
       ) : tab === "read" ? (
         <ReadLoop stage={stage} topicId={topicId} onFinished={loadInfo} />
+      ) : tab === "practise" ? (
+        <PracticePanel stage={stage} topicId={topicId} />
       ) : (
         <ShifaChat stage={stage} topicId={topicId} topicName={info.topic.name} compact />
       )}

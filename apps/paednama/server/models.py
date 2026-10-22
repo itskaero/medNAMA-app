@@ -102,8 +102,19 @@ class PaedsChatMessage(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+class PaedsTopicMcq(Base):
+    """A question filed under a syllabus topic: written for it on demand (Practise) or by a Seed Studio batch. The
+    question itself is medNAMA's (mcqs), so answers, explanations and review cards work as everywhere else."""
+    __tablename__ = "paeds_topic_mcqs"
+    stage = Column(String(10), primary_key=True)
+    topic_id = Column(String(200), primary_key=True)
+    mcq_id = Column(Integer, ForeignKey("mcqs.id", ondelete="CASCADE"), primary_key=True, index=True)
+    source = Column(String(20), nullable=False, default="practice")   # practice | seed
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 TABLES = [PaedsProfile.__table__, PaedsBookRole.__table__, PaedsSheet.__table__, PaedsReadPack.__table__,
-          PaedsReading.__table__, PaedsChat.__table__, PaedsChatMessage.__table__]
+          PaedsReading.__table__, PaedsChat.__table__, PaedsChatMessage.__table__, PaedsTopicMcq.__table__]
 
 
 def create_tables() -> None:

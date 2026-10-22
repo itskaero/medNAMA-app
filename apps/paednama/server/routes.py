@@ -203,7 +203,7 @@ def topic(stage: str = Query("imm"), topic_id: str = Query(...), db: Session = D
     return {"stage": stage, "system": system["system"], "system_page": system["page"], "topic": t,
             "lenses": [{"id": "all", "label": "All books", "ready": "all" in sheets}] +
                       [{"id": str(b["id"]), "label": b["title"], "role": b["role"], "ready": str(b["id"]) in sheets}
-                       for b in _ready_books(db)],
+                       for b in _ready_books(db) if b["role"] != "guideline"],   # hundreds of short guidelines: all-books only
             "reading": None if r is None else {"done": r.finished_at is not None, "sections_done": r.sections_done,
                                                "recall": [r.recall_correct, r.recall_total], "cards_added": r.cards_added}}
 
@@ -344,3 +344,44 @@ def shifa_delete(chat_id: int, db: Session = Depends(get_db), user: User = Depen
     except LookupError as e:
         raise HTTPException(404, str(e))
     return {"ok": True}
+
+
+# ─── practise: MCQs per topic ─────────────────────────────────────────────────────────────────────
+
+from . import practice  # noqa: E402
+
+
+class PracticeStartReq(BaseModel):
+    stage: str = "imm"
+    topic_id: str
+
+
+@router.get("/practice")
+def practice_questions(stage: str = Query("imm"), topic_id: str = Query(...), db: Session = Depends(get_db),
+                       user: User = Depends(require_student_or_admin)):
+    try:
+        return practice.topic_questions(db, user, stage, topic_id)
+    except KeyError:
+        raise HTTPException(404, "Topic not found")
+
+
+@router.post("/practice/start")
+def practice_start(req: PracticeStartReq, db: Session = Depends(get_db), user: User = Depends(require_student_or_admin)):
+    ids = [b["id"] for b in _ready_books(db) if b["role"] not in practice.NOT_A_SOURCE]
+    try:
+        return practice.start_set(db, req.stage, req.topic_id, ids)
+    except KeyError:
+        raise HTTPException(404, "Topic not found")
+    except (LookupError, RuntimeError) as e:
+        raise HTTPException(503, str(e))
+
+
+@router.get("/practice/job/{job_id}")
+def practice_job(job_id: str, stage: str = Query("imm"), topic_id: str = Query(...), db: Session = Depends(get_db),
+                 user: User = Depends(require_student_or_admin)):
+    try:
+        return practice.job(db, stage, topic_id, job_id)
+    except KeyError:
+        raise HTTPException(404, "Topic not found")
+    except LookupError as e:
+        raise HTTPException(404, str(e))
