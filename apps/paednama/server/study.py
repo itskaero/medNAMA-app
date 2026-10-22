@@ -157,6 +157,9 @@ def get_sheet(db: Session, stage: str, topic_id: str, lens: str, paeds_book_ids:
         return {"markdown": "", "citations": [], "lens": lens, "missing": True}
     ids = paeds_book_ids if lens == "all" else [int(lens)]
     chunks = retrieve(db, topic_query(system, topic), ids, limit=10 if lens == "all" else 7)
+    if not chunks:      # generic titles ("Principles of dermatologic therapy") fall under search's relevance floor:
+        plain = re.sub(r"^\s*(principles|principals)\s+of\s+|\bpaediatric\b", "", topic["name"], flags=re.I).strip()
+        chunks = retrieve(db, f"{plain} in children", ids, limit=10 if lens == "all" else 7)
     if not chunks:
         raise StudyUnavailable("These books have no passages on this topic." if lens == "all" else
                                f"{titles.get(int(lens), 'This book')} has no passages on this topic.")
