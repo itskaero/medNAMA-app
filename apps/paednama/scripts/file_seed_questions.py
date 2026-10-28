@@ -47,6 +47,10 @@ def main() -> None:
         for r in rows:
             targets = []
             t_imm = imm.get((_key(r.subject), _key(r.topic)))
+            if not t_imm:     # Seed Studio keeps a long topic's heading only ("Viral infections, including ... (but
+                #               not limited to)"): take the one topic in the same system whose name starts with it
+                pre = [tid for (s, n), tid in imm.items() if s == _key(r.subject) and n.startswith(_key(r.topic))]
+                t_imm = pre[0] if len(pre) == 1 else None
             if t_imm:
                 targets.append(("imm", t_imm))
             else:
