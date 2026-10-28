@@ -45,9 +45,10 @@ JSON_FIELDS = {"authors", "page_labels", "aliases"}
 
 
 def _columns(conn, table: str) -> list[str]:
+    # generated columns (chunks.content_tsv) are computed by Postgres: never copied, never inserted
     return [r[0] for r in conn.execute(text(
         "SELECT column_name FROM information_schema.columns WHERE table_name = :t AND table_schema = 'public' "
-        "ORDER BY ordinal_position"), {"t": table})]
+        "AND is_generated = 'NEVER' ORDER BY ordinal_position"), {"t": table})]
 
 
 def _raw(conn):

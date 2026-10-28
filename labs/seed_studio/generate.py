@@ -23,7 +23,7 @@ from sqlalchemy import text
 from .common import PermanentError, TransientError, llm_json
 
 from app import exam_levels  # noqa: E402
-from app.models import MCQ, Book, MCQTag, User  # noqa: E402
+from app.models import MCQ, Book, Chunk, MCQTag, User  # noqa: E402
 from app.seed_models import SeedBatch, SeedItem, SeedJob, SeedNote, SeedTosDocument, SeedTosNode  # noqa: E402
 
 logger = logging.getLogger("seed_studio.generate")
@@ -422,7 +422,11 @@ def save_mcq_batch(db, batch: SeedBatch, job: SeedJob, result: dict) -> dict[str
                 cite = (p.get("citations") or [None])[0]
                 book_id = None
                 if cite and cite.get("supported"):
-                    book_id = db.query(Book.id).filter(Book.title == cite["book_title"]).scalar()
+                    # the cited passage names its book exactly; titles can repeat (two guidelines share one)
+                    if cite.get("chunk_id"):
+                        book_id = db.query(Chunk.book_id).filter(Chunk.id == int(cite["chunk_id"])).scalar()
+                    if book_id is None:
+                        book_id = db.query(Book.id).filter(Book.title == cite["book_title"]).order_by(Book.id).limit(1).scalar()
                 m = MCQ(book_id=book_id, quiz_set_id=f"seed-node-{unit.id}", quiz_set_title=unit.name[:120],
                         question_text=p["question_text"], options=p["options"], correct_option=p["key"],
                         topic=unit.name, main_category=category,
